@@ -4159,7 +4159,25 @@ def build_retirement_location_recommendation_engine(
             "Watch Outs": city["Watch Outs"],
         })
 
-    return pd.DataFrame(rows).sort_values("Recommended Fit Score", ascending=False).reset_index(drop=True)
+    cols = [
+        "Place",
+        "State",
+        "Type",
+        "Recommended Fit Score",
+        "Estimated Annual State/Local Tax",
+        "Healthcare",
+        "Affordability",
+        "Lifestyle",
+        "Climate",
+        "Golf / Recreation",
+        "Why It Fits",
+        "Watch Outs",
+    ]
+
+    if not rows:
+        return pd.DataFrame(columns=cols)
+
+    return pd.DataFrame(rows, columns=cols).sort_values("Recommended Fit Score", ascending=False).reset_index(drop=True)
 
 
 def build_snowbird_recommendations(location_df, current_home_state="Michigan"):
@@ -6759,7 +6777,7 @@ if active_page == PAGE_NAMES[10]:
         )
 
         if location_recommendations.empty:
-            st.warning("No city recommendations match the current filters. Widen the state filter or change the lifestyle priority.")
+            st.warning("No city recommendations match the current filters. Widen the state filter, clear the selected state, or change the lifestyle priority. For example, Michigan may not have a Coastal / warm lifestyle or Active adult community match in the starter city database yet.")
         else:
             top_place = location_recommendations.iloc[0]
             st.success(
