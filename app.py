@@ -723,6 +723,13 @@ def inject_app_styles():
         color: #ffffff !important;
     }
 
+
+
+    /* Make the top-right account action look like a real clickable account card */
+    div[data-testid="column"] div.stButton > button {
+        border-radius: 16px;
+    }
+
     @media (max-width: 900px) {
         .rb-hero, .rb-banner, .rb-warning-panel { flex-direction: column; align-items: stretch; }
         .rb-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -829,20 +836,43 @@ def render_auth_form():
 
 user = auth_box()
 
-account_label = "Signed in" if user else "Not signed in"
-account_sub = user.email if user else "Sign in to save"
-st.markdown(f"""
-<div class="rb-hero">
-  <div class="rb-logo-row">
-    <div class="rb-logo">↗</div>
-    <div>
-      <div class="rb-hero-title">Retirement Decision Engine - Guided Planner</div>
-      <p class="rb-hero-subtitle">Guided retirement planner with detailed budget, spouse planning, simple/advanced income builder, 2-bucket withdrawals, RTV scoring, saved scenarios, and iPad-friendly AI chat.</p>
+# Header / hero area
+hero_left, hero_right = st.columns([5, 1.05], vertical_alignment="center")
+
+with hero_left:
+    st.markdown("""
+    <div class="rb-hero" style="margin-bottom: 10px;">
+      <div class="rb-logo-row">
+        <div class="rb-logo">↗</div>
+        <div>
+          <div class="rb-hero-title">Retirement Decision Engine - Guided Planner</div>
+          <p class="rb-hero-subtitle">Guided retirement planner with detailed budget, spouse planning, simple/advanced income builder, 2-bucket withdrawals, RTV scoring, saved scenarios, and iPad-friendly AI chat.</p>
+        </div>
+      </div>
     </div>
-  </div>
-  <div class="rb-account-chip">{account_label}<small>{account_sub}</small></div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+
+with hero_right:
+    if user:
+        st.markdown(
+            f"""
+            <div class="rb-account-chip" style="margin-bottom: 8px;">Signed in<small>{user.email}</small></div>
+            """,
+            unsafe_allow_html=True,
+        )
+        if st.button("Logout", use_container_width=True, key="hero_logout_button"):
+            supabase.auth.sign_out()
+            st.session_state.user = None
+            st.session_state.show_auth_form = False
+            st.rerun()
+    else:
+        if st.button("Not signed in — Sign in to save", use_container_width=True, key="hero_signin_button"):
+            st.session_state.show_auth_form = True
+            st.rerun()
+
+# Show the sign-in form directly below the hero whenever the top-right button is clicked.
+if not user and st.session_state.get("show_auth_form"):
+    render_auth_form()
 
 
 def money(x):
@@ -3897,8 +3927,7 @@ if active_page == PAGE_NAMES[0]:
         with btn_right:
             if st.button("Sign In / Create Account", use_container_width=True, key="open_home_auth"):
                 st.session_state.show_auth_form = True
-        if st.session_state.get("show_auth_form"):
-            render_auth_form()
+                st.rerun()
 
     st.markdown(f"""
     <div class="rb-card-grid">
