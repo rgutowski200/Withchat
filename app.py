@@ -1606,6 +1606,273 @@ def render_three_bucket_strategy(df=None):
     st.caption("This is an educational allocation framework. It does not replace investment, tax, or advisor guidance. Phase 1 displays suggested bucket targets without reclassifying tax accounts.")
 
 
+
+def _bucket_strategy_first_need(df=None):
+    """Estimate the first-year retirement cash need for the bucket comparison model."""
+    fallback = annual_household_spending() + float(st.session_state.get("healthcare", 0) or 0)
+    if df is not None and not df.empty and "Portfolio Withdrawal" in df.columns:
+        retired = df[df.get("Household Retired", False) == True] if "Household Retired" in df.columns else df
+        if not retired.empty:
+            val = float(retired["Portfolio Withdrawal"].replace([np.inf, -np.inf], np.nan).dropna().head(3).mean() or 0)
+            if val > 0:
+                return val
+    return max(fallback, 1.0)
+
+
+def simulate_bucket_strategy(strategy="2 Bucket", df=None, stress=False):
+    """
+    Educational bucket comparison simulator.
+    It uses the app's projected annual portfolio withdrawal needs, then applies different virtual
+    bucket return/refill rules so users can compare 1-, 2-, and 3-bucket structures side by side.
+    This does not replace the tax-aware account projection; it is a strategy overlay.
+    """
+    if df is None or df.empty:
+        df = run_projection()
+    if df is None or df.empty:
+        return pd.DataFrame(), {}
+
+    total_assets = float(st.session_state.get("traditional", 0) or 0) + float(st.session_state.get("roth", 0) or 0) + float(st.session_state.get("taxable", 0) or 0) + float(st.session_state.get("cash", 0) or 0)
+    safe_return = float(st.session_state.get("safe_return", 0.04) or 0.04)
+    growth_return = float(st.session_state.get("growth_return", 0.07) or 0.07)
+    middle_return = max(safe_return, (safe_return + growth_return) / 2)
+    first_need = _bucket_strategy_first_need(df)
+    b1_years = float(st.session_state.get("bucket1_years", 3) or 3)
+    b2_years = float(st.session_state.get("bucket2_years", 5) or 5)
+
+    if strategy == "1 Bucket":
+        b1 = 0.0
+        b2 = 0.0
+        b3 = total_assets
+        target_b1 = 0.0
+        target_b2 = 0.0
+    elif strategy == "2 Bucket":
+        # Preserve the user's entered safe bucket, but compare against a rational target.
+        target_b1 = min(total_assets, max(float(st.session_state.get("cash", 0) or 0), first_need * b1_years))
+        b1 = target_b1
+        b2 = 0.0
+        b3 = max(total_assets - b1, 0.0)
+        target_b2 = 0.0
+    else:
+        target_b1 = min(total_assets, max(float(st.session_state.get("cash", 0) or 0), first_need * b1_years))
+        remaining = max(total_assets - target_b1, 0.0)
+        target_b2 = min(remaining, first_need * b2_years)
+        b1 = target_b1
+        b2 = target_b2
+        b3 = max(total_assets - b1 - b2, 0.0)
+
+    rows = []
+    depleted_age = None
+    cumulative_shortfall = 0.0
+    total_withdrawals = 0.0
+    total_refills = 0.0
+    worst_start_total = total_assets
+
+    for idx, row in df.reset_index(drop=True).iterrows():
+        age = int(row.get("Age", int(st.session_state.get("current_age", 0) or 0) + idx))
+        start_total = b1 + b2 + b3
+        worst_start_total = min(worst_start_total, start_total)
+
+        # Contributions before retirement go to long-term growth.
+        if age < int(st.session_state.get("retire_age", 0) or 0):
+            b3 += float(st.session_state.get("annual_contribution", 0) or 0)
+        spouse_age = row.get("Spouse Age", "")
+        try:
+            spouse_age_num = int(spouse_age)
+            if bool(st.session_state.get("has_spouse", False)) and spouse_age_num < int(st.session_state.get("spouse_retire_age", 0) or 0):
+                b3 += float(st.session_state.get("spouse_annual_contribution", 0) or 0)
+        except Exception:
+            pass
+
+        # Stress version: bad first three market years after retirement for growth assets.
+        is_retired_year = bool(row.get("Household Retired", False))
+        years_after_retire = max(age - int(st.session_state.get("retire_age", age) or age), 0)
+        if stress and is_retired_year and years_after_retire < 3:
+            g_ret = -0.15
+            m_ret = min(middle_return, -0.04)
+        else:
+            g_ret = growth_return
+            m_ret = middle_return
+
+        b1 *= (1 + safe_return)
+        b2 *= (1 + m_ret)
+        b3 *= (1 + g_ret)
+
+        need = float(row.get("Portfolio Withdrawal", 0) or 0)
+        shortfall = 0.0
+        used_b1 = used_b2 = used_b3 = 0.0
+
+        if strategy == "1 Bucket":
+            take = min(b3, need)
+            b3 -= take
+            used_b3 += take
+            shortfall = max(need - take, 0)
+        elif strategy == "2 Bucket":
+            take = min(b1, need)
+            b1 -= take
+            used_b1 += take
+            need -= take
+            if need > 0:
+                take = min(b3, need)
+                b3 -= take
+                used_b3 += take
+                need -= take
+            shortfall = max(need, 0)
+
+            # Refill Bucket 1 after the annual withdrawal if growth bucket can support it.
+            refill = min(max(target_b1 - b1, 0.0), b3)
+            b3 -= refill
+            b1 += refill
+            total_refills += refill
+        else:
+            take = min(b1, need)
+            b1 -= take
+            used_b1 += take
+            need -= take
+            if need > 0:
+                take = min(b2, need)
+                b2 -= take
+                used_b2 += take
+                need -= take
+            if need > 0:
+                take = min(b3, need)
+                b3 -= take
+                used_b3 += take
+                need -= take
+            shortfall = max(need, 0)
+
+            # Refill waterfall: Bucket 2 refills Bucket 1; Bucket 3 refills Bucket 2.
+            refill_b1 = min(max(target_b1 - b1, 0.0), b2)
+            b2 -= refill_b1
+            b1 += refill_b1
+            refill_b2 = min(max(target_b2 - b2, 0.0), b3)
+            b3 -= refill_b2
+            b2 += refill_b2
+            total_refills += refill_b1 + refill_b2
+
+        actual = used_b1 + used_b2 + used_b3
+        total_withdrawals += actual
+        cumulative_shortfall += shortfall
+        end_total = b1 + b2 + b3
+        if depleted_age is None and (end_total <= 0 or shortfall > 0):
+            depleted_age = age
+        rows.append({
+            "Age": age,
+            "Strategy": strategy,
+            "Start Total": start_total,
+            "End Total": end_total,
+            "Bucket 1": b1,
+            "Bucket 2": b2,
+            "Bucket 3 / Growth": b3,
+            "Portfolio Withdrawal Need": float(row.get("Portfolio Withdrawal", 0) or 0),
+            "Actual Withdrawal": actual,
+            "Shortfall": shortfall,
+            "Withdrawal Rate": actual / max(start_total, 1),
+        })
+        if end_total <= 0 and shortfall > 0:
+            break
+
+    out = pd.DataFrame(rows)
+    if out.empty:
+        summary = {}
+    else:
+        summary = {
+            "Strategy": strategy,
+            "Ending Portfolio": float(out["End Total"].iloc[-1]),
+            "Lowest Portfolio": float(out["End Total"].min()),
+            "Max Withdrawal Rate": float(out["Withdrawal Rate"].max()),
+            "Total Withdrawals": float(total_withdrawals),
+            "Total Refills": float(total_refills),
+            "Shortfall": float(cumulative_shortfall),
+            "Depletion Age": depleted_age if depleted_age is not None else "Not depleted",
+            "Years Funded": len(out),
+            "Stress Test": "Bad first 3 retired years" if stress else "Normal returns",
+        }
+    return out, summary
+
+
+def build_bucket_strategy_comparison(df=None, stress=False):
+    strategies = ["1 Bucket", "2 Bucket", "3 Bucket"]
+    summaries = []
+    paths = []
+    for strategy in strategies:
+        path, summary = simulate_bucket_strategy(strategy, df=df, stress=stress)
+        if summary:
+            summaries.append(summary)
+            paths.append(path)
+    summary_df = pd.DataFrame(summaries)
+    paths_df = pd.concat(paths, ignore_index=True) if paths else pd.DataFrame()
+    if not summary_df.empty:
+        base_end = float(summary_df.loc[summary_df["Strategy"] == "1 Bucket", "Ending Portfolio"].iloc[0]) if "1 Bucket" in summary_df["Strategy"].values else float(summary_df["Ending Portfolio"].iloc[0])
+        base_short = float(summary_df.loc[summary_df["Strategy"] == "1 Bucket", "Shortfall"].iloc[0]) if "1 Bucket" in summary_df["Strategy"].values else float(summary_df["Shortfall"].iloc[0])
+        summary_df["Ending Change vs 1 Bucket"] = summary_df["Ending Portfolio"] - base_end
+        summary_df["Shortfall Change vs 1 Bucket"] = summary_df["Shortfall"] - base_short
+        summary_df["Tradeoff"] = summary_df["Strategy"].map({
+            "1 Bucket": "Highest expected growth; highest sequence-risk exposure.",
+            "2 Bucket": "Adds a safety reserve; may reduce forced selling after market drops.",
+            "3 Bucket": "Adds a middle refill layer; smoother risk control but may lower upside."
+        })
+    return summary_df, paths_df
+
+
+def render_bucket_strategy_comparison_panel(df=None):
+    if not can_run:
+        st.info("Complete your core inputs to compare 1-, 2-, and 3-bucket strategies.")
+        return
+    if df is None or df.empty:
+        df = run_projection()
+    premium_badge("Premium Bucket Strategy Comparison")
+    st.markdown("Compare how a **1-bucket**, **2-bucket**, and **3-bucket** approach changes ending balance, withdrawal pressure, shortfall risk, and downside protection. This is an educational strategy overlay on top of your current blueprint.")
+
+    view = st.radio(
+        "Comparison view",
+        ["Normal return assumptions", "Bad first 3 retirement years"],
+        horizontal=True,
+        key="bucket_compare_view",
+        help="The stress view applies a simplified bad-market start to retirement so users can see how bucket design may help or hurt sequence-of-return risk."
+    )
+    stress = view == "Bad first 3 retirement years"
+    summary_df, paths_df = build_bucket_strategy_comparison(df, stress=stress)
+    if summary_df.empty:
+        st.info("Not enough projection data to compare bucket strategies yet.")
+        return
+
+    # Cards for the top-line comparison.
+    c1, c2, c3 = st.columns(3)
+    for col, strategy in zip([c1, c2, c3], ["1 Bucket", "2 Bucket", "3 Bucket"]):
+        row = summary_df[summary_df["Strategy"] == strategy].iloc[0]
+        delta = float(row.get("Ending Change vs 1 Bucket", 0) or 0)
+        col.metric(strategy, money(row["Ending Portfolio"]), f"{money(delta)} vs 1 Bucket")
+        col.caption(row["Tradeoff"])
+
+    show = summary_df.copy()
+    for money_col in ["Ending Portfolio", "Lowest Portfolio", "Total Withdrawals", "Total Refills", "Shortfall", "Ending Change vs 1 Bucket", "Shortfall Change vs 1 Bucket"]:
+        if money_col in show.columns:
+            show[money_col] = show[money_col].map(money)
+    if "Max Withdrawal Rate" in show.columns:
+        show["Max Withdrawal Rate"] = show["Max Withdrawal Rate"].map(pct)
+    st.dataframe(show, use_container_width=True, hide_index=True)
+
+    if not paths_df.empty:
+        fig, ax = plt.subplots(figsize=(9, 4.5))
+        for strategy, group in paths_df.groupby("Strategy"):
+            ax.plot(group["Age"], group["End Total"], label=strategy, linewidth=2)
+        ax.set_title("Projected Portfolio by Bucket Strategy")
+        ax.set_xlabel("Age")
+        ax.set_ylabel("Portfolio Value")
+        ax.legend()
+        ax.grid(True, alpha=0.25)
+        st.pyplot(fig, use_container_width=True)
+
+    best_ending = summary_df.sort_values("Ending Portfolio", ascending=False).iloc[0]
+    lowest_shortfall = summary_df.sort_values(["Shortfall", "Ending Portfolio"], ascending=[True, False]).iloc[0]
+    if best_ending["Strategy"] == lowest_shortfall["Strategy"]:
+        st.success(f"Best tested strategy: **{best_ending['Strategy']}**. It has the strongest ending portfolio while also minimizing shortfall in this comparison.")
+    else:
+        st.info(f"Highest ending balance: **{best_ending['Strategy']}**. Lowest shortfall/risk pressure: **{lowest_shortfall['Strategy']}**. This is the core tradeoff: more growth potential versus more downside protection.")
+
+    st.caption("Bucket comparison is educational and simplified. It does not reclassify every tax account or guarantee investment results. The main projection remains the source of truth for tax-aware withdrawals.")
+
+
 def run_projection_with_temp_retire_age(test_age):
     original = st.session_state.retire_age
     try:
@@ -4964,6 +5231,8 @@ if active_page == PAGE_NAMES[1]:
 
     render_premium_insight("Premium bucket strategy", df if can_run else None, "bucket")
     render_three_bucket_strategy(df if can_run else None)
+    st.subheader("Compare 1, 2, and 3 Bucket Strategies")
+    render_bucket_strategy_comparison_panel(df if can_run else None)
 
 if active_page == PAGE_NAMES[2]:
     render_page_shell("Spending Plan", "Estimate your retirement lifestyle costs using either a quick monthly number or a more detailed category-by-category budget.", "💳")
@@ -5445,6 +5714,9 @@ if active_page == PAGE_NAMES[6]:
 
         st.subheader("Premium 3-Bucket Strategy")
         render_three_bucket_strategy(df)
+
+        st.subheader("Compare 1, 2, and 3 Bucket Strategies")
+        render_bucket_strategy_comparison_panel(df)
 
         st.subheader("Portfolio Balance")
         st.caption("Shows how each account type contributes to your total projected portfolio over time.")
