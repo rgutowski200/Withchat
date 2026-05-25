@@ -1193,6 +1193,167 @@ def pct(x):
 
 
 # -----------------------------
+# Federal Tax Engine - Phase 1
+# -----------------------------
+# Update this one section annually when the IRS publishes new brackets.
+# Assumptions for Phase 1:
+# - Federal ordinary income tax only.
+# - Uses standard deduction and marginal brackets.
+# - Traditional withdrawals, Roth conversions, and taxable other income are treated as ordinary taxable income.
+# - Roth withdrawals, cash/Bucket 1 withdrawals, and taxable brokerage withdrawals are treated as tax-free for this simplified phase.
+# - Social Security taxation, capital gains, state taxes, itemized deductions, IRMAA, credits, and penalties are future phases.
+TAX_TABLES = {
+    2025: {
+        "single": {
+            "label": "Single",
+            "standard_deduction": 15750,
+            "brackets": [(0, 11925, 0.10), (11925, 48475, 0.12), (48475, 103350, 0.22), (103350, 197300, 0.24), (197300, 250525, 0.32), (250525, 626350, 0.35), (626350, None, 0.37)],
+        },
+        "married_joint": {
+            "label": "Married Filing Jointly",
+            "standard_deduction": 31500,
+            "brackets": [(0, 23850, 0.10), (23850, 96950, 0.12), (96950, 206700, 0.22), (206700, 394600, 0.24), (394600, 501050, 0.32), (501050, 751600, 0.35), (751600, None, 0.37)],
+        },
+        "married_separate": {
+            "label": "Married Filing Separately",
+            "standard_deduction": 15750,
+            "brackets": [(0, 11925, 0.10), (11925, 48475, 0.12), (48475, 103350, 0.22), (103350, 197300, 0.24), (197300, 250525, 0.32), (250525, 375800, 0.35), (375800, None, 0.37)],
+        },
+        "head_of_household": {
+            "label": "Head of Household",
+            "standard_deduction": 23625,
+            "brackets": [(0, 17000, 0.10), (17000, 64850, 0.12), (64850, 103350, 0.22), (103350, 197300, 0.24), (197300, 250500, 0.32), (250500, 626350, 0.35), (626350, None, 0.37)],
+        },
+    },
+    2026: {
+        "single": {
+            "label": "Single",
+            "standard_deduction": 16100,
+            "brackets": [(0, 12400, 0.10), (12400, 50400, 0.12), (50400, 105700, 0.22), (105700, 201775, 0.24), (201775, 256225, 0.32), (256225, 640600, 0.35), (640600, None, 0.37)],
+        },
+        "married_joint": {
+            "label": "Married Filing Jointly",
+            "standard_deduction": 32200,
+            "brackets": [(0, 24800, 0.10), (24800, 100800, 0.12), (100800, 211400, 0.22), (211400, 403550, 0.24), (403550, 512450, 0.32), (512450, 768700, 0.35), (768700, None, 0.37)],
+        },
+        "married_separate": {
+            "label": "Married Filing Separately",
+            "standard_deduction": 16100,
+            "brackets": [(0, 12400, 0.10), (12400, 50400, 0.12), (50400, 105700, 0.22), (105700, 201775, 0.24), (201775, 256225, 0.32), (256225, 384350, 0.35), (384350, None, 0.37)],
+        },
+        "head_of_household": {
+            "label": "Head of Household",
+            "standard_deduction": 24150,
+            "brackets": [(0, 17700, 0.10), (17700, 67450, 0.12), (67450, 105700, 0.22), (105700, 201775, 0.24), (201775, 256200, 0.32), (256200, 640600, 0.35), (640600, None, 0.37)],
+        },
+    },
+}
+
+FILING_STATUS_OPTIONS = {
+    "single": "Single",
+    "married_joint": "Married Filing Jointly",
+    "married_separate": "Married Filing Separately",
+    "head_of_household": "Head of Household",
+}
+
+
+def get_tax_year():
+    year = int(st.session_state.get("tax_year", max(TAX_TABLES.keys())))
+    return year if year in TAX_TABLES else max(TAX_TABLES.keys())
+
+
+def get_filing_status():
+    status = st.session_state.get("filing_status", "married_joint")
+    return status if status in FILING_STATUS_OPTIONS else "married_joint"
+
+
+def get_tax_settings(tax_year=None, filing_status=None):
+    tax_year = int(tax_year or get_tax_year())
+    filing_status = filing_status or get_filing_status()
+    if tax_year not in TAX_TABLES:
+        tax_year = max(TAX_TABLES.keys())
+    if filing_status not in TAX_TABLES[tax_year]:
+        filing_status = "married_joint"
+    return TAX_TABLES[tax_year][filing_status]
+
+
+def calculate_marginal_tax(taxable_income, brackets):
+    taxable_income = max(float(taxable_income or 0), 0)
+    tax = 0.0
+    for lower, upper, rate in brackets:
+        if taxable_income <= lower:
+            break
+        top = taxable_income if upper is None else min(taxable_income, upper)
+        tax += max(top - lower, 0) * rate
+        if upper is not None and taxable_income <= upper:
+            break
+    return max(tax, 0.0)
+
+
+def estimate_federal_tax(gross_ordinary_income, filing_status=None, tax_year=None):
+    settings = get_tax_settings(tax_year, filing_status)
+    standard_deduction = float(settings["standard_deduction"])
+    taxable_income = max(float(gross_ordinary_income or 0) - standard_deduction, 0)
+    federal_tax = calculate_marginal_tax(taxable_income, settings["brackets"])
+    effective_rate = federal_tax / max(float(gross_ordinary_income or 0), 1)
+    return {
+        "gross_ordinary_income": float(gross_ordinary_income or 0),
+        "standard_deduction": standard_deduction,
+        "taxable_income": taxable_income,
+        "federal_tax": federal_tax,
+        "effective_rate": effective_rate,
+        "tax_year": int(tax_year or get_tax_year()),
+        "filing_status": filing_status or get_filing_status(),
+    }
+
+
+def incremental_federal_tax(base_ordinary_income, added_ordinary_income, filing_status=None, tax_year=None):
+    base = estimate_federal_tax(base_ordinary_income, filing_status, tax_year)["federal_tax"]
+    after = estimate_federal_tax(float(base_ordinary_income or 0) + float(added_ordinary_income or 0), filing_status, tax_year)["federal_tax"]
+    return max(after - base, 0.0)
+
+
+def net_after_federal_tax(base_ordinary_income, gross_traditional_withdrawal, filing_status=None, tax_year=None):
+    gross = max(float(gross_traditional_withdrawal or 0), 0)
+    return max(gross - incremental_federal_tax(base_ordinary_income, gross, filing_status, tax_year), 0.0)
+
+
+def gross_traditional_needed_for_net(net_needed, base_ordinary_income, available_traditional, filing_status=None, tax_year=None):
+    """Find the gross traditional withdrawal needed to net a target amount after federal tax."""
+    net_needed = max(float(net_needed or 0), 0)
+    available_traditional = max(float(available_traditional or 0), 0)
+    if net_needed <= 0 or available_traditional <= 0:
+        return 0.0, 0.0
+
+    # If all available traditional dollars still cannot cover the net need, use all available.
+    max_net = net_after_federal_tax(base_ordinary_income, available_traditional, filing_status, tax_year)
+    if max_net <= net_needed:
+        tax = incremental_federal_tax(base_ordinary_income, available_traditional, filing_status, tax_year)
+        return available_traditional, max_net
+
+    low, high = 0.0, available_traditional
+    for _ in range(32):
+        mid = (low + high) / 2
+        if net_after_federal_tax(base_ordinary_income, mid, filing_status, tax_year) >= net_needed:
+            high = mid
+        else:
+            low = mid
+
+    gross = min(high, available_traditional)
+    net = net_after_federal_tax(base_ordinary_income, gross, filing_status, tax_year)
+    return gross, net
+
+
+def tax_assumption_note():
+    settings = get_tax_settings()
+    return (
+        f"Federal tax estimate uses {get_tax_year()} brackets, {settings['label']} filing status, "
+        f"and a standard deduction of {money(settings['standard_deduction'])}. "
+        "Phase 1 does not yet model Social Security taxation, capital gains, state taxes, credits, itemized deductions, or IRMAA."
+    )
+
+
+# -----------------------------
 # User Help / Tooltips
 # -----------------------------
 FIELD_HELP = {
@@ -1212,6 +1373,8 @@ FIELD_HELP = {
     "inflation": "Expected annual inflation rate used to increase future spending.",
     "annual_conversion": "Annual amount to test moving from traditional retirement accounts into Roth accounts.",
     "bucket1_years": "How many years of spending you want protected in safer assets.",
+    "tax_year": "Choose the tax year used for the federal tax bracket estimate. Update the tax table annually as IRS brackets change.",
+    "filing_status": "Choose the federal filing status used to estimate ordinary income taxes in the projection.",
     "flat_monthly_spending": "Your estimated monthly lifestyle spending before healthcare. Do not include retirement contributions.",
     "survivor_spending": "Optional annual spending estimate after one spouse passes away.",
     "simple_income": "Other annual income besides Social Security, such as pension, rent, consulting, or part-time work.",
@@ -1301,6 +1464,8 @@ defaults = {
     "annual_property_taxes_home": 0,
     "mortgage_payoff_age": 0,
     "retirement_housing_plan": "Unsure",
+    "tax_year": 2026,
+    "filing_status": "married_joint",
     "enable_spending_change": False,
     "spending_change_age": 0,
     "spending_change_monthly": 0,
@@ -1722,23 +1887,29 @@ def run_projection():
         mortgage_payment = annual_mortgage_payment_for_age(age) if household_retired else 0
         total_spending = spending + healthcare + mortgage_payment
         non_portfolio_income = ss_income + other_income
-        income_gap = max(total_spending - non_portfolio_income, 0)
+
+        ordinary_income_before_withdrawals = float(inc.get("taxable", 0)) + conversion
+        base_tax_estimate = estimate_federal_tax(ordinary_income_before_withdrawals)
+        base_federal_tax = base_tax_estimate["federal_tax"]
+        income_gap = max(total_spending + base_federal_tax - non_portfolio_income, 0)
         withdrawal_needed = income_gap
 
         used_b1 = used_taxable = used_trad = used_roth = 0.0
+        federal_tax_from_trad = 0.0
         take = min(bucket1, withdrawal_needed); bucket1 -= take; withdrawal_needed -= take; used_b1 += take
         take = min(taxable, withdrawal_needed); taxable -= take; withdrawal_needed -= take; used_taxable += take
         if withdrawal_needed > 0:
-            gross_needed = withdrawal_needed / 0.80
-            take = min(trad, gross_needed)
+            take, net_from_trad = gross_traditional_needed_for_net(withdrawal_needed, ordinary_income_before_withdrawals, trad)
+            federal_tax_from_trad = incremental_federal_tax(ordinary_income_before_withdrawals, take)
             trad -= take
-            withdrawal_needed -= take * 0.80
+            withdrawal_needed -= net_from_trad
             used_trad += take
         take = min(roth, max(withdrawal_needed, 0)); roth -= take; withdrawal_needed -= take; used_roth += take
 
+        estimated_federal_tax = base_federal_tax + federal_tax_from_trad
         actual_withdrawal = used_b1 + used_taxable + used_trad + used_roth
         end_total = trad + roth + taxable + bucket1
-        leftover = max(non_portfolio_income + actual_withdrawal - total_spending, 0)
+        leftover = max(non_portfolio_income + actual_withdrawal - total_spending - estimated_federal_tax, 0)
 
         rows.append({
             "Age": age,
@@ -1762,6 +1933,10 @@ def run_projection():
             "Total Non-Portfolio Income": non_portfolio_income,
             "Guaranteed Income": guaranteed_income,
             "Income Gap": income_gap,
+            "Estimated Federal Tax": estimated_federal_tax,
+            "Taxable Ordinary Income": ordinary_income_before_withdrawals + used_trad,
+            "Federal Taxable Income": estimate_federal_tax(ordinary_income_before_withdrawals + used_trad)["taxable_income"],
+            "Effective Federal Tax Rate": estimated_federal_tax / max(ordinary_income_before_withdrawals + used_trad, 1),
             "Portfolio Withdrawal": actual_withdrawal,
             "Left Over After Spending": leftover,
             "Roth Conversion": conversion,
@@ -2195,12 +2370,18 @@ def run_projection_with_return_sequence(return_sequence):
         if spouse_alive and spouse_age >= int(st.session_state.spouse_retire_age):
             healthcare += float(st.session_state.spouse_healthcare)
 
-        total_spending = spending + healthcare
+        mortgage_payment = annual_mortgage_payment_for_age(age) if household_retired else 0
+        total_spending = spending + healthcare + mortgage_payment
         non_portfolio_income = ss_income + other_income
-        income_gap = max(total_spending - non_portfolio_income, 0)
+
+        ordinary_income_before_withdrawals = float(inc.get("taxable", 0)) + conversion
+        base_tax_estimate = estimate_federal_tax(ordinary_income_before_withdrawals)
+        base_federal_tax = base_tax_estimate["federal_tax"]
+        income_gap = max(total_spending + base_federal_tax - non_portfolio_income, 0)
         withdrawal_needed = income_gap
 
         used_b1 = used_taxable = used_trad = used_roth = 0.0
+        federal_tax_from_trad = 0.0
 
         take = min(bucket1, withdrawal_needed)
         bucket1 -= take
@@ -2213,10 +2394,10 @@ def run_projection_with_return_sequence(return_sequence):
         used_taxable += take
 
         if withdrawal_needed > 0:
-            gross_needed = withdrawal_needed / 0.80
-            take = min(trad, gross_needed)
+            take, net_from_trad = gross_traditional_needed_for_net(withdrawal_needed, ordinary_income_before_withdrawals, trad)
+            federal_tax_from_trad = incremental_federal_tax(ordinary_income_before_withdrawals, take)
             trad -= take
-            withdrawal_needed -= take * 0.80
+            withdrawal_needed -= net_from_trad
             used_trad += take
 
         take = min(roth, max(withdrawal_needed, 0))
@@ -2224,6 +2405,7 @@ def run_projection_with_return_sequence(return_sequence):
         withdrawal_needed -= take
         used_roth += take
 
+        estimated_federal_tax = base_federal_tax + federal_tax_from_trad
         actual_withdrawal = used_b1 + used_taxable + used_trad + used_roth
         end_total = trad + roth + taxable + bucket1
 
@@ -2235,6 +2417,10 @@ def run_projection_with_return_sequence(return_sequence):
             "Total Non-Portfolio Income": non_portfolio_income,
             "Guaranteed Income": guaranteed_income,
             "Income Gap": income_gap,
+            "Estimated Federal Tax": estimated_federal_tax,
+            "Taxable Ordinary Income": ordinary_income_before_withdrawals + used_trad,
+            "Federal Taxable Income": estimate_federal_tax(ordinary_income_before_withdrawals + used_trad)["taxable_income"],
+            "Effective Federal Tax Rate": estimated_federal_tax / max(ordinary_income_before_withdrawals + used_trad, 1),
             "Portfolio Withdrawal": actual_withdrawal,
             "Unmet Need": max(withdrawal_needed, 0),
             "Withdrawal Rate": actual_withdrawal / max(start_total, 1),
@@ -2772,7 +2958,8 @@ def build_pdf_report(df):
         f"The current projection starts with {money(starting)} and ends with {money(ending)} "
         f"at age {int(st.session_state.end_age)}. The RTV score is {rtv_score}/100 ({rtv_label}). "
         f"The plan's highest projected withdrawal rate is {pct(max_wr)}, and average non-portfolio income "
-        f"coverage is {pct(avg_income_coverage)}."
+        f"coverage is {pct(avg_income_coverage)}. The projection now includes a Phase 1 federal tax estimate using "
+        f"{get_tax_year()} brackets and {get_tax_settings()['label']} filing status."
     )
     story.append(Paragraph(summary_text, body))
 
@@ -2802,6 +2989,9 @@ def build_pdf_report(df):
         ["Annual Healthcare", money(st.session_state.healthcare)],
         ["Social Security Start Age", str(st.session_state.user_ss_age)],
         ["Annual Social Security", money(st.session_state.user_ss)],
+        ["Federal Tax Year", str(get_tax_year())],
+        ["Federal Filing Status", get_tax_settings()["label"]],
+        ["Federal Standard Deduction", money(get_tax_settings()["standard_deduction"])],
         ["Growth Return", pct(st.session_state.growth_return)],
         ["Safe Return", pct(st.session_state.safe_return)],
         ["Inflation", pct(st.session_state.inflation)],
@@ -2818,6 +3008,18 @@ def build_pdf_report(df):
         ])
 
     story.append(make_pdf_table(assumptions_rows, col_widths=[3.1 * inch, 3.1 * inch]))
+    story.append(Spacer(1, 0.15 * inch))
+    story.append(Paragraph("Federal Tax Estimate", h2))
+    total_federal_tax = float(df.get("Estimated Federal Tax", pd.Series(dtype=float)).sum()) if "Estimated Federal Tax" in df.columns else 0
+    tax_rows = [
+        ["Tax Assumption", "Value"],
+        ["Tax Year", str(get_tax_year())],
+        ["Filing Status", get_tax_settings()["label"]],
+        ["Standard Deduction", money(get_tax_settings()["standard_deduction"])],
+        ["Projected Federal Tax Across Plan", money(total_federal_tax)],
+    ]
+    story.append(make_pdf_table(tax_rows, col_widths=[3.1 * inch, 3.1 * inch]))
+    story.append(Paragraph(tax_assumption_note(), small))
     story.append(PageBreak())
 
     # Charts
@@ -4356,6 +4558,27 @@ if active_page == PAGE_NAMES[1]:
         annual_conversion = c1.number_input("Annual Roth conversion to test", min_value=0, value=int(st.session_state.annual_conversion), step=5000, help=FIELD_HELP["annual_conversion"])
         bucket1_years = c2.number_input("Bucket 1 target years of spending", min_value=0.0, max_value=10.0, value=float(st.session_state.bucket1_years), step=0.5, help=FIELD_HELP["bucket1_years"])
 
+        st.subheader("Federal Tax Estimate")
+        st.caption("Phase 1: estimates federal ordinary income tax using IRS brackets, filing status, and the standard deduction. This improves the old flat tax haircut while staying simple and easy to update annually.")
+        t1, t2 = st.columns(2)
+        tax_year_options = sorted(TAX_TABLES.keys())
+        tax_year = t1.selectbox(
+            "Tax year",
+            tax_year_options,
+            index=tax_year_options.index(get_tax_year()) if get_tax_year() in tax_year_options else len(tax_year_options) - 1,
+            help=FIELD_HELP["tax_year"],
+        )
+        filing_keys = list(FILING_STATUS_OPTIONS.keys())
+        filing_status_label = t2.selectbox(
+            "Federal filing status",
+            [FILING_STATUS_OPTIONS[k] for k in filing_keys],
+            index=filing_keys.index(get_filing_status()) if get_filing_status() in filing_keys else 1,
+            help=FIELD_HELP["filing_status"],
+        )
+        filing_status = filing_keys[[FILING_STATUS_OPTIONS[k] for k in filing_keys].index(filing_status_label)]
+        tax_settings_preview = get_tax_settings(tax_year, filing_status)
+        st.info(f"Using {tax_year} federal brackets, {tax_settings_preview['label']}, and a standard deduction of {money(tax_settings_preview['standard_deduction'])}. Social Security taxation and state taxes come in later phases.")
+
         if st.session_state.enable_spending_change and int(st.session_state.spending_change_age or 0) > 0:
             st.subheader("Planned Spending Change")
             s1, s2 = st.columns(2)
@@ -4393,6 +4616,7 @@ if active_page == PAGE_NAMES[1]:
             "user_ss_age": user_ss_age, "user_ss": user_ss,
             "growth_return": growth_return, "safe_return": safe_return, "inflation": inflation,
             "annual_conversion": annual_conversion, "bucket1_years": bucket1_years,
+            "tax_year": tax_year, "filing_status": filing_status,
             "home_value": home_value,
             "mortgage_balance": mortgage_balance,
             "monthly_mortgage": monthly_mortgage,
