@@ -7556,6 +7556,67 @@ def render_resources_page():
     ]
     resources_df = pd.DataFrame(resource_rows, columns=["Category", "Resource", "Summary", "Keywords"])
 
+    # Credible validation links for each resource.
+    # These are intentionally mostly official government / regulator sources so users can verify the concept.
+    validation_links = {
+        "How to Use Retirement Blueprint 101": "",
+        "Blueprint Score": "https://www.investor.gov/financial-tools-calculators/calculators/retirement-calculator",
+        "Income Coverage": "https://www.ssa.gov/benefits/retirement/",
+        "Withdrawal Rate": "https://www.investor.gov/financial-tools-calculators/calculators/retirement-calculator",
+        "Sequence-of-Return Risk": "https://www.investor.gov/introduction-investing/investing-basics/glossary/risk",
+        "Rule of 55": "https://www.irs.gov/retirement-plans/plan-participant-employee/retirement-topics-exceptions-to-tax-on-early-distributions",
+        "RMD Basics": "https://www.irs.gov/rmd",
+        "Social Security Timing": "https://www.ssa.gov/benefits/retirement/",
+        "Roth Conversion Window": "https://www.irs.gov/retirement-plans/plan-participant-employee/rollovers-of-retirement-plan-and-ira-distributions",
+        "Tax-Aware Withdrawal Order": "https://www.irs.gov/retirement-plans/plan-participant-employee/rollovers-of-retirement-plan-and-ira-distributions",
+        "Taxable Social Security": "https://www.irs.gov/faqs/social-security-income",
+        "Pre-Medicare Healthcare Gap": "https://www.healthcare.gov/retirees/",
+        "Medicare Planning": "https://www.medicare.gov/basics/get-started-with-medicare/medicare-basics/parts-of-medicare",
+        "Bucket 1 — Safety": "https://www.investor.gov/introduction-investing/investing-basics/glossary/risk",
+        "Bucket 2 — Income / Refill": "https://www.investor.gov/introduction-investing/investing-basics/glossary/risk",
+        "Bucket 3 — Growth": "https://www.investor.gov/introduction-investing/investing-basics/glossary/risk",
+        "Best Places to Retire": "https://www.taxfoundation.org/data/all/state/",
+        "Snowbird Planning": "https://www.irs.gov/individuals/international-taxpayers/residency-starting-and-ending-dates",
+        "Before You Retire Checklist": "https://www.consumerfinance.gov/consumer-tools/retirement/",
+        "Annual Retirement Review": "https://www.consumerfinance.gov/consumer-tools/retirement/",
+    }
+    source_names = {
+        "How to Use Retirement Blueprint 101": "Internal guide",
+        "Blueprint Score": "Investor.gov",
+        "Income Coverage": "SSA",
+        "Withdrawal Rate": "Investor.gov",
+        "Sequence-of-Return Risk": "Investor.gov",
+        "Rule of 55": "IRS",
+        "RMD Basics": "IRS",
+        "Social Security Timing": "SSA",
+        "Roth Conversion Window": "IRS",
+        "Tax-Aware Withdrawal Order": "IRS",
+        "Taxable Social Security": "IRS",
+        "Pre-Medicare Healthcare Gap": "HealthCare.gov",
+        "Medicare Planning": "Medicare.gov",
+        "Bucket 1 — Safety": "Investor.gov",
+        "Bucket 2 — Income / Refill": "Investor.gov",
+        "Bucket 3 — Growth": "Investor.gov",
+        "Best Places to Retire": "Tax Foundation",
+        "Snowbird Planning": "IRS",
+        "Before You Retire Checklist": "CFPB",
+        "Annual Retirement Review": "CFPB",
+    }
+    resources_df["Source"] = resources_df["Resource"].map(source_names).fillna("Source")
+    resources_df["Validate"] = resources_df["Resource"].map(validation_links).fillna("")
+
+    def show_resource_table(table_df, include_category=False):
+        cols = (["Category"] if include_category else []) + ["Resource", "Summary", "Source", "Validate"]
+        st.dataframe(
+            table_df[cols],
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Summary": st.column_config.TextColumn("Summary", width="large"),
+                "Validate": st.column_config.LinkColumn("Validate", display_text="Open source", width="small"),
+            },
+        )
+
     search = st.text_input(
         "Search resources",
         placeholder="Try: Roth conversion, Rule of 55, RMD, bucket strategy, Social Security...",
@@ -7592,33 +7653,33 @@ def render_resources_page():
 
     with tabs[1]:
         st.subheader("Glossary")
-        st.dataframe(display_df[display_df["Category"].eq("Glossary")][["Resource", "Summary"]], use_container_width=True, hide_index=True)
+        show_resource_table(display_df[display_df["Category"].eq("Glossary")])
 
     with tabs[2]:
         st.subheader("Retirement Rules")
-        st.dataframe(display_df[display_df["Category"].eq("Retirement Rules")][["Resource", "Summary"]], use_container_width=True, hide_index=True)
+        show_resource_table(display_df[display_df["Category"].eq("Retirement Rules")])
         st.warning("Retirement-account rules can change and may depend on account type, employer plan rules, and personal circumstances.")
 
     with tabs[3]:
         st.subheader("Taxes & Withdrawals")
-        st.dataframe(display_df[display_df["Category"].eq("Taxes & Withdrawals")][["Resource", "Summary"]], use_container_width=True, hide_index=True)
+        show_resource_table(display_df[display_df["Category"].eq("Taxes & Withdrawals")])
         st.info("The app’s tax engine is an estimate. Keep tax planning language educational and confirm important decisions with a CPA or qualified tax professional.")
 
     with tabs[4]:
         st.subheader("Healthcare")
-        st.dataframe(display_df[display_df["Category"].eq("Healthcare")][["Resource", "Summary"]], use_container_width=True, hide_index=True)
+        show_resource_table(display_df[display_df["Category"].eq("Healthcare")])
 
     with tabs[5]:
         st.subheader("Bucket Strategy")
-        bucket_df = display_df[display_df["Category"].eq("Bucket Strategy")][["Resource", "Summary"]]
-        st.dataframe(bucket_df, use_container_width=True, hide_index=True)
+        bucket_df = display_df[display_df["Category"].eq("Bucket Strategy")]
+        show_resource_table(bucket_df)
         st.markdown("""
 **Premium planning idea:** A 3-bucket strategy separates near-term safety money, medium-term refill/income assets, and long-term growth assets. It can help users understand *where spending is coming from* instead of only asking whether the total portfolio is large enough.
 """)
 
     with tabs[6]:
         st.subheader("Lifestyle")
-        st.dataframe(display_df[display_df["Category"].eq("Lifestyle")][["Resource", "Summary"]], use_container_width=True, hide_index=True)
+        show_resource_table(display_df[display_df["Category"].eq("Lifestyle")])
 
     with tabs[7]:
         st.subheader("Checklists")
@@ -7649,10 +7710,10 @@ def render_resources_page():
                 st.checkbox(item, key=f"annual_review_{item}")
 
     st.subheader("All resources")
-    st.dataframe(display_df[["Category", "Resource", "Summary"]], use_container_width=True, hide_index=True)
+    show_resource_table(display_df, include_category=True)
     st.download_button(
         "Download Resources CSV",
-        data=display_df[["Category", "Resource", "Summary"]].to_csv(index=False).encode("utf-8"),
+        data=display_df[["Category", "Resource", "Summary", "Source", "Validate"]].to_csv(index=False).encode("utf-8"),
         file_name="retirement_blueprint_101_resources.csv",
         mime="text/csv",
         use_container_width=True,
