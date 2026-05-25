@@ -830,6 +830,139 @@ def inject_app_styles():
     }
 
 
+
+
+    /* Phase 2.1: modern navigation and segmented controls */
+    .rb-nav-intro {
+        margin-top: 1.1rem;
+        margin-bottom: 0.45rem;
+        color: #64748b;
+        font-size: 0.82rem;
+        font-weight: 850;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .rb-nav-wrap {
+        margin: 0.3rem 0 2rem 0 !important;
+        padding: 0.8rem !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 22px !important;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%) !important;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.055) !important;
+    }
+
+    .rb-nav-wrap div[data-testid="stHorizontalBlock"] {
+        gap: 0.55rem !important;
+        margin-bottom: 0.55rem !important;
+    }
+
+    .rb-nav-wrap div[data-testid="stHorizontalBlock"]:last-child {
+        margin-bottom: 0 !important;
+    }
+
+    .rb-nav-wrap div.stButton > button {
+        min-height: 46px !important;
+        border-radius: 15px !important;
+        border: 1px solid #dbe3ef !important;
+        background: #ffffff !important;
+        color: #334155 !important;
+        font-weight: 800 !important;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+        transition: all 0.16s ease !important;
+        white-space: nowrap !important;
+    }
+
+    .rb-nav-wrap div.stButton > button:hover {
+        border-color: #93c5fd !important;
+        background: #eff6ff !important;
+        color: #0f62fe !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 8px 18px rgba(15, 98, 254, 0.10) !important;
+    }
+
+    .rb-nav-wrap div.stButton > button:disabled,
+    .rb-nav-wrap div.stButton > button[disabled] {
+        opacity: 1 !important;
+        cursor: default !important;
+        color: #ffffff !important;
+        border-color: transparent !important;
+        background: linear-gradient(135deg, #0f62fe 0%, #3b82f6 55%, #14b8a6 100%) !important;
+        box-shadow: 0 12px 24px rgba(15, 98, 254, 0.24) !important;
+    }
+
+    /* Sleek segmented radio controls for Login/Create Account, Budget mode, Income mode, etc. */
+    div[data-testid="stRadio"] [role="radiogroup"] {
+        display: inline-flex !important;
+        flex-wrap: wrap !important;
+        gap: 0.45rem !important;
+        padding: 0.35rem !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 999px !important;
+        background: #f8fafc !important;
+        box-shadow: inset 0 1px 1px rgba(15, 23, 42, 0.03) !important;
+    }
+
+    div[data-testid="stRadio"] label {
+        position: relative !important;
+        margin: 0 !important;
+        border: 0 !important;
+        border-radius: 999px !important;
+        background: transparent !important;
+        padding: 0.48rem 0.9rem !important;
+        box-shadow: none !important;
+        transition: all 0.16s ease !important;
+        cursor: pointer !important;
+    }
+
+    div[data-testid="stRadio"] label > div:first-child {
+        display: none !important;
+    }
+
+    div[data-testid="stRadio"] input[type="radio"] {
+        display: none !important;
+    }
+
+    div[data-testid="stRadio"] label p,
+    div[data-testid="stRadio"] label span {
+        color: #475569 !important;
+        font-weight: 800 !important;
+        white-space: nowrap !important;
+    }
+
+    div[data-testid="stRadio"] label:hover {
+        background: #eef6ff !important;
+    }
+
+    div[data-testid="stRadio"] label:hover p,
+    div[data-testid="stRadio"] label:hover span {
+        color: #0f62fe !important;
+    }
+
+    div[data-testid="stRadio"] label:has(input:checked) {
+        background: linear-gradient(135deg, #0f62fe 0%, #3b82f6 55%, #14b8a6 100%) !important;
+        box-shadow: 0 8px 18px rgba(15, 98, 254, 0.20) !important;
+    }
+
+    div[data-testid="stRadio"] label:has(input:checked) p,
+    div[data-testid="stRadio"] label:has(input:checked) span {
+        color: #ffffff !important;
+        font-weight: 900 !important;
+    }
+
+    @media (max-width: 900px) {
+        .rb-nav-wrap {
+            padding: 0.65rem !important;
+        }
+        .rb-nav-wrap div[data-testid="stHorizontalBlock"] {
+            flex-wrap: wrap !important;
+        }
+        .rb-nav-wrap div.stButton > button {
+            min-height: 44px !important;
+            font-size: 0.88rem !important;
+        }
+    }
+
     /* Make the top-right account action look like a real clickable account card */
     div[data-testid="column"] div.stButton > button {
         border-radius: 16px;
@@ -3952,19 +4085,39 @@ if "active_page" not in st.session_state or st.session_state.active_page not in 
     st.session_state.active_page = "Home"
 
 def go_to_page(page_name: str):
+    # Use a plain session_state value, not a widget key. This avoids the
+    # StreamlitAPIException caused by trying to modify a radio widget after render.
     st.session_state.active_page = page_name
     st.rerun()
 
-st.markdown('<div class="rb-nav-wrap">', unsafe_allow_html=True)
-active_page = st.radio(
-    "Main navigation",
-    PAGE_NAMES,
-    key="active_page",
-    horizontal=True,
-    label_visibility="collapsed",
-    format_func=lambda name: f"{PAGE_ICONS.get(name, '')} {name}",
-)
-st.markdown('</div>', unsafe_allow_html=True)
+def render_navigation():
+    st.markdown('<div class="rb-nav-intro">Plan sections</div>', unsafe_allow_html=True)
+    st.markdown('<div class="rb-nav-wrap">', unsafe_allow_html=True)
+    nav_rows = [
+        PAGE_NAMES[0:5],
+        PAGE_NAMES[5:10],
+        PAGE_NAMES[10:15],
+        PAGE_NAMES[15:16],
+    ]
+    for row_index, row_pages in enumerate(nav_rows):
+        cols = st.columns(len(row_pages), gap="small")
+        for col, page_name in zip(cols, row_pages):
+            with col:
+                is_active = st.session_state.active_page == page_name
+                icon = PAGE_ICONS.get(page_name, "")
+                label = f"{icon} {page_name}"
+                if st.button(
+                    label,
+                    key=f"nav_btn_{row_index}_{page_name}",
+                    use_container_width=True,
+                    disabled=is_active,
+                    help=f"Go to {page_name}",
+                ):
+                    go_to_page(page_name)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+render_navigation()
+active_page = st.session_state.active_page
 
 
 if active_page == PAGE_NAMES[0]:
