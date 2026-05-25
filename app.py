@@ -4584,6 +4584,7 @@ PAGE_NAMES = [
     "Stress Tests",
     "PDF Report",
     "AI Retirement Coach",
+    "Resources",
     "Help / Instructions",
 ]
 
@@ -4603,6 +4604,7 @@ PAGE_ICONS = {
     "Stress Tests": "🛡️",
     "PDF Report": "📄",
     "AI Retirement Coach": "🤖",
+    "Resources": "📚",
     "Help / Instructions": "❓",
 }
 
@@ -4622,6 +4624,7 @@ NAV_LABELS = {
     "Stress Tests": "Stress Tests",
     "PDF Report": "Blueprint Report",
     "AI Retirement Coach": "Blueprint Coach",
+    "Resources": "Resources",
     "Help / Instructions": "Help",
 }
 
@@ -4637,12 +4640,7 @@ def go_to_page(page_name: str):
 def render_navigation():
     st.markdown('<div class="rb-nav-intro">Plan sections</div>', unsafe_allow_html=True)
     st.markdown('<div class="rb-nav-wrap">', unsafe_allow_html=True)
-    nav_rows = [
-        PAGE_NAMES[0:5],
-        PAGE_NAMES[5:10],
-        PAGE_NAMES[10:15],
-        PAGE_NAMES[15:16],
-    ]
+    nav_rows = [PAGE_NAMES[i:i+5] for i in range(0, len(PAGE_NAMES), 5)]
     for row_index, row_pages in enumerate(nav_rows):
         cols = st.columns(len(row_pages), gap="small")
         for col, page_name in zip(cols, row_pages):
@@ -7520,7 +7518,152 @@ if active_page == PAGE_NAMES[14]:
     elif send_question and not question.strip():
         st.warning("Type a question first, then tap Send question.")
 
-if active_page == PAGE_NAMES[15]:
+
+def render_resources_page():
+    render_page_shell(
+        "Resources",
+        "A plain-English learning center for retirement rules, taxes, healthcare, withdrawals, lifestyle planning, and useful checklists.",
+        "📚"
+    )
+    page_help(
+        "Resources",
+        "Use this section to understand the concepts behind your blueprint. These resources are educational only and are meant to help you have better conversations with qualified financial, tax, legal, or healthcare professionals."
+    )
+
+    st.info("Educational content only. These resources explain retirement concepts and do not replace financial, tax, legal, investment, insurance, or healthcare advice.")
+
+    resource_rows = [
+        ["Start Here", "How to Use Retirement Blueprint 101", "Suggested path through the app and what each section tells you.", "app guide, start, overview, dashboard, blueprint"],
+        ["Glossary", "Blueprint Score", "A 0–100 educational readiness score that summarizes retirement timing risk.", "rtv, blueprint score, score, readiness"],
+        ["Glossary", "Income Coverage", "How much spending is covered by dependable income like Social Security, pension, annuity, or other income.", "income coverage, pension, social security"],
+        ["Glossary", "Withdrawal Rate", "The percentage of your portfolio withdrawn in a given year; high rates can increase depletion risk.", "withdrawal rate, 4% rule, sequence risk"],
+        ["Glossary", "Sequence-of-Return Risk", "The risk that bad market returns early in retirement can hurt a plan more than the same returns later.", "sequence risk, market crash, returns"],
+        ["Retirement Rules", "Rule of 55", "A potential exception that may allow penalty-free withdrawals from a current employer plan if separation occurs in or after the year you turn 55.", "rule of 55, 401k, penalty"],
+        ["Retirement Rules", "RMD Basics", "Required minimum distributions generally force taxable withdrawals from many pre-tax retirement accounts later in life.", "RMD, required minimum distribution, traditional IRA"],
+        ["Retirement Rules", "Social Security Timing", "Claiming earlier can reduce monthly benefits; delaying can increase them. The right choice depends on cash flow, longevity, taxes, and spouse planning.", "social security, age 62, FRA, delay"],
+        ["Taxes & Withdrawals", "Roth Conversion Window", "The years after retirement but before RMDs or higher Social Security income can sometimes be useful for Roth conversions.", "Roth conversion, tax bracket, RMD"],
+        ["Taxes & Withdrawals", "Tax-Aware Withdrawal Order", "A common planning sequence is taxable assets, pre-tax accounts, and Roth, but the right order depends on taxes, ACA, RMDs, and estate goals.", "withdrawal order, taxes, Roth, traditional"],
+        ["Taxes & Withdrawals", "Taxable Social Security", "Depending on provisional income, up to 85% of Social Security can become taxable at the federal level.", "taxable social security, provisional income"],
+        ["Healthcare", "Pre-Medicare Healthcare Gap", "Retiring before Medicare may require ACA, COBRA, spouse coverage, or private insurance planning.", "healthcare, ACA, Medicare, COBRA"],
+        ["Healthcare", "Medicare Planning", "At Medicare age, planning shifts to Parts A, B, D, Medigap, Medicare Advantage, IRMAA, and out-of-pocket exposure.", "Medicare, IRMAA, part B, part D"],
+        ["Bucket Strategy", "Bucket 1 — Safety", "Near-term cash or safer assets intended to cover spending during bad markets.", "bucket 1, cash, safety"],
+        ["Bucket Strategy", "Bucket 2 — Income / Refill", "Moderate-risk assets intended to refill Bucket 1 and reduce pressure on long-term growth investments.", "bucket 2, income, bonds, balanced"],
+        ["Bucket Strategy", "Bucket 3 — Growth", "Long-term growth assets intended to support later retirement years and inflation protection.", "bucket 3, growth, stocks"],
+        ["Lifestyle", "Best Places to Retire", "Compare states and cities by taxes, cost, healthcare, climate, lifestyle, and recreation fit.", "places to retire, state tax, climate"],
+        ["Lifestyle", "Snowbird Planning", "Splitting time between states can affect spending, taxes, insurance, housing, and healthcare access.", "snowbird, Florida, South Carolina, winter"],
+        ["Checklists", "Before You Retire Checklist", "Review income sources, healthcare, emergency reserves, debt, spending, tax plan, estate documents, and spouse protection.", "checklist, retire, before retirement"],
+        ["Checklists", "Annual Retirement Review", "Review spending, portfolio allocation, withdrawal rate, tax bracket, Roth conversion opportunities, insurance, and beneficiary information.", "annual review, checklist, taxes, beneficiaries"],
+    ]
+    resources_df = pd.DataFrame(resource_rows, columns=["Category", "Resource", "Summary", "Keywords"])
+
+    search = st.text_input(
+        "Search resources",
+        placeholder="Try: Roth conversion, Rule of 55, RMD, bucket strategy, Social Security...",
+        key="resource_search"
+    )
+    if search.strip():
+        q = search.strip().lower()
+        display_df = resources_df[
+            resources_df.apply(lambda row: q in " ".join(row.astype(str)).lower(), axis=1)
+        ].copy()
+    else:
+        display_df = resources_df.copy()
+
+    tabs = st.tabs(["Start Here", "Glossary", "Retirement Rules", "Taxes & Withdrawals", "Healthcare", "Bucket Strategy", "Lifestyle", "Checklists"])
+
+    with tabs[0]:
+        st.subheader("Start Here: How to Use Retirement Blueprint 101")
+        st.write("The app is organized like a guided retirement journey. Start with basic inputs, then go deeper only where needed.")
+        path_df = pd.DataFrame([
+            ["1", "Start My Blueprint", "Enter age, retirement age, assets, Social Security, healthcare, and core assumptions."],
+            ["2", "Spending Plan", "Add simple or detailed monthly spending so the projection reflects real life."],
+            ["3", "Income Plan", "Add pension, part-time work, rental income, annuities, or other income sources."],
+            ["4", "Blueprint Dashboard", "Review score, ending portfolio, income coverage, withdrawal pressure, and risks."],
+            ["5", "Action Plan", "See the highest-impact moves to improve the blueprint."],
+            ["6", "Projection", "Inspect year-by-year balances, withdrawals, taxes, income gaps, and ending values."],
+            ["7", "Confidence / Stress Tests", "Check how the plan behaves under market uncertainty and bad-case scenarios."],
+            ["8", "Places to Retire", "Compare states and cities for retirement taxes, cost, healthcare, lifestyle, and climate."],
+            ["9", "Blueprint Report", "Export a premium report to save, review with a spouse, or discuss with a professional."],
+        ], columns=["Step", "Section", "What to do"])
+        st.dataframe(path_df, use_container_width=True, hide_index=True)
+
+        st.subheader("Suggested path")
+        st.write("1. Enter your best estimates in Start My Blueprint.\n\n2. Add spending and income.\n\n3. Review the dashboard and action plan.\n\n4. Run confidence and stress tests.\n\n5. Export your Blueprint Report.")
+
+    with tabs[1]:
+        st.subheader("Glossary")
+        st.dataframe(display_df[display_df["Category"].eq("Glossary")][["Resource", "Summary"]], use_container_width=True, hide_index=True)
+
+    with tabs[2]:
+        st.subheader("Retirement Rules")
+        st.dataframe(display_df[display_df["Category"].eq("Retirement Rules")][["Resource", "Summary"]], use_container_width=True, hide_index=True)
+        st.warning("Retirement-account rules can change and may depend on account type, employer plan rules, and personal circumstances.")
+
+    with tabs[3]:
+        st.subheader("Taxes & Withdrawals")
+        st.dataframe(display_df[display_df["Category"].eq("Taxes & Withdrawals")][["Resource", "Summary"]], use_container_width=True, hide_index=True)
+        st.info("The app’s tax engine is an estimate. Keep tax planning language educational and confirm important decisions with a CPA or qualified tax professional.")
+
+    with tabs[4]:
+        st.subheader("Healthcare")
+        st.dataframe(display_df[display_df["Category"].eq("Healthcare")][["Resource", "Summary"]], use_container_width=True, hide_index=True)
+
+    with tabs[5]:
+        st.subheader("Bucket Strategy")
+        bucket_df = display_df[display_df["Category"].eq("Bucket Strategy")][["Resource", "Summary"]]
+        st.dataframe(bucket_df, use_container_width=True, hide_index=True)
+        st.markdown("""
+**Premium planning idea:** A 3-bucket strategy separates near-term safety money, medium-term refill/income assets, and long-term growth assets. It can help users understand *where spending is coming from* instead of only asking whether the total portfolio is large enough.
+""")
+
+    with tabs[6]:
+        st.subheader("Lifestyle")
+        st.dataframe(display_df[display_df["Category"].eq("Lifestyle")][["Resource", "Summary"]], use_container_width=True, hide_index=True)
+
+    with tabs[7]:
+        st.subheader("Checklists")
+        checklist_tabs = st.tabs(["Before You Retire", "Annual Review"])
+        with checklist_tabs[0]:
+            for item in [
+                "Confirm retirement date and bridge years before Medicare.",
+                "Estimate essential and lifestyle spending separately.",
+                "Review Social Security timing for both spouses if applicable.",
+                "Check cash reserve / Bucket 1 coverage.",
+                "Review debt, mortgage payoff, and housing plans.",
+                "Estimate taxes on traditional withdrawals and Social Security.",
+                "Review healthcare, dental, vision, and long-term care exposure.",
+                "Update beneficiaries, estate documents, and emergency contacts.",
+            ]:
+                st.checkbox(item, key=f"pre_retire_{item}")
+        with checklist_tabs[1]:
+            for item in [
+                "Update portfolio balances and spending assumptions.",
+                "Review withdrawal rate and income coverage.",
+                "Check Roth conversion opportunity before year-end.",
+                "Review RMD risk and future tax brackets.",
+                "Rebalance Bucket 1 / Bucket 2 / Bucket 3 targets.",
+                "Refresh healthcare and insurance assumptions.",
+                "Compare whether relocating or snowbirding changes the plan.",
+                "Export a new Blueprint Report after major life changes.",
+            ]:
+                st.checkbox(item, key=f"annual_review_{item}")
+
+    st.subheader("All resources")
+    st.dataframe(display_df[["Category", "Resource", "Summary"]], use_container_width=True, hide_index=True)
+    st.download_button(
+        "Download Resources CSV",
+        data=display_df[["Category", "Resource", "Summary"]].to_csv(index=False).encode("utf-8"),
+        file_name="retirement_blueprint_101_resources.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+
+
+if active_page == "Resources":
+    render_resources_page()
+
+
+if active_page == "Help / Instructions":
     render_page_shell("How to Use This", "Learn what each section does, how to interpret your results, and the best order to use the planner.", "❓")
     page_help(
         "Help / Instructions",
