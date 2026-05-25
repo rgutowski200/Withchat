@@ -1193,7 +1193,7 @@ def pct(x):
 
 
 # -----------------------------
-# Federal Tax Engine - Phase 1
+# Federal Tax Engine - Phase 2
 # -----------------------------
 # Update this one section annually when the IRS publishes new brackets.
 # Assumptions for Phase 1:
@@ -1201,7 +1201,8 @@ def pct(x):
 # - Uses standard deduction and marginal brackets.
 # - Traditional withdrawals, Roth conversions, and taxable other income are treated as ordinary taxable income.
 # - Roth withdrawals, cash/Bucket 1 withdrawals, and taxable brokerage withdrawals are treated as tax-free for this simplified phase.
-# - Social Security taxation, capital gains, state taxes, itemized deductions, IRMAA, credits, and penalties are future phases.
+# - Social Security taxation is estimated using provisional/combined income thresholds.
+# - Capital gains, state taxes, itemized deductions, IRMAA, credits, and penalties are future phases.
 TAX_TABLES = {
     2025: {
         "single": {
@@ -1290,14 +1291,72 @@ def calculate_marginal_tax(taxable_income, brackets):
     return max(tax, 0.0)
 
 
-def estimate_federal_tax(gross_ordinary_income, filing_status=None, tax_year=None):
-    settings = get_tax_settings(tax_year, filing_status)
-    standard_deduction = float(settings["standard_deduction"])
-    taxable_income = max(float(gross_ordinary_income or 0) - standard_deduction, 0)
-    federal_tax = calculate_marginal_tax(taxable_income, settings["brackets"])
-    effective_rate = federal_tax / max(float(gross_ordinary_income or 0), 1)
+def social_security_tax_thresholds(filing_status=None):
+    """
+    IRS simplified Social Security taxation thresholds.
+    Uses combined/provisional income: other income + tax-exempt interest + 50% of Social Security.
+    This app does not yet model tax-exempt interest, so provisional income uses ordinary income plus 50% of SS.
+    """
+    status = filing_status or get_filing_status()
+    if status == "married_joint":
+        return 32000.0, 44000.0, 6000.0
+    if status == "married_separate":
+        # Conservative simplified treatment. Actual treatment depends on whether spouses lived together.
+        return 0.0, 0.0, 0.0
+    return 25000.0, 34000.0, 4500.0
+
+
+def estimate_taxable_social_security(other_ordinary_income, social_security_income, filing_status=None):
+    """
+    Estimate federally taxable Social Security benefits using the standard worksheet-style rules.
+    The taxable amount is capped at 85% of total Social Security benefits.
+    """
+    other_income = max(float(other_ordinary_income or 0), 0)
+    ss = max(float(social_security_income or 0), 0)
+    if ss <= 0:
+        return {
+            "social_security_income": 0.0,
+            "provisional_income": other_income,
+            "taxable_social_security": 0.0,
+            "taxable_social_security_rate": 0.0,
+        }
+
+    base1, base2, first_tier_cap = social_security_tax_thresholds(filing_status)
+    provisional_income = other_income + 0.5 * ss
+
+    if provisional_income <= base1:
+        taxable_ss = 0.0
+    elif provisional_income <= base2:
+        taxable_ss = min(0.5 * ss, 0.5 * (provisional_income - base1))
+    else:
+        taxable_ss = min(0.85 * ss, 0.85 * (provisional_income - base2) + min(first_tier_cap, 0.5 * ss))
+
+    taxable_ss = max(min(taxable_ss, 0.85 * ss), 0.0)
     return {
-        "gross_ordinary_income": float(gross_ordinary_income or 0),
+        "social_security_income": ss,
+        "provisional_income": provisional_income,
+        "taxable_social_security": taxable_ss,
+        "taxable_social_security_rate": taxable_ss / max(ss, 1),
+    }
+
+
+def estimate_federal_tax(gross_ordinary_income, filing_status=None, tax_year=None, social_security_income=0):
+    settings = get_tax_settings(tax_year, filing_status)
+    ordinary_excluding_ss = max(float(gross_ordinary_income or 0), 0)
+    ss_tax = estimate_taxable_social_security(ordinary_excluding_ss, social_security_income, filing_status)
+    taxable_social_security = ss_tax["taxable_social_security"]
+    gross_taxable_ordinary_income = ordinary_excluding_ss + taxable_social_security
+    standard_deduction = float(settings["standard_deduction"])
+    taxable_income = max(gross_taxable_ordinary_income - standard_deduction, 0)
+    federal_tax = calculate_marginal_tax(taxable_income, settings["brackets"])
+    effective_rate = federal_tax / max(gross_taxable_ordinary_income, 1)
+    return {
+        "gross_ordinary_income": gross_taxable_ordinary_income,
+        "ordinary_income_excluding_social_security": ordinary_excluding_ss,
+        "social_security_income": float(social_security_income or 0),
+        "taxable_social_security": taxable_social_security,
+        "taxable_social_security_rate": ss_tax["taxable_social_security_rate"],
+        "provisional_income": ss_tax["provisional_income"],
         "standard_deduction": standard_deduction,
         "taxable_income": taxable_income,
         "federal_tax": federal_tax,
@@ -1307,18 +1366,18 @@ def estimate_federal_tax(gross_ordinary_income, filing_status=None, tax_year=Non
     }
 
 
-def incremental_federal_tax(base_ordinary_income, added_ordinary_income, filing_status=None, tax_year=None):
-    base = estimate_federal_tax(base_ordinary_income, filing_status, tax_year)["federal_tax"]
-    after = estimate_federal_tax(float(base_ordinary_income or 0) + float(added_ordinary_income or 0), filing_status, tax_year)["federal_tax"]
+def incremental_federal_tax(base_ordinary_income, added_ordinary_income, filing_status=None, tax_year=None, social_security_income=0):
+    base = estimate_federal_tax(base_ordinary_income, filing_status, tax_year, social_security_income)["federal_tax"]
+    after = estimate_federal_tax(float(base_ordinary_income or 0) + float(added_ordinary_income or 0), filing_status, tax_year, social_security_income)["federal_tax"]
     return max(after - base, 0.0)
 
 
-def net_after_federal_tax(base_ordinary_income, gross_traditional_withdrawal, filing_status=None, tax_year=None):
+def net_after_federal_tax(base_ordinary_income, gross_traditional_withdrawal, filing_status=None, tax_year=None, social_security_income=0):
     gross = max(float(gross_traditional_withdrawal or 0), 0)
-    return max(gross - incremental_federal_tax(base_ordinary_income, gross, filing_status, tax_year), 0.0)
+    return max(gross - incremental_federal_tax(base_ordinary_income, gross, filing_status, tax_year, social_security_income), 0.0)
 
 
-def gross_traditional_needed_for_net(net_needed, base_ordinary_income, available_traditional, filing_status=None, tax_year=None):
+def gross_traditional_needed_for_net(net_needed, base_ordinary_income, available_traditional, filing_status=None, tax_year=None, social_security_income=0):
     """Find the gross traditional withdrawal needed to net a target amount after federal tax."""
     net_needed = max(float(net_needed or 0), 0)
     available_traditional = max(float(available_traditional or 0), 0)
@@ -1326,21 +1385,20 @@ def gross_traditional_needed_for_net(net_needed, base_ordinary_income, available
         return 0.0, 0.0
 
     # If all available traditional dollars still cannot cover the net need, use all available.
-    max_net = net_after_federal_tax(base_ordinary_income, available_traditional, filing_status, tax_year)
+    max_net = net_after_federal_tax(base_ordinary_income, available_traditional, filing_status, tax_year, social_security_income)
     if max_net <= net_needed:
-        tax = incremental_federal_tax(base_ordinary_income, available_traditional, filing_status, tax_year)
         return available_traditional, max_net
 
     low, high = 0.0, available_traditional
     for _ in range(32):
         mid = (low + high) / 2
-        if net_after_federal_tax(base_ordinary_income, mid, filing_status, tax_year) >= net_needed:
+        if net_after_federal_tax(base_ordinary_income, mid, filing_status, tax_year, social_security_income) >= net_needed:
             high = mid
         else:
             low = mid
 
     gross = min(high, available_traditional)
-    net = net_after_federal_tax(base_ordinary_income, gross, filing_status, tax_year)
+    net = net_after_federal_tax(base_ordinary_income, gross, filing_status, tax_year, social_security_income)
     return gross, net
 
 
@@ -1349,7 +1407,8 @@ def tax_assumption_note():
     return (
         f"Federal tax estimate uses {get_tax_year()} brackets, {settings['label']} filing status, "
         f"and a standard deduction of {money(settings['standard_deduction'])}. "
-        "Phase 1 does not yet model Social Security taxation, capital gains, state taxes, credits, itemized deductions, or IRMAA."
+        "Phase 2 estimates taxable Social Security using provisional income thresholds and includes taxable Social Security in federal taxable income. "
+        "Capital gains, state taxes, credits, itemized deductions, IRMAA, and tax penalties are still simplified/future enhancements."
     )
 
 
@@ -1889,7 +1948,7 @@ def run_projection():
         non_portfolio_income = ss_income + other_income
 
         ordinary_income_before_withdrawals = float(inc.get("taxable", 0)) + conversion
-        base_tax_estimate = estimate_federal_tax(ordinary_income_before_withdrawals)
+        base_tax_estimate = estimate_federal_tax(ordinary_income_before_withdrawals, social_security_income=ss_income)
         base_federal_tax = base_tax_estimate["federal_tax"]
         income_gap = max(total_spending + base_federal_tax - non_portfolio_income, 0)
         withdrawal_needed = income_gap
@@ -1899,14 +1958,15 @@ def run_projection():
         take = min(bucket1, withdrawal_needed); bucket1 -= take; withdrawal_needed -= take; used_b1 += take
         take = min(taxable, withdrawal_needed); taxable -= take; withdrawal_needed -= take; used_taxable += take
         if withdrawal_needed > 0:
-            take, net_from_trad = gross_traditional_needed_for_net(withdrawal_needed, ordinary_income_before_withdrawals, trad)
-            federal_tax_from_trad = incremental_federal_tax(ordinary_income_before_withdrawals, take)
+            take, net_from_trad = gross_traditional_needed_for_net(withdrawal_needed, ordinary_income_before_withdrawals, trad, social_security_income=ss_income)
+            federal_tax_from_trad = incremental_federal_tax(ordinary_income_before_withdrawals, take, social_security_income=ss_income)
             trad -= take
             withdrawal_needed -= net_from_trad
             used_trad += take
         take = min(roth, max(withdrawal_needed, 0)); roth -= take; withdrawal_needed -= take; used_roth += take
 
         estimated_federal_tax = base_federal_tax + federal_tax_from_trad
+        final_tax_estimate = estimate_federal_tax(ordinary_income_before_withdrawals + used_trad, social_security_income=ss_income)
         actual_withdrawal = used_b1 + used_taxable + used_trad + used_roth
         end_total = trad + roth + taxable + bucket1
         leftover = max(non_portfolio_income + actual_withdrawal - total_spending - estimated_federal_tax, 0)
@@ -1934,9 +1994,11 @@ def run_projection():
             "Guaranteed Income": guaranteed_income,
             "Income Gap": income_gap,
             "Estimated Federal Tax": estimated_federal_tax,
-            "Taxable Ordinary Income": ordinary_income_before_withdrawals + used_trad,
-            "Federal Taxable Income": estimate_federal_tax(ordinary_income_before_withdrawals + used_trad)["taxable_income"],
-            "Effective Federal Tax Rate": estimated_federal_tax / max(ordinary_income_before_withdrawals + used_trad, 1),
+            "Provisional Income": final_tax_estimate["provisional_income"],
+            "Taxable Social Security": final_tax_estimate["taxable_social_security"],
+            "Taxable Ordinary Income": final_tax_estimate["gross_ordinary_income"],
+            "Federal Taxable Income": final_tax_estimate["taxable_income"],
+            "Effective Federal Tax Rate": estimated_federal_tax / max(final_tax_estimate["gross_ordinary_income"], 1),
             "Portfolio Withdrawal": actual_withdrawal,
             "Left Over After Spending": leftover,
             "Roth Conversion": conversion,
@@ -2375,7 +2437,7 @@ def run_projection_with_return_sequence(return_sequence):
         non_portfolio_income = ss_income + other_income
 
         ordinary_income_before_withdrawals = float(inc.get("taxable", 0)) + conversion
-        base_tax_estimate = estimate_federal_tax(ordinary_income_before_withdrawals)
+        base_tax_estimate = estimate_federal_tax(ordinary_income_before_withdrawals, social_security_income=ss_income)
         base_federal_tax = base_tax_estimate["federal_tax"]
         income_gap = max(total_spending + base_federal_tax - non_portfolio_income, 0)
         withdrawal_needed = income_gap
@@ -2394,8 +2456,8 @@ def run_projection_with_return_sequence(return_sequence):
         used_taxable += take
 
         if withdrawal_needed > 0:
-            take, net_from_trad = gross_traditional_needed_for_net(withdrawal_needed, ordinary_income_before_withdrawals, trad)
-            federal_tax_from_trad = incremental_federal_tax(ordinary_income_before_withdrawals, take)
+            take, net_from_trad = gross_traditional_needed_for_net(withdrawal_needed, ordinary_income_before_withdrawals, trad, social_security_income=ss_income)
+            federal_tax_from_trad = incremental_federal_tax(ordinary_income_before_withdrawals, take, social_security_income=ss_income)
             trad -= take
             withdrawal_needed -= net_from_trad
             used_trad += take
@@ -2406,6 +2468,7 @@ def run_projection_with_return_sequence(return_sequence):
         used_roth += take
 
         estimated_federal_tax = base_federal_tax + federal_tax_from_trad
+        final_tax_estimate = estimate_federal_tax(ordinary_income_before_withdrawals + used_trad, social_security_income=ss_income)
         actual_withdrawal = used_b1 + used_taxable + used_trad + used_roth
         end_total = trad + roth + taxable + bucket1
 
@@ -2418,9 +2481,11 @@ def run_projection_with_return_sequence(return_sequence):
             "Guaranteed Income": guaranteed_income,
             "Income Gap": income_gap,
             "Estimated Federal Tax": estimated_federal_tax,
-            "Taxable Ordinary Income": ordinary_income_before_withdrawals + used_trad,
-            "Federal Taxable Income": estimate_federal_tax(ordinary_income_before_withdrawals + used_trad)["taxable_income"],
-            "Effective Federal Tax Rate": estimated_federal_tax / max(ordinary_income_before_withdrawals + used_trad, 1),
+            "Provisional Income": final_tax_estimate["provisional_income"],
+            "Taxable Social Security": final_tax_estimate["taxable_social_security"],
+            "Taxable Ordinary Income": final_tax_estimate["gross_ordinary_income"],
+            "Federal Taxable Income": final_tax_estimate["taxable_income"],
+            "Effective Federal Tax Rate": estimated_federal_tax / max(final_tax_estimate["gross_ordinary_income"], 1),
             "Portfolio Withdrawal": actual_withdrawal,
             "Unmet Need": max(withdrawal_needed, 0),
             "Withdrawal Rate": actual_withdrawal / max(start_total, 1),
@@ -3011,12 +3076,14 @@ def build_pdf_report(df):
     story.append(Spacer(1, 0.15 * inch))
     story.append(Paragraph("Federal Tax Estimate", h2))
     total_federal_tax = float(df.get("Estimated Federal Tax", pd.Series(dtype=float)).sum()) if "Estimated Federal Tax" in df.columns else 0
+    total_taxable_ss = float(df.get("Taxable Social Security", pd.Series(dtype=float)).sum()) if "Taxable Social Security" in df.columns else 0
     tax_rows = [
         ["Tax Assumption", "Value"],
         ["Tax Year", str(get_tax_year())],
         ["Filing Status", get_tax_settings()["label"]],
         ["Standard Deduction", money(get_tax_settings()["standard_deduction"])],
         ["Projected Federal Tax Across Plan", money(total_federal_tax)],
+        ["Projected Taxable Social Security Across Plan", money(total_taxable_ss)],
     ]
     story.append(make_pdf_table(tax_rows, col_widths=[3.1 * inch, 3.1 * inch]))
     story.append(Paragraph(tax_assumption_note(), small))
@@ -4559,7 +4626,7 @@ if active_page == PAGE_NAMES[1]:
         bucket1_years = c2.number_input("Bucket 1 target years of spending", min_value=0.0, max_value=10.0, value=float(st.session_state.bucket1_years), step=0.5, help=FIELD_HELP["bucket1_years"])
 
         st.subheader("Federal Tax Estimate")
-        st.caption("Phase 1: estimates federal ordinary income tax using IRS brackets, filing status, and the standard deduction. This improves the old flat tax haircut while staying simple and easy to update annually.")
+        st.caption("Phase 2: estimates federal ordinary income tax using IRS brackets, filing status, standard deduction, traditional withdrawals, Roth conversions, and taxable Social Security.")
         t1, t2 = st.columns(2)
         tax_year_options = sorted(TAX_TABLES.keys())
         tax_year = t1.selectbox(
@@ -4577,7 +4644,7 @@ if active_page == PAGE_NAMES[1]:
         )
         filing_status = filing_keys[[FILING_STATUS_OPTIONS[k] for k in filing_keys].index(filing_status_label)]
         tax_settings_preview = get_tax_settings(tax_year, filing_status)
-        st.info(f"Using {tax_year} federal brackets, {tax_settings_preview['label']}, and a standard deduction of {money(tax_settings_preview['standard_deduction'])}. Social Security taxation and state taxes come in later phases.")
+        st.info(f"Using {tax_year} federal brackets, {tax_settings_preview['label']}, and a standard deduction of {money(tax_settings_preview['standard_deduction'])}. Taxable Social Security is now estimated using provisional income thresholds. State taxes come in a later phase.")
 
         if st.session_state.enable_spending_change and int(st.session_state.spending_change_age or 0) > 0:
             st.subheader("Planned Spending Change")
@@ -4974,6 +5041,7 @@ if active_page == PAGE_NAMES[6]:
         "Dashboard",
         "This page shows the main retirement outcome. The Blueprint Score summarizes whether your plan appears funded, how much money may remain, income coverage, withdrawals, and risk areas."
     )
+    st.caption("Tax estimates now include taxable Social Security when provisional income exceeds IRS thresholds. Roth and cash withdrawals are modeled as tax-free; taxable brokerage is still simplified until the capital-gains phase.")
     if not can_run:
         st.info("Complete required inputs first.")
     else:
@@ -5123,6 +5191,7 @@ if active_page == PAGE_NAMES[7]:
     )
     st.caption("Practical ways to improve your Blueprint Score and understand whether you can safely spend more.")
 
+    st.caption("Tax estimates now include taxable Social Security when provisional income exceeds IRS thresholds. Roth and cash withdrawals are modeled as tax-free; taxable brokerage is still simplified until the capital-gains phase.")
     if not can_run:
         st.info("Complete required inputs first.")
     else:
@@ -5410,6 +5479,7 @@ if active_page == PAGE_NAMES[8]:
         "Projection Table",
         "This table shows the year-by-year math behind the plan. It includes balances, spending, income, withdrawals, Roth conversions, unmet needs, and withdrawal rates by age."
     )
+    st.caption("Tax estimates now include taxable Social Security when provisional income exceeds IRS thresholds. Roth and cash withdrawals are modeled as tax-free; taxable brokerage is still simplified until the capital-gains phase.")
     if not can_run:
         st.info("Complete required inputs first.")
     else:
@@ -6821,6 +6891,7 @@ if active_page == PAGE_NAMES[11]:
         "This page runs hundreds or thousands of randomized market-return paths to estimate how often the retirement plan survives. It helps show sequence-of-return risk and the range of possible ending portfolio balances."
     )
 
+    st.caption("Tax estimates now include taxable Social Security when provisional income exceeds IRS thresholds. Roth and cash withdrawals are modeled as tax-free; taxable brokerage is still simplified until the capital-gains phase.")
     if not can_run:
         st.info("Complete required inputs first.")
     else:
@@ -6943,6 +7014,7 @@ if active_page == PAGE_NAMES[11]:
 if active_page == PAGE_NAMES[12]:
     render_page_shell("Stress Tests", "Try tougher scenarios like lower returns, higher spending, or inflation shocks to see where your plan bends or breaks.", "🛡️")
 
+    st.caption("Tax estimates now include taxable Social Security when provisional income exceeds IRS thresholds. Roth and cash withdrawals are modeled as tax-free; taxable brokerage is still simplified until the capital-gains phase.")
     if not can_run:
         st.info("Complete required inputs first.")
     else:
@@ -7045,6 +7117,7 @@ if active_page == PAGE_NAMES[13]:
         "This page exports a visually polished retirement report with the plan summary, assumptions, dashboard charts, recommendations, Monte Carlo results, stress tests, and a projection snapshot."
     )
 
+    st.caption("Tax estimates now include taxable Social Security when provisional income exceeds IRS thresholds. Roth and cash withdrawals are modeled as tax-free; taxable brokerage is still simplified until the capital-gains phase.")
     if not can_run:
         st.info("Complete required inputs first.")
     else:
