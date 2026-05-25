@@ -4138,6 +4138,12 @@ def filter_city_places(city_df, selected_states, lifestyle_priority):
     if selected_states:
         df = df[df["State"].isin(selected_states)]
 
+    # Keep a fallback after the state filter. Some combinations, such as
+    # Michigan + Coastal/Warm or Michigan + Active Adult, may have no exact
+    # starter-city match in our current dataset. We should show the best
+    # available matches instead of returning an empty frame and crashing.
+    state_filtered_df = df.copy()
+
     if lifestyle_priority == "Golf / recreation":
         df = df.sort_values(["Golf / Recreation", "Overall City Score"], ascending=False)
     elif lifestyle_priority == "Healthcare":
@@ -4145,13 +4151,18 @@ def filter_city_places(city_df, selected_states, lifestyle_priority):
     elif lifestyle_priority == "Lower cost":
         df = df.sort_values(["Affordability", "Overall City Score"], ascending=False)
     elif lifestyle_priority == "Coastal / warm lifestyle":
-        df = df[df["Type"].str.contains("Coastal|Beach|Desert", case=False, regex=True)]
+        filtered = df[df["Type"].str.contains("Coastal|Beach|Desert", case=False, regex=True, na=False)]
+        df = filtered if not filtered.empty else state_filtered_df
         df = df.sort_values(["Lifestyle", "Climate", "Overall City Score"], ascending=False)
     elif lifestyle_priority == "Active adult community":
-        df = df[df["Type"].str.contains("Active Adult|Golf Cart", case=False, regex=True)]
+        filtered = df[df["Type"].str.contains("Active Adult|Golf Cart", case=False, regex=True, na=False)]
+        df = filtered if not filtered.empty else state_filtered_df
         df = df.sort_values(["Lifestyle", "Golf / Recreation", "Overall City Score"], ascending=False)
     else:
         df = df.sort_values("Overall City Score", ascending=False)
+
+    if df.empty:
+        df = city_df.sort_values("Overall City Score", ascending=False)
 
     return df.reset_index(drop=True)
 
@@ -4661,6 +4672,15 @@ def render_navigation():
 
 render_navigation()
 active_page = st.session_state.active_page
+
+# Safe projection object used by premium insight cards across pages.
+# Keep this before any page rendering so Start My Blueprint / Home can use df safely.
+can_run = len(required_missing()) == 0
+try:
+    df = run_projection() if can_run else pd.DataFrame()
+except Exception as _projection_error:
+    df = pd.DataFrame()
+    can_run = False
 
 
 if active_page == PAGE_NAMES[0]:
@@ -5283,8 +5303,7 @@ if active_page == PAGE_NAMES[5]:
     ], columns=["Input", "Answer"])
     st.dataframe(review, use_container_width=True)
 
-can_run = len(required_missing()) == 0
-df = run_projection() if can_run else pd.DataFrame()
+# can_run and df are initialized safely before page rendering above.
 
 if active_page == PAGE_NAMES[6]:
     render_page_shell("Blueprint Dashboard", "Review your blueprint outcome, year-by-year trends, and the key retirement metrics that show whether your plan is on track.", "📊")
