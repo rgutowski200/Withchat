@@ -725,6 +725,111 @@ def inject_app_styles():
 
 
 
+
+
+    /* Phase 2 navigation polish: cleaner real-tabs look, no radio dots */
+    .rb-nav-wrap {
+        margin: 18px 0 30px 0 !important;
+        padding: 0 !important;
+    }
+
+    .rb-nav-wrap div[data-testid="stRadio"] [role="radiogroup"] {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 4px 8px !important;
+        overflow-x: visible !important;
+        padding: 0 0 0 0 !important;
+        border: 0 !important;
+        border-bottom: 1px solid #dbe3ef !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        scrollbar-width: none !important;
+    }
+
+    .rb-nav-wrap div[data-testid="stRadio"] [role="radiogroup"]::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    .rb-nav-wrap div[data-testid="stRadio"] label {
+        position: relative !important;
+        flex: 0 0 auto !important;
+        margin: 0 !important;
+        border: 0 !important;
+        border-radius: 13px 13px 0 0 !important;
+        background: transparent !important;
+        padding: 0.74rem 0.95rem 0.82rem 0.95rem !important;
+        box-shadow: none !important;
+        color: #475569 !important;
+        transition: background 0.16s ease, color 0.16s ease, transform 0.16s ease !important;
+    }
+
+    /* Hide Streamlit's radio circle so this looks like app navigation, not form controls */
+    .rb-nav-wrap div[data-testid="stRadio"] label > div:first-child {
+        display: none !important;
+    }
+
+    .rb-nav-wrap div[data-testid="stRadio"] input[type="radio"] {
+        display: none !important;
+    }
+
+    .rb-nav-wrap div[data-testid="stRadio"] label p,
+    .rb-nav-wrap div[data-testid="stRadio"] label span {
+        font-size: 0.94rem !important;
+        font-weight: 750 !important;
+        color: #475569 !important;
+        white-space: nowrap !important;
+        line-height: 1.2 !important;
+    }
+
+    .rb-nav-wrap div[data-testid="stRadio"] label:hover {
+        border: 0 !important;
+        background: #f1f5f9 !important;
+        color: #0f62fe !important;
+        transform: translateY(-1px) !important;
+    }
+
+    .rb-nav-wrap div[data-testid="stRadio"] label:hover p,
+    .rb-nav-wrap div[data-testid="stRadio"] label:hover span {
+        color: #0f62fe !important;
+    }
+
+    .rb-nav-wrap div[data-testid="stRadio"] label:has(input:checked) {
+        background: #eff6ff !important;
+        border: 0 !important;
+        color: #0f62fe !important;
+        box-shadow: none !important;
+    }
+
+    .rb-nav-wrap div[data-testid="stRadio"] label:has(input:checked)::after {
+        content: "";
+        position: absolute;
+        left: 12px;
+        right: 12px;
+        bottom: -1px;
+        height: 4px;
+        border-radius: 999px 999px 0 0;
+        background: linear-gradient(90deg, #0f62fe 0%, #14b8a6 100%);
+    }
+
+    .rb-nav-wrap div[data-testid="stRadio"] label:has(input:checked) p,
+    .rb-nav-wrap div[data-testid="stRadio"] label:has(input:checked) span {
+        color: #0f62fe !important;
+        font-weight: 900 !important;
+    }
+
+    @media (max-width: 900px) {
+        .rb-nav-wrap div[data-testid="stRadio"] [role="radiogroup"] {
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+            padding-bottom: 3px !important;
+        }
+        .rb-nav-wrap div[data-testid="stRadio"] label {
+            padding: 0.78rem 0.9rem 0.86rem 0.9rem !important;
+        }
+    }
+
+
     /* Make the top-right account action look like a real clickable account card */
     div[data-testid="column"] div.stButton > button {
         border-radius: 16px;
