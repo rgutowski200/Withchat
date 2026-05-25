@@ -5414,12 +5414,33 @@ if active_page == PAGE_NAMES[8]:
         st.info("Complete required inputs first.")
     else:
         show = df.copy()
-        money_cols = [c for c in show.columns if c not in ["Age", "Spouse Age", "Spouse Alive", "Household Retired", "Withdrawal Rate", "Income Coverage Ratio", "Guaranteed Income Coverage Ratio"]]
+
+        # Make projection table labels clearer for users.
+        # "Taxable" is the brokerage account balance, not taxable income.
+        if "Taxable" in show.columns:
+            show = show.rename(columns={"Taxable": "Taxable Brokerage Balance"})
+
+        percent_cols = [
+            "Withdrawal Rate",
+            "Income Coverage Ratio",
+            "Guaranteed Income Coverage Ratio",
+            "Effective Federal Tax Rate",
+        ]
+        non_money_cols = [
+            "Age",
+            "Spouse Age",
+            "Spouse Alive",
+            "Household Retired",
+        ] + percent_cols
+
+        money_cols = [c for c in show.columns if c not in non_money_cols]
         for c in money_cols:
             show[c] = show[c].map(money)
-        show["Withdrawal Rate"] = show["Withdrawal Rate"].map(pct)
-        show["Income Coverage Ratio"] = show["Income Coverage Ratio"].map(pct)
-        show["Guaranteed Income Coverage Ratio"] = show["Guaranteed Income Coverage Ratio"].map(pct)
+
+        for c in percent_cols:
+            if c in show.columns:
+                show[c] = show[c].map(pct)
+
         st.dataframe(show, use_container_width=True)
         st.download_button("Download Projection CSV", df.to_csv(index=False).encode("utf-8"), "retirement_projection.csv", "text/csv")
 
