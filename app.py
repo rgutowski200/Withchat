@@ -431,6 +431,56 @@ def inject_app_styles():
         margin-bottom: 6px;
     }
 
+    .account-bar {
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 12px 16px;
+        margin-bottom: 18px;
+        background: #ffffff;
+        box-shadow: 0 1px 8px rgba(15, 23, 42, 0.04);
+    }
+
+    .account-pill {
+        display: inline-block;
+        padding: 5px 11px;
+        border-radius: 999px;
+        background: #dcfce7;
+        color: #15803d;
+        font-size: 0.82rem;
+        font-weight: 800;
+        margin-right: 8px;
+    }
+
+    .rb-auth-panel {
+        border: 1px solid #bfdbfe;
+        border-radius: 16px;
+        background: #f8fbff;
+        padding: 16px 18px;
+        margin: 4px 0 14px 0;
+    }
+
+    .rb-auth-title {
+        font-weight: 900;
+        color: #0f2f6a;
+        font-size: 1.05rem;
+        margin-bottom: 4px;
+    }
+
+    div.stButton > button[kind="secondary"] {
+        border-radius: 12px;
+        background: #0f62fe;
+        color: #ffffff;
+        border: 1px solid #0f62fe;
+        font-weight: 850;
+        box-shadow: 0 8px 18px rgba(15, 98, 254, 0.20);
+    }
+
+    div.stButton > button[kind="secondary"]:hover {
+        background: #004fd6;
+        color: #ffffff;
+        border-color: #004fd6;
+    }
+
     @media (max-width: 900px) {
         .rb-hero, .rb-banner, .rb-warning-panel { flex-direction: column; align-items: stretch; }
         .rb-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -449,43 +499,14 @@ inject_app_styles()
 
 
 def auth_box():
+    """Keep authentication state available, but do not show the signed-out form at the top of the app."""
     if "user" not in st.session_state:
         st.session_state.user = None
+    if "show_auth_form" not in st.session_state:
+        st.session_state.show_auth_form = False
 
-    # Top-page account bar instead of left sidebar sign-in.
-    st.markdown("""
-    <style>
-    .account-bar {
-        border: 1px solid #e5e7eb;
-        border-radius: 14px;
-        padding: 12px 16px;
-        margin-bottom: 18px;
-        background: #ffffff;
-        box-shadow: 0 1px 8px rgba(15, 23, 42, 0.04);
-    }
-    .account-pill {
-        display: inline-block;
-        padding: 5px 11px;
-        border-radius: 999px;
-        background: #dcfce7;
-        color: #15803d;
-        font-size: 0.82rem;
-        font-weight: 800;
-        margin-right: 8px;
-    }
-    .signed-out-pill {
-        display: inline-block;
-        padding: 5px 11px;
-        border-radius: 999px;
-        background: #fee2e2;
-        color: #b91c1c;
-        font-size: 0.82rem;
-        font-weight: 800;
-        margin-right: 8px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
+    # Only show a small signed-in bar when someone is already logged in.
+    # When signed out, the Home Dashboard blue button opens the form instead.
     if st.session_state.user:
         with st.container():
             left, right = st.columns([5, 1])
@@ -504,58 +525,64 @@ def auth_box():
                 if st.button("Logout", use_container_width=True):
                     supabase.auth.sign_out()
                     st.session_state.user = None
+                    st.session_state.show_auth_form = False
                     st.rerun()
-
-        return st.session_state.user
-
-    with st.expander("Sign in or create an account", expanded=False):
-        st.markdown(
-            "<span class='signed-out-pill'>Not Signed In</span> Sign in to save and load scenarios.",
-            unsafe_allow_html=True
-        )
-
-        mode = st.radio(
-            "Account action",
-            ["Login", "Create Account"],
-            horizontal=True
-        )
-
-        c1, c2, c3 = st.columns([2, 2, 1])
-
-        with c1:
-            email = st.text_input("Email")
-        with c2:
-            password = st.text_input("Password", type="password")
-        with c3:
-            st.write("")
-            st.write("")
-            action_clicked = st.button(mode, use_container_width=True)
-
-        if action_clicked:
-            if not email or not password:
-                st.error("Enter both email and password.")
-            elif mode == "Create Account":
-                try:
-                    supabase.auth.sign_up({
-                        "email": email,
-                        "password": password
-                    })
-                    st.success("Account created. Check email if confirmation is required.")
-                except Exception as e:
-                    st.error(f"Create account failed: {e}")
-            else:
-                try:
-                    res = supabase.auth.sign_in_with_password({
-                        "email": email,
-                        "password": password
-                    })
-                    st.session_state.user = res.user
-                    st.success("Logged in.")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Login failed: {e}")
 
     return st.session_state.user
+
+
+def render_auth_form():
+    """Sign-in/create-account form shown only after the Home blue button is clicked."""
+    st.markdown("""
+    <div class="rb-auth-panel">
+      <div class="rb-auth-title">Sign in or create an account</div>
+      <div class="rb-muted">Save scenarios, reload plans, and compare retirement options later.</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    mode = st.radio(
+        "Account action",
+        ["Login", "Create Account"],
+        horizontal=True,
+        key="home_auth_mode"
+    )
+
+    c1, c2, c3 = st.columns([2, 2, 1])
+
+    with c1:
+        email = st.text_input("Email", key="home_auth_email")
+    with c2:
+        password = st.text_input("Password", type="password", key="home_auth_password")
+    with c3:
+        st.write("")
+        st.write("")
+        action_clicked = st.button(mode, use_container_width=True, key="home_auth_submit")
+
+    if action_clicked:
+        if not email or not password:
+            st.error("Enter both email and password.")
+        elif mode == "Create Account":
+            try:
+                supabase.auth.sign_up({
+                    "email": email,
+                    "password": password
+                })
+                st.success("Account created. Check email if confirmation is required, then log in.")
+            except Exception as e:
+                st.error(f"Create account failed: {e}")
+        else:
+            try:
+                res = supabase.auth.sign_in_with_password({
+                    "email": email,
+                    "password": password
+                })
+                st.session_state.user = res.user
+                st.session_state.show_auth_form = False
+                st.success("Logged in.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Login failed: {e}")
+
 
 
 user = auth_box()
@@ -3568,9 +3595,18 @@ with tabs[0]:
           <div class="rb-muted">{status_note}</div>
         </div>
       </div>
-      <div class="rb-btn-fake">Sign In / Create Account</div>
     </div>
+    """, unsafe_allow_html=True)
 
+    if not user:
+        btn_left, btn_right = st.columns([4, 1.25])
+        with btn_right:
+            if st.button("Sign In / Create Account", use_container_width=True, key="open_home_auth"):
+                st.session_state.show_auth_form = True
+        if st.session_state.get("show_auth_form"):
+            render_auth_form()
+
+    st.markdown(f"""
     <div class="rb-card-grid">
       <div class="rb-card">
         <div class="rb-card-top"><div class="rb-card-label">RTV Score</div><div class="rb-icon">☆</div></div>
