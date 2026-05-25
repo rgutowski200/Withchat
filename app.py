@@ -979,6 +979,34 @@ def inject_app_styles():
     @media (max-width: 560px) {
         .rb-card-grid { grid-template-columns: 1fr; }
     }
+
+
+    /* Premium product polish */
+    .rb-premium-badge { display:inline-flex; align-items:center; gap:6px; background:linear-gradient(135deg,#fef3c7,#fde68a); color:#92400e; border:1px solid #fcd34d; border-radius:999px; padding:4px 10px; font-size:0.78rem; font-weight:900; letter-spacing:.01em; }
+    .rb-insight-card { border:1px solid #bfdbfe; border-left:6px solid #0f62fe; border-radius:20px; background:linear-gradient(135deg,#eff6ff 0%,#ffffff 72%,#ecfeff 100%); box-shadow:0 12px 28px rgba(15,23,42,.06); padding:18px 20px; margin:16px 0 20px 0; }
+    .rb-insight-kicker { color:#0f62fe; font-weight:900; font-size:.82rem; text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px; }
+    .rb-insight-title { color:#0f172a; font-size:1.12rem; font-weight:900; margin-bottom:6px; }
+    .rb-insight-copy { color:#475569; line-height:1.45; }
+    .rb-lock-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin:16px 0 22px 0; }
+    .rb-lock-card { background:#fff; border:1px solid #e2e8f0; border-radius:18px; padding:16px; box-shadow:0 8px 22px rgba(15,23,42,.055); position:relative; min-height:128px; }
+    .rb-lock-card:before { content:"Premium"; position:absolute; right:14px; top:12px; background:#fef3c7; color:#92400e; border:1px solid #fde68a; border-radius:999px; padding:3px 8px; font-size:.72rem; font-weight:900; }
+    .rb-lock-icon { font-size:1.45rem; margin-bottom:6px; }
+    .rb-lock-title { font-weight:900; color:#0f172a; margin-bottom:4px; padding-right:80px; }
+    .rb-lock-copy { color:#64748b; font-size:.9rem; line-height:1.38; }
+    .rb-meter-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin:16px 0 22px 0; }
+    .rb-meter-card { border:1px solid #e2e8f0; border-radius:18px; background:#fff; padding:14px; box-shadow:0 8px 20px rgba(15,23,42,.045); }
+    .rb-meter-label { font-weight:900; color:#334155; font-size:.86rem; margin-bottom:8px; }
+    .rb-meter-value { font-size:1.45rem; font-weight:950; color:#0f172a; margin-bottom:8px; }
+    .rb-meter-track { height:9px; border-radius:999px; background:#e2e8f0; overflow:hidden; }
+    .rb-meter-fill { height:100%; border-radius:999px; background:linear-gradient(90deg,#0f62fe,#14b8a6); }
+    .rb-bucket-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin:14px 0 18px 0; }
+    .rb-bucket-card { border:1px solid #dbeafe; border-radius:20px; background:linear-gradient(180deg,#ffffff,#f8fbff); padding:18px; box-shadow:0 10px 26px rgba(15,23,42,.055); }
+    .rb-bucket-num { width:36px; height:36px; border-radius:12px; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#0f62fe,#14b8a6); color:#fff; font-weight:950; margin-bottom:10px; }
+    .rb-bucket-title { font-weight:950; color:#0f172a; margin-bottom:4px; }
+    .rb-bucket-amount { font-size:1.35rem; font-weight:950; color:#0f62fe; margin:6px 0; }
+    .rb-bucket-copy { color:#64748b; font-size:.92rem; line-height:1.4; }
+    @media (max-width: 900px) { .rb-lock-grid,.rb-meter-grid,.rb-bucket-grid { grid-template-columns:1fr; } }
+
     </style>
     """, unsafe_allow_html=True)
 
@@ -1473,6 +1501,161 @@ def render_page_shell(title, description, icon="📘", kicker="Planner Section")
     """, unsafe_allow_html=True)
 
 
+def premium_badge(text="Premium Preview"):
+    st.markdown(f'<span class="rb-premium-badge">✨ {text}</span>', unsafe_allow_html=True)
+
+
+def render_premium_lock_cards():
+    st.markdown("""
+    <div class="rb-lock-grid">
+      <div class="rb-lock-card"><div class="rb-lock-icon">🪣</div><div class="rb-lock-title">3-Bucket Strategy</div><div class="rb-lock-copy">Move beyond a simple cash bucket with safer money, income/balanced assets, and long-term growth.</div></div>
+      <div class="rb-lock-card"><div class="rb-lock-icon">🔁</div><div class="rb-lock-title">Scenario Comparison</div><div class="rb-lock-copy">Compare retirement ages, spending changes, and Social Security timing side by side.</div></div>
+      <div class="rb-lock-card"><div class="rb-lock-icon">📄</div><div class="rb-lock-title">Full Blueprint Report</div><div class="rb-lock-copy">Export a polished report with executive summary, risks, action plan, taxes, and location insights.</div></div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def build_blueprint_insight(df=None, page="general"):
+    if df is None or getattr(df, "empty", True):
+        return "Complete your blueprint inputs to unlock personalized insights."
+    score, label, reasons = calculate_rtv_score(df)
+    ending = float(df["End Total"].iloc[-1])
+    max_wr = float(df["Withdrawal Rate"].max())
+    avg_cov = float(df["Income Coverage Ratio"].mean())
+    tax_total = float(df.get("Estimated Federal Tax", pd.Series(dtype=float)).sum()) if "Estimated Federal Tax" in df.columns else 0
+    if page == "tax":
+        return f"Taxes become most important once traditional withdrawals and taxable Social Security begin. This blueprint currently estimates {money(tax_total)} of federal tax across the plan."
+    if page == "bucket":
+        return "Premium bucket planning separates near-term safety, medium-term income, and long-term growth so the plan is easier to understand and stress test."
+    if page == "places":
+        return "Location planning can change the plan through state taxes, property taxes, housing costs, healthcare access, and lifestyle fit."
+    if max_wr > 0.07:
+        return f"Your biggest pressure point is withdrawal risk. The max projected withdrawal rate is {pct(max_wr)}, so spending, retirement age, income, or bucket design deserve attention."
+    if ending > float(df["Start Total"].iloc[0]) and score >= 80:
+        return f"Your plan has strong flexibility. It ends with {money(ending)}, which may create room for lifestyle upgrades, Roth conversions, gifting, or legacy planning."
+    if avg_cov < 0.35:
+        return f"Your portfolio is doing most of the heavy lifting. Average outside-income coverage is {pct(avg_cov)}, so sequence risk and withdrawal order matter."
+    return f"Your current blueprint is rated {label} at {score}/100. The next best step is comparing nearby retirement ages and stress testing bad market years."
+
+
+def render_premium_insight(title="Blueprint Insight", df=None, page="general"):
+    insight = build_blueprint_insight(df, page)
+    st.markdown(f"""
+    <div class="rb-insight-card">
+      <div class="rb-insight-kicker">Premium Insight</div>
+      <div class="rb-insight-title">{title}</div>
+      <div class="rb-insight-copy">{insight}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def render_confidence_meters(df):
+    if df is None or df.empty:
+        return
+    score, label, _ = calculate_rtv_score(df)
+    income_cov = min(max(float(df["Income Coverage Ratio"].mean()) * 100, 0), 100)
+    max_wr = float(df["Withdrawal Rate"].max())
+    tax_total = float(df.get("Estimated Federal Tax", pd.Series(dtype=float)).sum()) if "Estimated Federal Tax" in df.columns else 0
+    ordinary_total = float(df.get("Taxable Ordinary Income", pd.Series(dtype=float)).sum()) if "Taxable Ordinary Income" in df.columns else 0
+    tax_eff = max(0, min(100, 100 - (tax_total / max(ordinary_total, 1) * 100 * 4)))
+    healthcare_risk = 75 if float(st.session_state.get("healthcare", 0) or 0) > 0 and int(st.session_state.get("retire_age", 65) or 65) < 65 else 35
+    withdrawal_strength = max(0, min(100, 100 - max_wr * 1000))
+    meters = [
+        ("Readiness", f"{score}/100", score),
+        ("Income Coverage", f"{income_cov:.0f}%", income_cov),
+        ("Withdrawal Safety", f"{withdrawal_strength:.0f}%", withdrawal_strength),
+        ("Tax Efficiency", f"{tax_eff:.0f}%", tax_eff),
+        ("Healthcare Risk", "Elevated" if healthcare_risk >= 70 else "Moderate", 100-healthcare_risk),
+    ]
+    html = '<div class="rb-meter-grid">'
+    for label, value, fill in meters:
+        html += f'<div class="rb-meter-card"><div class="rb-meter-label">{label}</div><div class="rb-meter-value">{value}</div><div class="rb-meter-track"><div class="rb-meter-fill" style="width:{max(0,min(100,fill))}%"></div></div></div>'
+    html += '</div>'
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def build_three_bucket_strategy(df=None):
+    total_assets = float(st.session_state.get("traditional",0) or 0) + float(st.session_state.get("roth",0) or 0) + float(st.session_state.get("taxable",0) or 0) + float(st.session_state.get("cash",0) or 0)
+    annual_need = annual_household_spending() + float(st.session_state.get("healthcare",0) or 0)
+    if df is not None and not df.empty and "Income Gap" in df.columns:
+        retired_rows = df[df["Household Retired"] == True]
+        if not retired_rows.empty:
+            annual_need = max(float(retired_rows["Income Gap"].head(5).mean()), annual_need * 0.5)
+    b1_years = float(st.session_state.get("bucket1_years", 3) or 3)
+    b2_years = float(st.session_state.get("bucket2_years", 5) or 5)
+    bucket1_target = min(total_assets, max(0, annual_need * b1_years))
+    bucket2_target = min(max(total_assets - bucket1_target, 0), max(0, annual_need * b2_years))
+    bucket3_target = max(total_assets - bucket1_target - bucket2_target, 0)
+    return pd.DataFrame([
+        {"Bucket": "Bucket 1", "Purpose": "Safety / near-term spending", "Suggested Amount": bucket1_target, "Target Years": b1_years, "Example Holdings": "Cash, money market, CDs, short-term bonds", "Risk Level": "Low"},
+        {"Bucket": "Bucket 2", "Purpose": "Income / refill Bucket 1", "Suggested Amount": bucket2_target, "Target Years": b2_years, "Example Holdings": "Short/intermediate bonds, balanced income funds", "Risk Level": "Moderate"},
+        {"Bucket": "Bucket 3", "Purpose": "Long-term growth", "Suggested Amount": bucket3_target, "Target Years": "Long term", "Example Holdings": "Diversified equity/growth portfolio", "Risk Level": "Higher"},
+    ])
+
+
+def render_three_bucket_strategy(df=None):
+    premium_badge("Premium 3-Bucket Strategy")
+    strat = build_three_bucket_strategy(df)
+    cards = ''
+    for i, row in strat.iterrows():
+        cards += f"""<div class="rb-bucket-card"><div class="rb-bucket-num">{i+1}</div><div class="rb-bucket-title">{row['Bucket']}: {row['Purpose']}</div><div class="rb-bucket-amount">{money(row['Suggested Amount'])}</div><div class="rb-bucket-copy"><b>Target:</b> {row['Target Years']} years<br/><b>Examples:</b> {row['Example Holdings']}<br/><b>Risk:</b> {row['Risk Level']}</div></div>"""
+    st.markdown(f'<div class="rb-bucket-grid">{cards}</div>', unsafe_allow_html=True)
+    show = strat.copy()
+    show["Suggested Amount"] = show["Suggested Amount"].map(money)
+    st.dataframe(show, use_container_width=True, hide_index=True)
+    st.caption("This is an educational allocation framework. It does not replace investment, tax, or advisor guidance. Phase 1 displays suggested bucket targets without reclassifying tax accounts.")
+
+
+def run_projection_with_temp_retire_age(test_age):
+    original = st.session_state.retire_age
+    try:
+        st.session_state.retire_age = int(test_age)
+        temp_df = run_projection()
+        if temp_df.empty:
+            return None
+        score, label, _ = calculate_rtv_score(temp_df)
+        return {
+            "Retirement Age": int(test_age),
+            "Blueprint Score": score,
+            "Label": label,
+            "Ending Portfolio": float(temp_df["End Total"].iloc[-1]),
+            "Max Withdrawal Rate": float(temp_df["Withdrawal Rate"].max()),
+            "Avg Income Coverage": float(temp_df["Income Coverage Ratio"].mean()),
+            "Estimated Federal Tax": float(temp_df.get("Estimated Federal Tax", pd.Series(dtype=float)).sum()) if "Estimated Federal Tax" in temp_df.columns else 0,
+        }
+    finally:
+        st.session_state.retire_age = original
+
+
+def render_scenario_comparison_panel():
+    if not can_run:
+        st.info("Complete your core inputs to compare retirement scenarios.")
+        return
+    premium_badge("Premium Scenario Comparison")
+    current = int(st.session_state.retire_age or st.session_state.current_age or 0)
+    ages = sorted(set([max(int(st.session_state.current_age or 0), current-2), current, current+1, current+2, current+5]))
+    rows = []
+    for age in ages:
+        if age <= int(st.session_state.end_age or 90):
+            result = run_projection_with_temp_retire_age(age)
+            if result:
+                rows.append(result)
+    if rows:
+        comp = pd.DataFrame(rows)
+        base = comp[comp["Retirement Age"] == current]
+        base_score = int(base["Blueprint Score"].iloc[0]) if not base.empty else int(comp["Blueprint Score"].iloc[0])
+        comp["Score Change"] = comp["Blueprint Score"] - base_score
+        show = comp.copy()
+        show["Ending Portfolio"] = show["Ending Portfolio"].map(money)
+        show["Max Withdrawal Rate"] = show["Max Withdrawal Rate"].map(pct)
+        show["Avg Income Coverage"] = show["Avg Income Coverage"].map(pct)
+        show["Estimated Federal Tax"] = show["Estimated Federal Tax"].map(money)
+        show["Score Change"] = show["Score Change"].map(lambda x: f"{x:+}")
+        st.dataframe(show, use_container_width=True, hide_index=True)
+        best = comp.sort_values(["Blueprint Score", "Ending Portfolio"], ascending=False).iloc[0]
+        st.success(f"Best tested age: **{int(best['Retirement Age'])}** with a Blueprint Score of **{int(best['Blueprint Score'])}/100** and ending portfolio of **{money(best['Ending Portfolio'])}**.")
+
+
 
 def set_default(key, value):
     if key not in st.session_state:
@@ -1525,6 +1708,9 @@ defaults = {
     "retirement_housing_plan": "Unsure",
     "tax_year": 2026,
     "filing_status": "married_joint",
+    "user_plan": "free",
+    "premium_preview_enabled": True,
+    "bucket2_years": 5.0,
     "enable_spending_change": False,
     "spending_change_age": 0,
     "spending_change_monthly": 0,
@@ -1596,7 +1782,7 @@ def get_scenario_data():
         "survivor_ss_strategy", "survivor_spending",
         "budget_mode", "flat_monthly_spending",
         "growth_return", "safe_return", "inflation",
-        "annual_conversion", "bucket1_years",
+        "annual_conversion", "bucket1_years", "bucket2_years",
         "income_mode", "simple_income", "simple_income_start",
         "simple_income_end", "simple_income_inflation",
         "simple_income_reliability",
@@ -2750,7 +2936,7 @@ def fig_to_reportlab_image(fig, width=6.8 * inch, height=3.6 * inch):
     return Image(img_buffer, width=width, height=height)
 
 
-def make_pdf_table(rows, col_widths=None, header=True):
+def make_pdf_table(rows, col_widths=None, header=True, font_size=None):
     """
     Build PDF tables with wrapped text so columns do not overlap.
     ReportLab Table cells do not reliably wrap plain strings, so every
@@ -2759,8 +2945,8 @@ def make_pdf_table(rows, col_widths=None, header=True):
     table_body_style = ParagraphStyle(
         "PDFTableBody",
         fontName="Helvetica",
-        fontSize=7.6,
-        leading=9.4,
+        fontSize=font_size or 7.6,
+        leading=(font_size or 7.6) + 1.8,
         textColor=colors.HexColor("#111827"),
         wordWrap="LTR",
         splitLongWords=True,
@@ -2769,8 +2955,8 @@ def make_pdf_table(rows, col_widths=None, header=True):
     table_header_style = ParagraphStyle(
         "PDFTableHeader",
         fontName="Helvetica-Bold",
-        fontSize=7.9,
-        leading=9.7,
+        fontSize=(font_size or 7.6) + 0.3,
+        leading=(font_size or 7.6) + 2.1,
         textColor=colors.white,
         wordWrap="LTR",
         splitLongWords=True,
@@ -2978,9 +3164,9 @@ def build_pdf_report(df):
     total_withdrawals = float(df["Portfolio Withdrawal"].sum())
 
     # Cover
-    story.append(Paragraph("Retirement Blueprint 101 Report", title_style))
+    story.append(Paragraph("Your Personalized Retirement Blueprint", title_style))
     story.append(Paragraph(
-        "A personalized planning report based on the current assumptions entered in Retirement Blueprint 101.",
+        "A premium-style planning report based on the current assumptions entered in Retirement Blueprint 101.",
         subtitle_style
     ))
 
@@ -3023,8 +3209,8 @@ def build_pdf_report(df):
         f"The current projection starts with {money(starting)} and ends with {money(ending)} "
         f"at age {int(st.session_state.end_age)}. The RTV score is {rtv_score}/100 ({rtv_label}). "
         f"The plan's highest projected withdrawal rate is {pct(max_wr)}, and average non-portfolio income "
-        f"coverage is {pct(avg_income_coverage)}. The projection now includes a Phase 1 federal tax estimate using "
-        f"{get_tax_year()} brackets and {get_tax_settings()['label']} filing status."
+        f"coverage is {pct(avg_income_coverage)}. The projection includes federal tax bracket estimates, "
+        f"taxable Social Security logic, and {get_tax_settings()['label']} filing status for {get_tax_year()}."
     )
     story.append(Paragraph(summary_text, body))
 
@@ -3087,6 +3273,25 @@ def build_pdf_report(df):
     ]
     story.append(make_pdf_table(tax_rows, col_widths=[3.1 * inch, 3.1 * inch]))
     story.append(Paragraph(tax_assumption_note(), small))
+
+    story.append(Spacer(1, 0.15 * inch))
+    story.append(Paragraph("Premium 3-Bucket Strategy", h2))
+    bucket_rows = [["Bucket", "Purpose", "Suggested Amount", "Target", "Risk"]]
+    for _, b in build_three_bucket_strategy(df).iterrows():
+        bucket_rows.append([b["Bucket"], b["Purpose"], money(b["Suggested Amount"]), str(b["Target Years"]), b["Risk Level"]])
+    story.append(make_pdf_table(bucket_rows, col_widths=[0.9*inch, 2.0*inch, 1.3*inch, 0.9*inch, 1.1*inch], font_size=7.2))
+
+    story.append(Spacer(1, 0.15 * inch))
+    story.append(Paragraph("Premium Scenario Comparison", h2))
+    scenario_rows = [["Retire Age", "Score", "Ending Portfolio", "Max WR", "Est. Federal Tax"]]
+    current_age = int(st.session_state.retire_age or st.session_state.current_age or 0)
+    for age in sorted(set([max(int(st.session_state.current_age or 0), current_age-2), current_age, current_age+1, current_age+2, current_age+5])):
+        if age <= int(st.session_state.end_age or 90):
+            r = run_projection_with_temp_retire_age(age)
+            if r:
+                scenario_rows.append([str(r["Retirement Age"]), f"{r['Blueprint Score']}/100", money(r["Ending Portfolio"]), pct(r["Max Withdrawal Rate"]), money(r["Estimated Federal Tax"])])
+    if len(scenario_rows) > 1:
+        story.append(make_pdf_table(scenario_rows, col_widths=[1.0*inch, 1.0*inch, 1.5*inch, 1.0*inch, 1.6*inch], font_size=7.4))
     story.append(PageBreak())
 
     # Charts
@@ -4570,6 +4775,10 @@ if active_page == PAGE_NAMES[0]:
                 go_to_page("Guided Questions")
     else:
         st.success("Your blueprint has enough information to review the dashboard, action plan, confidence test, stress tests, and reports.")
+        render_premium_insight("What your blueprint is telling you", df if can_run else None, "general")
+
+    st.markdown("### Premium Features Coming Into Focus")
+    render_premium_lock_cards()
 
     left_panel, right_panel = st.columns([1.35, 1])
 
@@ -4630,7 +4839,7 @@ if active_page == PAGE_NAMES[1]:
     render_page_shell("Start My Blueprint", "Set the core numbers that drive your retirement blueprint: ages, savings, contributions, Social Security, returns, and your bucket strategy.", "🧭")
     page_help(
         "Guided Retirement Questions",
-        "This page collects the core numbers for your retirement blueprint: ages, savings, contributions, Social Security, expected returns, inflation, Roth conversions, and Bucket 1 strategy. These inputs drive the Blueprint Dashboard, Blueprint Score, Action Plan, and Projection."
+        "This page collects the core numbers for your retirement blueprint: ages, savings, contributions, Social Security, expected returns, inflation, Roth conversions, and premium 3-bucket strategy. These inputs drive the Blueprint Dashboard, Blueprint Score, Action Plan, and Projection."
     )
 
     with st.form("guided_form"):
@@ -4664,6 +4873,7 @@ if active_page == PAGE_NAMES[1]:
         c1, c2 = st.columns(2)
         annual_conversion = c1.number_input("Annual Roth conversion to test", min_value=0, value=int(st.session_state.annual_conversion), step=5000, help=FIELD_HELP["annual_conversion"])
         bucket1_years = c2.number_input("Bucket 1 target years of spending", min_value=0.0, max_value=10.0, value=float(st.session_state.bucket1_years), step=0.5, help=FIELD_HELP["bucket1_years"])
+        bucket2_years = c2.number_input("Bucket 2 target years of spending", min_value=0.0, max_value=10.0, value=float(st.session_state.get("bucket2_years", 5.0)), step=0.5, help="Premium 3-bucket planning: how many years of future spending to earmark for an income/balanced bucket after Bucket 1.")
 
         st.subheader("Federal Tax Estimate")
         st.caption("Phase 2: estimates federal ordinary income tax using IRS brackets, filing status, standard deduction, traditional withdrawals, Roth conversions, and taxable Social Security.")
@@ -4722,7 +4932,7 @@ if active_page == PAGE_NAMES[1]:
             "annual_contribution": annual_contribution, "healthcare": healthcare,
             "user_ss_age": user_ss_age, "user_ss": user_ss,
             "growth_return": growth_return, "safe_return": safe_return, "inflation": inflation,
-            "annual_conversion": annual_conversion, "bucket1_years": bucket1_years,
+            "annual_conversion": annual_conversion, "bucket1_years": bucket1_years, "bucket2_years": bucket2_years,
             "tax_year": tax_year, "filing_status": filing_status,
             "home_value": home_value,
             "mortgage_balance": mortgage_balance,
@@ -4733,6 +4943,9 @@ if active_page == PAGE_NAMES[1]:
         }.items():
             st.session_state[k] = v
         st.success("Main answers saved.")
+
+    render_premium_insight("Premium bucket strategy", df if can_run else None, "bucket")
+    render_three_bucket_strategy(df if can_run else None)
 
 if active_page == PAGE_NAMES[2]:
     render_page_shell("Spending Plan", "Estimate your retirement lifestyle costs using either a quick monthly number or a more detailed category-by-category budget.", "💳")
@@ -5191,6 +5404,9 @@ if active_page == PAGE_NAMES[6]:
 
         st.caption("Blueprint Score is an educational score based on portfolio longevity, max withdrawal rate, income coverage, and unmet spending needs.")
 
+        render_premium_insight("Dashboard insight", df, "general")
+        render_confidence_meters(df)
+
         st.subheader("Home & Housing Strategy")
         h1, h2, h3, h4 = st.columns(4)
         h1.metric("Home Value", money(st.session_state.home_value))
@@ -5206,6 +5422,12 @@ if active_page == PAGE_NAMES[6]:
 
         if st.session_state.retirement_housing_plan in ["Downsize", "Relocate", "Snowbird"]:
             st.info("Your housing plan may create flexibility. Downsizing, relocating, or snowbirding can reduce expenses, unlock equity, or change state tax exposure.")
+
+        st.subheader("Premium Scenario Comparison")
+        render_scenario_comparison_panel()
+
+        st.subheader("Premium 3-Bucket Strategy")
+        render_three_bucket_strategy(df)
 
         st.subheader("Portfolio Balance")
         st.caption("Shows how each account type contributes to your total projected portfolio over time.")
@@ -5267,6 +5489,9 @@ if active_page == PAGE_NAMES[7]:
             with st.expander("Why this score?"):
                 for reason in rtv_reasons:
                     st.write(f"- {reason}")
+
+        render_premium_insight("Highest-value planning lever", df, "general")
+        render_scenario_comparison_panel()
 
         st.divider()
 
@@ -5523,6 +5748,7 @@ if active_page == PAGE_NAMES[8]:
     if not can_run:
         st.info("Complete required inputs first.")
     else:
+        render_premium_insight("Projection insight", df, "tax")
         show = df.copy()
 
         # Make projection table labels clearer for users.
@@ -6319,6 +6545,7 @@ if active_page == PAGE_NAMES[10]:
         "Rank retirement locations using taxes, affordability, healthcare, lifestyle, and your personal preferences.",
         "📍"
     )
+    render_premium_insight("Location planning insight", df if can_run else None, "places")
     page_help(
         "Places to Retire",
         "Phase 1 shows a clear state-level retirement scorecard. Phase 2 personalizes the ranking using your income, spending, home value, and what matters most to you. Later phases can add city-level live data, deeper state tax rules, and saved favorite locations."
@@ -7144,7 +7371,8 @@ if active_page == PAGE_NAMES[13]:
     if not can_run:
         st.info("Complete required inputs first.")
     else:
-        st.success("Ready to export a professional-looking retirement report.")
+        st.success("Ready to export a professional-looking premium retirement blueprint report.")
+        render_premium_insight("Report insight", df, "general")
         st.warning("Educational purposes only. This report is not financial, tax, legal, insurance, or investment advice.")
 
         st.write("""
@@ -7156,6 +7384,8 @@ The PDF report includes:
 - Possible recommendations and planning observations
 - Recommended actions to improve the score
 - Spend-more analysis
+- Premium scenario comparison
+- Premium 3-bucket strategy summary
 - Monte Carlo results, if already run
 - Stress test results, if already run
 - Projection snapshot
@@ -7305,6 +7535,8 @@ if active_page == PAGE_NAMES[15]:
         ["Max Withdrawal Rate", "The highest annual portfolio withdrawal divided by portfolio balance in the projection."],
         ["Income Coverage", "How much of annual spending is covered by non-portfolio income such as Social Security, pension, or other income."],
         ["Bucket 1", "Safer money intended to cover near-term retirement spending and reduce sequence-of-return risk."],
+        ["Bucket 2", "Moderate-risk income/balanced assets intended to refill Bucket 1 and reduce pressure on long-term growth assets."],
+        ["Bucket 3", "Long-term growth assets intended to support later retirement years and inflation protection."],
         ["Roth Conversion", "Moving money from traditional pre-tax accounts to Roth accounts. This may create taxes today but can reduce future tax exposure."],
         ["Unmet Need", "Spending need that the plan could not cover in a projected year. Any unmet need is a major warning sign."],
     ], columns=["Term", "Meaning"])
