@@ -481,6 +481,203 @@ def inject_app_styles():
         border-color: #004fd6;
     }
 
+
+
+    /* Better tabs and page polish */
+    div[data-testid="stTabs"] {
+        margin-top: 10px;
+    }
+
+    div[data-testid="stTabs"] [data-baseweb="tab-list"] {
+        gap: 10px;
+        background: linear-gradient(180deg, #f8fbff 0%, #f8fafc 100%);
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        padding: 8px;
+        overflow-x: auto;
+        scrollbar-width: none;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.85), 0 8px 20px rgba(15, 23, 42, 0.04);
+    }
+
+    div[data-testid="stTabs"] [data-baseweb="tab-list"]::-webkit-scrollbar {
+        display: none;
+    }
+
+    div[data-testid="stTabs"] button {
+        min-height: 42px;
+        border-radius: 12px;
+        border: 1px solid transparent;
+        font-weight: 750;
+        color: #334155;
+        padding: 0.45rem 0.95rem;
+        background: rgba(255,255,255,0.92);
+        box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+        white-space: nowrap;
+        flex: 0 0 auto;
+        font-size: 0.93rem;
+        transition: all 0.18s ease;
+    }
+
+    div[data-testid="stTabs"] button:hover {
+        color: #0f62fe;
+        border-color: #dbeafe;
+        background: #ffffff;
+    }
+
+    div[data-testid="stTabs"] button[aria-selected="true"] {
+        background: linear-gradient(135deg, #0f62fe 0%, #3b82f6 55%, #14b8a6 100%);
+        color: #ffffff;
+        border-color: transparent;
+        box-shadow: 0 10px 22px rgba(15, 98, 254, 0.24);
+    }
+
+    div[data-testid="stTabs"] [data-baseweb="tab-highlight"] {
+        display: none;
+    }
+
+    div[data-testid="stForm"] {
+        background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+        border: 1px solid #e2e8f0;
+        border-radius: 22px;
+        padding: 1.25rem 1.15rem 0.8rem 1.15rem;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.055);
+        margin-top: 0.65rem;
+    }
+
+    div[data-testid="stExpander"] {
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        background: #ffffff;
+        overflow: hidden;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+    }
+
+    details {
+        border-radius: 16px;
+    }
+
+    summary {
+        font-weight: 750;
+        color: #0f172a;
+    }
+
+    label[data-testid="stWidgetLabel"] p {
+        color: #334155;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+    }
+
+    div[data-baseweb="input"] {
+        border-radius: 14px !important;
+        border: 1px solid #dbe3ef !important;
+        background: #fbfdff !important;
+        box-shadow: inset 0 1px 2px rgba(15,23,42,0.03);
+    }
+
+    div[data-baseweb="input"]:focus-within,
+    div[data-baseweb="select"] > div:focus-within,
+    textarea:focus,
+    input:focus {
+        border-color: #93c5fd !important;
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.12) !important;
+    }
+
+    div[data-baseweb="select"] > div {
+        border-radius: 14px !important;
+        border: 1px solid #dbe3ef !important;
+        background: #fbfdff !important;
+        min-height: 44px;
+    }
+
+    textarea, input {
+        border-radius: 14px !important;
+    }
+
+    div[data-testid="stNumberInput"] button {
+        border-radius: 10px !important;
+    }
+
+    div[data-testid="stRadio"] [role="radiogroup"] {
+        gap: 10px;
+    }
+
+    div[data-testid="stRadio"] label {
+        background: #ffffff;
+        border: 1px solid #dbe3ef;
+        padding: 0.35rem 0.8rem;
+        border-radius: 999px;
+    }
+
+    div[data-testid="stAlert"] {
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+    }
+
+    div[data-testid="stHorizontalBlock"] {
+        gap: 1rem;
+    }
+
+    .rb-page-shell {
+        border: 1px solid #e2e8f0;
+        border-radius: 22px;
+        padding: 1.15rem 1.2rem;
+        background: linear-gradient(135deg, #ffffff 0%, #f8fbff 70%, #f0fdfa 100%);
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+        margin: 0.4rem 0 1rem 0;
+    }
+
+    .rb-page-shell-row {
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+    }
+
+    .rb-page-icon {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.35rem;
+        background: linear-gradient(135deg, #dbeafe 0%, #ccfbf1 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
+    }
+
+    .rb-page-kicker {
+        display: inline-block;
+        background: #eff6ff;
+        color: #0f62fe;
+        border: 1px solid #dbeafe;
+        border-radius: 999px;
+        padding: 0.18rem 0.55rem;
+        font-size: 0.78rem;
+        font-weight: 800;
+        margin-bottom: 0.45rem;
+    }
+
+    .rb-page-title-lg {
+        color: #0f172a;
+        font-size: 1.65rem;
+        line-height: 1.15;
+        font-weight: 850;
+        margin-bottom: 0.3rem;
+        letter-spacing: -0.03em;
+    }
+
+    .rb-page-desc {
+        color: #64748b;
+        line-height: 1.45;
+        max-width: 980px;
+    }
+
+    .rb-soft-divider {
+        height: 1px;
+        background: linear-gradient(90deg, rgba(15,98,254,0.10), rgba(20,184,166,0.10), rgba(15,23,42,0.02));
+        margin: 1rem 0 0.4rem 0;
+    }
+
     @media (max-width: 900px) {
         .rb-hero, .rb-banner, .rb-warning-panel { flex-direction: column; align-items: stretch; }
         .rb-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -743,6 +940,21 @@ def page_help(title, body):
 
 def section_note(text):
     st.info(f"💬 {text}")
+
+
+def render_page_shell(title, description, icon="📘", kicker="Planner Section"):
+    st.markdown(f"""
+    <div class="rb-page-shell">
+      <div class="rb-page-shell-row">
+        <div class="rb-page-icon">{icon}</div>
+        <div>
+          <div class="rb-page-kicker">{kicker}</div>
+          <div class="rb-page-title-lg">{title}</div>
+          <div class="rb-page-desc">{description}</div>
+        </div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 
@@ -3681,7 +3893,7 @@ with tabs[0]:
 
 
 with tabs[1]:
-    st.header("Guided Retirement Questions")
+    render_page_shell("Guided Retirement Questions", "Set the core numbers that drive your retirement projection: ages, savings, contributions, Social Security, returns, and your bucket strategy.", "🧭")
     page_help(
         "Guided Retirement Questions",
         "This page collects the core numbers for the retirement projection: ages, savings, contributions, Social Security, expected returns, inflation, Roth conversions, and Bucket 1 strategy. These inputs drive the Dashboard, RTV score, Recommendations, and Projection Table."
@@ -3767,7 +3979,7 @@ with tabs[1]:
         st.success("Main answers saved.")
 
 with tabs[2]:
-    st.header("Household Spending / Budget Builder")
+    render_page_shell("Household Spending / Budget Builder", "Estimate your retirement lifestyle costs using either a quick monthly number or a more detailed category-by-category budget.", "💳")
     page_help(
         "Budget Builder",
         "This page estimates how much money you need each year in retirement. You can use a simple flat monthly amount or enter a detailed monthly budget. Healthcare is handled separately so the app can model it more clearly."
@@ -3893,7 +4105,7 @@ with tabs[2]:
 
 
 with tabs[3]:
-    st.header("Other Income Builder")
+    render_page_shell("Other Income Builder", "Add pensions, rental income, side income, annuities, or any other cash flows that reduce pressure on your portfolio.", "💼")
     page_help(
         "Income Builder",
         "This page captures income besides portfolio withdrawals, such as pensions, rental income, part-time work, consulting, annuities, or business income. More reliable income usually reduces portfolio withdrawal pressure."
@@ -3947,7 +4159,7 @@ with tabs[3]:
             st.success("Advanced income sources saved.")
 
 with tabs[4]:
-    st.header("Spouse / Partner Questions")
+    render_page_shell("Spouse / Partner Questions", "Capture spouse timing, Social Security, healthcare, and survivor planning so the plan reflects the full household picture.", "👥")
     page_help(
         "Spouse Questions",
         "This page adds spouse or partner timing, healthcare, contributions, and Social Security. This matters because retirement timing, survivor benefits, and spending needs often change when two people are included."
@@ -4060,7 +4272,7 @@ with tabs[4]:
 
 
 with tabs[5]:
-    st.header("Review Answers")
+    render_page_shell("Review Answers", "See a clean summary of your current inputs before running deeper analysis or sharing the results.", "📝")
     page_help(
         "Review Answers",
         "This page summarizes your saved inputs before running the plan. Use it to catch missing or incorrect assumptions before trusting the results."
@@ -4108,7 +4320,7 @@ can_run = len(required_missing()) == 0
 df = run_projection() if can_run else pd.DataFrame()
 
 with tabs[6]:
-    st.header("Dashboard")
+    render_page_shell("Dashboard", "Review your plan outcome, year-by-year trends, and the key retirement metrics that show whether your plan is on track.", "📊")
     page_help(
         "Dashboard",
         "This page shows the main retirement outcome. RTV means Retirement Timing Viability. It summarizes whether your plan appears funded, how much money may remain, income coverage, withdrawals, and risk areas."
@@ -4255,7 +4467,7 @@ with tabs[6]:
         st.pyplot(plot_withdrawal_rate_chart(df), use_container_width=True)
 
 with tabs[7]:
-    st.header("Recommendations")
+    render_page_shell("Recommendations", "Get action-oriented ideas to improve readiness, reduce pressure, and strengthen the odds that your retirement plan succeeds.", "💡")
     page_help(
         "Recommendations",
         "This page tests ways to improve your RTV score, such as retiring later, spending less, contributing more, or changing Social Security timing. It also tests whether you may be able to spend more and still keep a strong score."
@@ -4544,7 +4756,7 @@ with tabs[7]:
             st.dataframe(show, use_container_width=True, hide_index=True)
 
 with tabs[8]:
-    st.header("Projection Table")
+    render_page_shell("Projection Table", "Review the detailed annual projection behind the scenes, including balances, withdrawals, taxes, income, and ending values.", "📈")
     page_help(
         "Projection Table",
         "This table shows the year-by-year math behind the plan. It includes balances, spending, income, withdrawals, Roth conversions, unmet needs, and withdrawal rates by age."
@@ -5322,7 +5534,7 @@ with tabs[9]:
 
 
 with tabs[10]:
-    st.header("Best Places to Retire")
+    render_page_shell("Best Places to Retire", "Compare states and retirement locations using taxes, affordability, healthcare, and lifestyle considerations.", "📍")
     page_help(
         "Best Places to Retire",
         "Phase 1 compares states. Phase 2 adds personalized tax estimates. Phase 3 adds city/place recommendations. Phase 4 adds state comparison. Phase 5 adds a personalized location recommendation engine."
@@ -5933,7 +6145,7 @@ This is not a replacement for a CPA or tax-planning software. It is meant to hel
 
 
 with tabs[11]:
-    st.header("Monte Carlo Simulator")
+    render_page_shell("Monte Carlo Simulator", "Stress test your plan across many market paths to understand the probability of success and the range of possible outcomes.", "🎲")
     page_help(
         "Monte Carlo Simulator",
         "This page runs hundreds or thousands of randomized market-return paths to estimate how often the retirement plan survives. It helps show sequence-of-return risk and the range of possible ending portfolio balances."
@@ -6059,7 +6271,7 @@ with tabs[11]:
 
 
 with tabs[12]:
-    st.header("Stress Tests")
+    render_page_shell("Stress Tests", "Try tougher scenarios like lower returns, higher spending, or inflation shocks to see where your plan bends or breaks.", "🛡️")
 
     if not can_run:
         st.info("Complete required inputs first.")
@@ -6157,7 +6369,7 @@ with tabs[12]:
 
 
 with tabs[13]:
-    st.header("PDF Report")
+    render_page_shell("PDF Report", "Create a shareable retirement summary you can save, print, or discuss with a spouse, advisor, or planner.", "📄")
     page_help(
         "PDF Report",
         "This page exports a visually polished retirement report with the plan summary, assumptions, dashboard charts, recommendations, Monte Carlo results, stress tests, and a projection snapshot."
@@ -6204,7 +6416,7 @@ The PDF report includes:
 
 
 with tabs[14]:
-    st.header("AI Retirement Coach")
+    render_page_shell("AI Retirement Coach", "Ask follow-up questions, explore trade-offs, and get plain-English explanations of what your plan results mean.", "🤖")
     page_help(
         "AI Retirement Coach",
         "This chat explains the retirement numbers in plain English. It uses your current plan context, but it is educational only and not financial, tax, legal, insurance, or investment advice."
@@ -6313,7 +6525,7 @@ with tabs[14]:
         st.warning("Type a question first, then tap Send question.")
 
 with tabs[15]:
-    st.header("How to Use This")
+    render_page_shell("How to Use This", "Learn what each section does, how to interpret your results, and the best order to use the planner.", "❓")
     page_help(
         "Help / Instructions",
         "This page explains how to move through the app, what the major terms mean, and how to interpret the results."
