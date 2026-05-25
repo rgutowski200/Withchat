@@ -678,6 +678,51 @@ def inject_app_styles():
         margin: 1rem 0 0.4rem 0;
     }
 
+    .rb-nav-wrap {
+        margin: 10px 0 18px 0;
+    }
+
+    .rb-nav-wrap div[data-testid="stRadio"] [role="radiogroup"] {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 10px;
+        overflow-x: auto;
+        padding: 8px;
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        background: linear-gradient(180deg, #f8fbff 0%, #f8fafc 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 8px 20px rgba(15,23,42,0.04);
+        scrollbar-width: thin;
+    }
+
+    .rb-nav-wrap div[data-testid="stRadio"] label {
+        flex: 0 0 auto;
+        margin: 0;
+        border: 1px solid #dbe3ef;
+        border-radius: 14px;
+        background: #ffffff;
+        padding: 0.58rem 0.95rem;
+        box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+        transition: all 0.18s ease;
+    }
+
+    .rb-nav-wrap div[data-testid="stRadio"] label:hover {
+        border-color: #93c5fd;
+        background: #eff6ff;
+    }
+
+    .rb-nav-wrap div[data-testid="stRadio"] label:has(input:checked) {
+        background: linear-gradient(135deg, #0f62fe 0%, #3b82f6 55%, #14b8a6 100%);
+        border-color: transparent;
+        color: #ffffff !important;
+        box-shadow: 0 10px 22px rgba(15,98,254,0.24);
+    }
+
+    .rb-nav-wrap div[data-testid="stRadio"] label:has(input:checked) p,
+    .rb-nav-wrap div[data-testid="stRadio"] label:has(input:checked) span {
+        color: #ffffff !important;
+    }
+
     @media (max-width: 900px) {
         .rb-hero, .rb-banner, .rb-warning-panel { flex-direction: column; align-items: stretch; }
         .rb-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -3728,9 +3773,9 @@ def find_monthly_spending_for_target_score(target_score=80):
 
 
 # -----------------------------
-# Tabs
+# App navigation
 # -----------------------------
-tabs = st.tabs([
+PAGE_NAMES = [
     "Home",
     "Guided Questions",
     "Budget Builder",
@@ -3747,10 +3792,47 @@ tabs = st.tabs([
     "PDF Report",
     "AI Retirement Coach",
     "Help / Instructions",
-])
+]
+
+PAGE_ICONS = {
+    "Home": "🏠",
+    "Guided Questions": "🧭",
+    "Budget Builder": "💳",
+    "Income Builder": "💼",
+    "Spouse Questions": "👥",
+    "Review Answers": "📝",
+    "Dashboard": "📊",
+    "Recommendations": "💡",
+    "Projection Table": "📈",
+    "Saved Scenarios": "💾",
+    "Best Places to Retire": "📍",
+    "Monte Carlo": "🎲",
+    "Stress Tests": "🛡️",
+    "PDF Report": "📄",
+    "AI Retirement Coach": "🤖",
+    "Help / Instructions": "❓",
+}
+
+if "active_page" not in st.session_state or st.session_state.active_page not in PAGE_NAMES:
+    st.session_state.active_page = "Home"
+
+def go_to_page(page_name: str):
+    st.session_state.active_page = page_name
+    st.rerun()
+
+st.markdown('<div class="rb-nav-wrap">', unsafe_allow_html=True)
+active_page = st.radio(
+    "Main navigation",
+    PAGE_NAMES,
+    key="active_page",
+    horizontal=True,
+    label_visibility="collapsed",
+    format_func=lambda name: f"{PAGE_ICONS.get(name, '')} {name}",
+)
+st.markdown('</div>', unsafe_allow_html=True)
 
 
-with tabs[0]:
+if active_page == PAGE_NAMES[0]:
     st.markdown("""
     <div class="rb-page-title">Home Dashboard</div>
     <div class="rb-accent-line"></div>
@@ -3853,46 +3935,71 @@ with tabs[0]:
               <div class="rb-muted">{required_panel}</div>
             </div>
           </div>
-          <div class="rb-outline-btn">Go to Guided Questions ›</div>
         </div>
         """, unsafe_allow_html=True)
+        c_warn_left, c_warn_btn = st.columns([4, 1.35])
+        with c_warn_btn:
+            if st.button("Go to Guided Questions", use_container_width=True, key="home_go_guided_required"):
+                go_to_page("Guided Questions")
     else:
         st.success("Your plan has enough information to review the dashboard, recommendations, Monte Carlo, stress tests, and reports.")
 
-    st.markdown("""
-    <div class="rb-lower-grid">
-      <div class="rb-panel">
-        <div class="rb-panel-title"><span>🚀</span><span>Quick Start</span></div>
-        <div class="rb-step"><span class="rb-step-num">1</span><span>Complete <b>Guided Questions</b>.</span></div>
-        <div class="rb-step"><span class="rb-step-num">2</span><span>Add spending in <b>Budget Builder</b>.</span></div>
-        <div class="rb-step"><span class="rb-step-num">3</span><span>Add other income in <b>Income Builder</b>.</span></div>
-        <div class="rb-step"><span class="rb-step-num">4</span><span>Use <b>Dashboard</b> and <b>Recommendations</b>.</span></div>
-        <div class="rb-step"><span class="rb-step-num">5</span><span>Save and compare scenarios in <b>Saved Scenarios</b>.</span></div>
-        <div class="rb-step"><span class="rb-step-num">6</span><span>Run <b>Monte Carlo</b>, <b>Stress Tests</b>, and export a <b>PDF Report</b>.</span></div>
-      </div>
-      <div class="rb-panel">
-        <div class="rb-panel-title"><span>✅</span><span>Next Best Step</span></div>
-        <div class="rb-next-box">
-          <div class="rb-next-heading">Start with your personal details</div>
-          <div class="rb-muted">Answer a few key questions about you and your retirement goals to build a plan that is right for you.</div>
-          <div class="rb-green-btn">Start Guided Questions</div>
+    left_panel, right_panel = st.columns([1.35, 1])
+
+    with left_panel:
+        st.markdown("""
+        <div class="rb-panel">
+          <div class="rb-panel-title"><span>🚀</span><span>Quick Start</span></div>
+          <div class="rb-step"><span class="rb-step-num">1</span><span>Complete your core retirement details.</span></div>
+          <div class="rb-step"><span class="rb-step-num">2</span><span>Add spending and budget assumptions.</span></div>
+          <div class="rb-step"><span class="rb-step-num">3</span><span>Add other income sources.</span></div>
+          <div class="rb-step"><span class="rb-step-num">4</span><span>Review Dashboard and Recommendations.</span></div>
+          <div class="rb-step"><span class="rb-step-num">5</span><span>Save and compare scenarios.</span></div>
+          <div class="rb-step"><span class="rb-step-num">6</span><span>Run Monte Carlo, Stress Tests, and export a PDF Report.</span></div>
         </div>
-        <div class="rb-tips">
-          <div class="rb-tips-title">💡 Helpful Tips</div>
-          <ul>
-            <li>Answer questions as completely as you can for the best results.</li>
-            <li>Review your plan often and update as life changes.</li>
-            <li>Use scenarios to compare different strategies.</li>
-          </ul>
+        """, unsafe_allow_html=True)
+        q1, q2, q3 = st.columns(3)
+        with q1:
+            if st.button("Guided Questions", use_container_width=True, key="qs_guided"):
+                go_to_page("Guided Questions")
+            if st.button("Dashboard", use_container_width=True, key="qs_dashboard"):
+                go_to_page("Dashboard")
+        with q2:
+            if st.button("Budget Builder", use_container_width=True, key="qs_budget"):
+                go_to_page("Budget Builder")
+            if st.button("Saved Scenarios", use_container_width=True, key="qs_saved"):
+                go_to_page("Saved Scenarios")
+        with q3:
+            if st.button("Income Builder", use_container_width=True, key="qs_income"):
+                go_to_page("Income Builder")
+            if st.button("PDF Report", use_container_width=True, key="qs_pdf"):
+                go_to_page("PDF Report")
+
+    with right_panel:
+        st.markdown("""
+        <div class="rb-panel">
+          <div class="rb-panel-title"><span>✅</span><span>Next Best Step</span></div>
+          <div class="rb-next-box">
+            <div class="rb-next-heading">Start with your personal details</div>
+            <div class="rb-muted">Answer a few key questions about you and your retirement goals to build a plan that is right for you.</div>
+          </div>
+          <div class="rb-tips">
+            <div class="rb-tips-title">💡 Helpful Tips</div>
+            <ul>
+              <li>Answer questions as completely as you can for the best results.</li>
+              <li>Review your plan often and update as life changes.</li>
+              <li>Use scenarios to compare different strategies.</li>
+            </ul>
+          </div>
         </div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+        if st.button("Start Guided Questions", use_container_width=True, key="next_start_guided"):
+            go_to_page("Guided Questions")
 
     st.caption("Educational planning tool only. Not financial, tax, legal, insurance, or investment advice.")
 
 
-with tabs[1]:
+if active_page == PAGE_NAMES[1]:
     render_page_shell("Guided Retirement Questions", "Set the core numbers that drive your retirement projection: ages, savings, contributions, Social Security, returns, and your bucket strategy.", "🧭")
     page_help(
         "Guided Retirement Questions",
@@ -3978,7 +4085,7 @@ with tabs[1]:
             st.session_state[k] = v
         st.success("Main answers saved.")
 
-with tabs[2]:
+if active_page == PAGE_NAMES[2]:
     render_page_shell("Household Spending / Budget Builder", "Estimate your retirement lifestyle costs using either a quick monthly number or a more detailed category-by-category budget.", "💳")
     page_help(
         "Budget Builder",
@@ -4104,7 +4211,7 @@ with tabs[2]:
         c4.metric("New Monthly Spending", money(st.session_state.spending_change_monthly))
 
 
-with tabs[3]:
+if active_page == PAGE_NAMES[3]:
     render_page_shell("Other Income Builder", "Add pensions, rental income, side income, annuities, or any other cash flows that reduce pressure on your portfolio.", "💼")
     page_help(
         "Income Builder",
@@ -4158,7 +4265,7 @@ with tabs[3]:
             st.session_state.income_sources_df = edited
             st.success("Advanced income sources saved.")
 
-with tabs[4]:
+if active_page == PAGE_NAMES[4]:
     render_page_shell("Spouse / Partner Questions", "Capture spouse timing, Social Security, healthcare, and survivor planning so the plan reflects the full household picture.", "👥")
     page_help(
         "Spouse Questions",
@@ -4271,7 +4378,7 @@ with tabs[4]:
         st.session_state.survivor_ss_strategy = "Higher benefit continues"
 
 
-with tabs[5]:
+if active_page == PAGE_NAMES[5]:
     render_page_shell("Review Answers", "See a clean summary of your current inputs before running deeper analysis or sharing the results.", "📝")
     page_help(
         "Review Answers",
@@ -4319,7 +4426,7 @@ with tabs[5]:
 can_run = len(required_missing()) == 0
 df = run_projection() if can_run else pd.DataFrame()
 
-with tabs[6]:
+if active_page == PAGE_NAMES[6]:
     render_page_shell("Dashboard", "Review your plan outcome, year-by-year trends, and the key retirement metrics that show whether your plan is on track.", "📊")
     page_help(
         "Dashboard",
@@ -4466,7 +4573,7 @@ with tabs[6]:
         st.caption("Shows the annual withdrawal rate against 4% and 6% reference lines.")
         st.pyplot(plot_withdrawal_rate_chart(df), use_container_width=True)
 
-with tabs[7]:
+if active_page == PAGE_NAMES[7]:
     render_page_shell("Recommendations", "Get action-oriented ideas to improve readiness, reduce pressure, and strengthen the odds that your retirement plan succeeds.", "💡")
     page_help(
         "Recommendations",
@@ -4755,7 +4862,7 @@ with tabs[7]:
             show["Avg Income Coverage"] = show["Avg Income Coverage"].map(pct)
             st.dataframe(show, use_container_width=True, hide_index=True)
 
-with tabs[8]:
+if active_page == PAGE_NAMES[8]:
     render_page_shell("Projection Table", "Review the detailed annual projection behind the scenes, including balances, withdrawals, taxes, income, and ending values.", "📈")
     page_help(
         "Projection Table",
@@ -4774,7 +4881,7 @@ with tabs[8]:
         st.dataframe(show, use_container_width=True)
         st.download_button("Download Projection CSV", df.to_csv(index=False).encode("utf-8"), "retirement_projection.csv", "text/csv")
 
-with tabs[9]:
+if active_page == PAGE_NAMES[9]:
     st.markdown("""
     <style>
     /* Saved Scenarios page polish */
@@ -5533,7 +5640,7 @@ with tabs[9]:
 
 
 
-with tabs[10]:
+if active_page == PAGE_NAMES[10]:
     render_page_shell("Best Places to Retire", "Compare states and retirement locations using taxes, affordability, healthcare, and lifestyle considerations.", "📍")
     page_help(
         "Best Places to Retire",
@@ -6144,7 +6251,7 @@ This is not a replacement for a CPA or tax-planning software. It is meant to hel
     )
 
 
-with tabs[11]:
+if active_page == PAGE_NAMES[11]:
     render_page_shell("Monte Carlo Simulator", "Stress test your plan across many market paths to understand the probability of success and the range of possible outcomes.", "🎲")
     page_help(
         "Monte Carlo Simulator",
@@ -6270,7 +6377,7 @@ with tabs[11]:
 
 
 
-with tabs[12]:
+if active_page == PAGE_NAMES[12]:
     render_page_shell("Stress Tests", "Try tougher scenarios like lower returns, higher spending, or inflation shocks to see where your plan bends or breaks.", "🛡️")
 
     if not can_run:
@@ -6368,7 +6475,7 @@ with tabs[12]:
 
 
 
-with tabs[13]:
+if active_page == PAGE_NAMES[13]:
     render_page_shell("PDF Report", "Create a shareable retirement summary you can save, print, or discuss with a spouse, advisor, or planner.", "📄")
     page_help(
         "PDF Report",
@@ -6415,7 +6522,7 @@ The PDF report includes:
             )
 
 
-with tabs[14]:
+if active_page == PAGE_NAMES[14]:
     render_page_shell("AI Retirement Coach", "Ask follow-up questions, explore trade-offs, and get plain-English explanations of what your plan results mean.", "🤖")
     page_help(
         "AI Retirement Coach",
@@ -6524,7 +6631,7 @@ with tabs[14]:
     elif send_question and not question.strip():
         st.warning("Type a question first, then tap Send question.")
 
-with tabs[15]:
+if active_page == PAGE_NAMES[15]:
     render_page_shell("How to Use This", "Learn what each section does, how to interpret your results, and the best order to use the planner.", "❓")
     page_help(
         "Help / Instructions",
