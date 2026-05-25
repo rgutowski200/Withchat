@@ -24,6 +24,430 @@ from reportlab.platypus import (
 st.set_page_config(page_title="Retirement Decision Engine", layout="wide")
 
 
+# -----------------------------
+# Visual polish / design system
+# -----------------------------
+def inject_app_styles():
+    st.markdown("""
+    <style>
+    :root {
+        --rb-primary: #0f62fe;
+        --rb-primary-dark: #0842a0;
+        --rb-teal: #0891b2;
+        --rb-green: #15803d;
+        --rb-ink: #0f172a;
+        --rb-muted: #64748b;
+        --rb-line: #e2e8f0;
+        --rb-soft: #f8fafc;
+        --rb-card: #ffffff;
+        --rb-warn-bg: #fffbeb;
+        --rb-warn-border: #fbbf24;
+    }
+
+    .block-container {
+        padding-top: 1.3rem;
+        padding-bottom: 3rem;
+        max-width: 1320px;
+    }
+
+    h1, h2, h3 {
+        color: var(--rb-ink);
+        letter-spacing: -0.035em;
+    }
+
+    p, div, label, span {
+        font-size: 1rem;
+    }
+
+    div[data-testid="stTabs"] button {
+        min-height: 46px;
+        border-radius: 14px 14px 0 0;
+        font-weight: 650;
+        color: #334155;
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    div[data-testid="stTabs"] button[aria-selected="true"] {
+        background: #eff6ff;
+        color: #0f62fe;
+        border-bottom: 3px solid #0f62fe;
+    }
+
+    div[data-testid="stMetric"] {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 18px;
+        padding: 18px 18px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.055);
+        min-height: 142px;
+    }
+
+    div[data-testid="stMetricLabel"] p {
+        color: #475569;
+        font-weight: 700;
+    }
+
+    div[data-testid="stMetricValue"] {
+        color: #0f172a;
+        font-weight: 850;
+    }
+
+    .rb-hero {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 20px;
+        border: 1px solid #e5e7eb;
+        border-radius: 22px;
+        padding: 24px 26px;
+        background: linear-gradient(135deg, #ffffff 0%, #f8fbff 70%, #ecfeff 100%);
+        box-shadow: 0 10px 35px rgba(15, 23, 42, 0.06);
+        margin-bottom: 18px;
+    }
+
+    .rb-logo-row {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+    }
+
+    .rb-logo {
+        width: 58px;
+        height: 58px;
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #0f62fe, #14b8a6);
+        color: white;
+        font-size: 30px;
+        font-weight: 900;
+        box-shadow: 0 10px 22px rgba(15, 98, 254, 0.22);
+    }
+
+    .rb-hero-title {
+        font-size: 2.1rem;
+        line-height: 1.1;
+        font-weight: 850;
+        color: var(--rb-ink);
+        margin: 0 0 6px 0;
+    }
+
+    .rb-hero-subtitle {
+        max-width: 900px;
+        color: #64748b;
+        font-size: 0.98rem;
+        line-height: 1.45;
+        margin: 0;
+    }
+
+    .rb-account-chip {
+        white-space: nowrap;
+        border: 1px solid #dbeafe;
+        border-radius: 16px;
+        background: #ffffff;
+        padding: 12px 15px;
+        min-width: 150px;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+        color: #0f172a;
+        font-weight: 800;
+        text-align: center;
+    }
+
+    .rb-account-chip small {
+        display: block;
+        margin-top: 3px;
+        color: #0f62fe;
+        font-weight: 800;
+    }
+
+    .rb-page-title {
+        font-size: 2rem;
+        line-height: 1.15;
+        font-weight: 850;
+        color: var(--rb-ink);
+        margin: 18px 0 4px 0;
+    }
+
+    .rb-accent-line {
+        width: 34px;
+        height: 4px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #0f62fe, #14b8a6);
+        margin: 8px 0 12px 0;
+    }
+
+    .rb-muted {
+        color: var(--rb-muted);
+        line-height: 1.45;
+    }
+
+    .rb-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        border: 1px solid #bfdbfe;
+        border-radius: 16px;
+        background: #eff6ff;
+        padding: 16px 18px;
+        margin: 22px 0 20px 0;
+    }
+
+    .rb-banner-left {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
+    .rb-info-dot {
+        width: 38px;
+        height: 38px;
+        min-width: 38px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #0f62fe;
+        color: white;
+        font-weight: 900;
+        font-size: 1.15rem;
+    }
+
+    .rb-banner-title {
+        font-weight: 850;
+        color: #0f2f6a;
+        margin-bottom: 2px;
+    }
+
+    .rb-btn-fake {
+        display: inline-block;
+        border-radius: 12px;
+        background: #0f62fe;
+        color: #ffffff !important;
+        padding: 10px 16px;
+        font-weight: 850;
+        text-decoration: none !important;
+        box-shadow: 0 8px 18px rgba(15, 98, 254, 0.2);
+    }
+
+    .rb-card-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 18px;
+        margin: 8px 0 22px 0;
+    }
+
+    .rb-card {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 18px;
+        padding: 20px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.055);
+        min-height: 150px;
+    }
+
+    .rb-card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .rb-card-label {
+        color: #475569;
+        font-weight: 800;
+        font-size: 0.98rem;
+    }
+
+    .rb-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+        background: #e0f2fe;
+    }
+
+    .rb-card-value {
+        color: #0f172a;
+        font-size: 1.9rem;
+        line-height: 1.05;
+        font-weight: 900;
+        margin-top: 18px;
+    }
+
+    .rb-card-note {
+        color: #64748b;
+        font-size: 0.96rem;
+        line-height: 1.45;
+        margin-top: 12px;
+    }
+
+    .rb-warning-panel {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        border: 1px solid var(--rb-warn-border);
+        border-radius: 17px;
+        background: linear-gradient(135deg, #fffbeb 0%, #fff7ed 100%);
+        padding: 18px 22px;
+        margin: 10px 0 22px 0;
+        box-shadow: 0 8px 20px rgba(251, 191, 36, 0.12);
+    }
+
+    .rb-warning-left {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+    }
+
+    .rb-warning-icon {
+        width: 46px;
+        height: 46px;
+        min-width: 46px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #fef3c7;
+        color: #d97706;
+        font-size: 1.4rem;
+    }
+
+    .rb-warning-title {
+        font-weight: 900;
+        color: #92400e;
+        margin-bottom: 3px;
+    }
+
+    .rb-outline-btn {
+        display: inline-block;
+        border: 1px solid #f59e0b;
+        background: #ffffff;
+        color: #0f172a !important;
+        border-radius: 12px;
+        padding: 10px 14px;
+        text-decoration: none !important;
+        font-weight: 850;
+        white-space: nowrap;
+    }
+
+    .rb-lower-grid {
+        display: grid;
+        grid-template-columns: 1.35fr 1fr;
+        gap: 22px;
+        margin-top: 8px;
+    }
+
+    .rb-panel {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 20px;
+        padding: 22px;
+        box-shadow: 0 10px 28px rgba(15, 23, 42, 0.055);
+    }
+
+    .rb-panel-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 1.35rem;
+        font-weight: 900;
+        color: #0f172a;
+        margin-bottom: 15px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .rb-step {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        margin: 12px 0;
+        color: #334155;
+        line-height: 1.35;
+    }
+
+    .rb-step-num {
+        width: 25px;
+        height: 25px;
+        min-width: 25px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #0f62fe;
+        color: #ffffff;
+        font-size: 0.85rem;
+        font-weight: 900;
+    }
+
+    .rb-step b {
+        color: #0f62fe;
+    }
+
+    .rb-next-box {
+        border: 1px solid #86efac;
+        background: linear-gradient(135deg, #f0fdf4 0%, #ecfeff 100%);
+        border-radius: 16px;
+        padding: 18px;
+        margin-bottom: 14px;
+    }
+
+    .rb-next-heading {
+        color: #15803d;
+        font-weight: 900;
+        font-size: 1.08rem;
+        margin-bottom: 5px;
+    }
+
+    .rb-green-btn {
+        display: inline-block;
+        border-radius: 12px;
+        background: #15803d;
+        color: white !important;
+        padding: 10px 18px;
+        font-weight: 850;
+        text-decoration: none !important;
+        margin-top: 12px;
+    }
+
+    .rb-tips {
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 14px 16px;
+        color: #475569;
+        background: #fbfdff;
+    }
+
+    .rb-tips-title {
+        font-weight: 900;
+        color: #0f62fe;
+        margin-bottom: 6px;
+    }
+
+    @media (max-width: 900px) {
+        .rb-hero, .rb-banner, .rb-warning-panel { flex-direction: column; align-items: stretch; }
+        .rb-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .rb-lower-grid { grid-template-columns: 1fr; }
+        .rb-hero-title { font-size: 1.55rem; }
+    }
+
+    @media (max-width: 560px) {
+        .rb-card-grid { grid-template-columns: 1fr; }
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+
+inject_app_styles()
+
+
 def auth_box():
     if "user" not in st.session_state:
         st.session_state.user = None
@@ -136,8 +560,20 @@ def auth_box():
 
 user = auth_box()
 
-st.title("Retirement Decision Engine - Guided Planner")
-st.caption("Guided retirement planner with detailed budget, spouse planning, simple/advanced income builder, 2-bucket withdrawals, RTV scoring, saved scenarios, and iPad-friendly AI chat.")
+account_label = "Signed in" if user else "Not signed in"
+account_sub = user.email if user else "Sign in to save"
+st.markdown(f"""
+<div class="rb-hero">
+  <div class="rb-logo-row">
+    <div class="rb-logo">↗</div>
+    <div>
+      <div class="rb-hero-title">Retirement Decision Engine - Guided Planner</div>
+      <p class="rb-hero-subtitle">Guided retirement planner with detailed budget, spouse planning, simple/advanced income builder, 2-bucket withdrawals, RTV scoring, saved scenarios, and iPad-friendly AI chat.</p>
+    </div>
+  </div>
+  <div class="rb-account-chip">{account_label}<small>{account_sub}</small></div>
+</div>
+""", unsafe_allow_html=True)
 
 
 def money(x):
@@ -3076,13 +3512,11 @@ tabs = st.tabs([
 
 
 with tabs[0]:
-    st.header("Home Dashboard")
-    st.caption("A quick overview of your retirement plan setup, saved scenarios, and next best steps.")
-
-    if user:
-        st.success(f"Signed in as: {user.email}")
-    else:
-        st.warning("You are not signed in. You can still use the planner, but saved scenarios require an account.")
+    st.markdown("""
+    <div class="rb-page-title">Home Dashboard</div>
+    <div class="rb-accent-line"></div>
+    <div class="rb-muted">A quick overview of your retirement plan setup, saved scenarios, and next best steps.</div>
+    """, unsafe_allow_html=True)
 
     missing_items_home = required_missing()
 
@@ -3098,8 +3532,6 @@ with tabs[0]:
         safe_can_run_home = False
         st.warning(f"Projection cannot run yet: {e}")
 
-    c1, c2, c3, c4 = st.columns(4)
-
     if safe_can_run_home:
         try:
             score_result_home = calculate_rtv_score(safe_df_home)
@@ -3109,34 +3541,105 @@ with tabs[0]:
             rtv_score_home = 0
             rtv_label_home = "Incomplete"
 
-        c1.metric("RTV Score", f"{rtv_score_home}/100", rtv_label_home)
-        c2.metric("Ending Portfolio", money(safe_df_home["End Total"].iloc[-1]))
-        c3.metric("Max Withdrawal Rate", pct(safe_df_home["Withdrawal Rate"].max()))
-        c4.metric("Income Coverage", pct(safe_df_home["Income Coverage Ratio"].mean()))
-
-        st.success("Your plan has enough information to review the dashboard, recommendations, Monte Carlo, stress tests, and reports.")
+        rtv_value_home = f"{rtv_score_home}/100"
+        rtv_note_home = f"{rtv_label_home} readiness score based on your current inputs."
+        ending_portfolio_home = money(safe_df_home["End Total"].iloc[-1])
+        max_wr_home = pct(safe_df_home["Withdrawal Rate"].max())
+        income_coverage_home = pct(safe_df_home["Income Coverage Ratio"].mean())
+        status_title = "Your plan is ready to review."
+        status_note = "Use Dashboard, Recommendations, Monte Carlo, Stress Tests, and PDF Report for deeper analysis."
+        required_panel = ""
     else:
-        c1.metric("RTV Score", "Incomplete")
-        c2.metric("Ending Portfolio", "$0")
-        c3.metric("Max Withdrawal Rate", "0.0%")
-        c4.metric("Income Coverage", "0.0%")
+        rtv_value_home = "Incomplete"
+        rtv_note_home = "Complete your plan to see your RTV Score."
+        ending_portfolio_home = "$0"
+        max_wr_home = "0.0%"
+        income_coverage_home = "0.0%"
+        status_title = "You are not signed in." if not user else "Your plan needs a little more information."
+        status_note = "You can still use the planner, but saved scenarios require an account." if not user else "Complete the required fields below to unlock projections and recommendations."
+        required_panel = ", ".join(missing_items_home) if missing_items_home else "Review Guided Questions and Budget Builder."
 
-        if missing_items_home:
-            st.warning("Complete these required items: " + ", ".join(missing_items_home))
-        else:
-            st.info("Your saved scenario loaded, but the projection needs review. Check Guided Questions and Budget Builder.")
+    st.markdown(f"""
+    <div class="rb-banner">
+      <div class="rb-banner-left">
+        <div class="rb-info-dot">i</div>
+        <div>
+          <div class="rb-banner-title">{status_title}</div>
+          <div class="rb-muted">{status_note}</div>
+        </div>
+      </div>
+      <div class="rb-btn-fake">Sign In / Create Account</div>
+    </div>
 
-    st.divider()
+    <div class="rb-card-grid">
+      <div class="rb-card">
+        <div class="rb-card-top"><div class="rb-card-label">RTV Score</div><div class="rb-icon">☆</div></div>
+        <div class="rb-card-value">{rtv_value_home}</div>
+        <div class="rb-card-note">{rtv_note_home}</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-top"><div class="rb-card-label">Ending Portfolio</div><div class="rb-icon">$</div></div>
+        <div class="rb-card-value">{ending_portfolio_home}</div>
+        <div class="rb-card-note">Estimated portfolio value at end of plan.</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-top"><div class="rb-card-label">Max Withdrawal Rate</div><div class="rb-icon">↗</div></div>
+        <div class="rb-card-value">{max_wr_home}</div>
+        <div class="rb-card-note">Max sustainable withdrawal rate based on the current projection.</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-top"><div class="rb-card-label">Income Coverage</div><div class="rb-icon">✓</div></div>
+        <div class="rb-card-value">{income_coverage_home}</div>
+        <div class="rb-card-note">Percent of expenses covered by income in retirement.</div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    st.subheader("Quick Start")
-    st.write("""
-1. Complete **Guided Questions**.
-2. Add spending in **Budget Builder**.
-3. Add other income in **Income Builder**.
-4. Use **Dashboard** and **Recommendations**.
-5. Save and compare scenarios in **Saved Scenarios**.
-6. Run **Monte Carlo**, **Stress Tests**, and export a **PDF Report**.
-""")
+    if required_panel:
+        st.markdown(f"""
+        <div class="rb-warning-panel">
+          <div class="rb-warning-left">
+            <div class="rb-warning-icon">⚠</div>
+            <div>
+              <div class="rb-warning-title">Complete these required items</div>
+              <div class="rb-muted">{required_panel}</div>
+            </div>
+          </div>
+          <div class="rb-outline-btn">Go to Guided Questions ›</div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.success("Your plan has enough information to review the dashboard, recommendations, Monte Carlo, stress tests, and reports.")
+
+    st.markdown("""
+    <div class="rb-lower-grid">
+      <div class="rb-panel">
+        <div class="rb-panel-title"><span>🚀</span><span>Quick Start</span></div>
+        <div class="rb-step"><span class="rb-step-num">1</span><span>Complete <b>Guided Questions</b>.</span></div>
+        <div class="rb-step"><span class="rb-step-num">2</span><span>Add spending in <b>Budget Builder</b>.</span></div>
+        <div class="rb-step"><span class="rb-step-num">3</span><span>Add other income in <b>Income Builder</b>.</span></div>
+        <div class="rb-step"><span class="rb-step-num">4</span><span>Use <b>Dashboard</b> and <b>Recommendations</b>.</span></div>
+        <div class="rb-step"><span class="rb-step-num">5</span><span>Save and compare scenarios in <b>Saved Scenarios</b>.</span></div>
+        <div class="rb-step"><span class="rb-step-num">6</span><span>Run <b>Monte Carlo</b>, <b>Stress Tests</b>, and export a <b>PDF Report</b>.</span></div>
+      </div>
+      <div class="rb-panel">
+        <div class="rb-panel-title"><span>✅</span><span>Next Best Step</span></div>
+        <div class="rb-next-box">
+          <div class="rb-next-heading">Start with your personal details</div>
+          <div class="rb-muted">Answer a few key questions about you and your retirement goals to build a plan that is right for you.</div>
+          <div class="rb-green-btn">Start Guided Questions</div>
+        </div>
+        <div class="rb-tips">
+          <div class="rb-tips-title">💡 Helpful Tips</div>
+          <ul>
+            <li>Answer questions as completely as you can for the best results.</li>
+            <li>Review your plan often and update as life changes.</li>
+            <li>Use scenarios to compare different strategies.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.caption("Educational planning tool only. Not financial, tax, legal, insurance, or investment advice.")
 
