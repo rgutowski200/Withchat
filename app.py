@@ -22,7 +22,7 @@ from reportlab.platypus import (
     PageBreak,
 )
 
-st.set_page_config(page_title="Retirement Decision Engine", layout="wide")
+st.set_page_config(page_title="Retirement Blueprint 101", layout="wide")
 
 
 # -----------------------------
@@ -1004,7 +1004,7 @@ def render_auth_form():
     st.markdown("""
     <div class="rb-auth-panel">
       <div class="rb-auth-title">Sign in or create an account</div>
-      <div class="rb-muted">Save scenarios, reload plans, and compare retirement options later.</div>
+      <div class="rb-muted">Save blueprints, reload plans, and compare retirement options later.</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1064,8 +1064,8 @@ with hero_left:
       <div class="rb-logo-row">
         <div class="rb-logo">↗</div>
         <div>
-          <div class="rb-hero-title">Retirement Decision Engine - Guided Planner</div>
-          <p class="rb-hero-subtitle">Guided retirement planner with detailed budget, spouse planning, simple/advanced income builder, 2-bucket withdrawals, RTV scoring, saved scenarios, and iPad-friendly AI chat.</p>
+          <div class="rb-hero-title">Retirement Blueprint 101</div>
+          <p class="rb-hero-subtitle">Your guided plan to retire with confidence. Built for people 45+ who want to know if they can retire in the next 2–10 years.</p>
         </div>
       </div>
     </div>
@@ -1085,7 +1085,7 @@ with hero_right:
             st.session_state.show_auth_form = False
             st.rerun()
     else:
-        if st.button("Not signed in — Sign in to save", use_container_width=True, key="hero_signin_button"):
+        if st.button("Not signed in — Sign in to save your blueprints", use_container_width=True, key="hero_signin_button"):
             st.session_state.show_auth_form = True
             st.rerun()
 
@@ -1893,8 +1893,8 @@ def build_rtv_improvement_recommendations(base_df, base_score):
 
         actions.append({
             "Action": name,
-            "RTV Impact": delta,
-            "New RTV": result["score"],
+            "Blueprint Impact": delta,
+            "New Blueprint Score": result["score"],
             "Status": result["label"],
             "Ending Portfolio": result["ending"],
             "Max Withdrawal Rate": result["max_wr"],
@@ -1902,7 +1902,7 @@ def build_rtv_improvement_recommendations(base_df, base_score):
             "Unmet Need": result["unmet_need"],
         })
 
-    actions = sorted(actions, key=lambda x: x["RTV Impact"], reverse=True)
+    actions = sorted(actions, key=lambda x: x["Blueprint Impact"], reverse=True)
     return actions
 
 
@@ -1927,8 +1927,8 @@ def build_spend_more_tests(base_score):
         rows.append({
             "Scenario": name,
             "New Monthly Spending": new_monthly,
-            "RTV Impact": result["score"] - base_score,
-            "New RTV": result["score"],
+            "Blueprint Impact": result["score"] - base_score,
+            "New Blueprint Score": result["score"],
             "Status": result["label"],
             "Ending Portfolio": result["ending"],
             "Max Withdrawal Rate": result["max_wr"],
@@ -2417,8 +2417,8 @@ def run_stress_test_scenario(
     if sim_df.empty:
         return {
             "Scenario": scenario_name,
-            "RTV Score": 0,
-            "RTV Label": "Incomplete",
+            "Blueprint Score": 0,
+            "Blueprint Label": "Incomplete",
             "Result": "Failed",
             "Lasts Until Age": int(st.session_state.current_age),
             "Years Covered": 0,
@@ -2450,8 +2450,8 @@ def run_stress_test_scenario(
 
     return {
         "Scenario": scenario_name,
-        "RTV Score": rtv_score,
-        "RTV Label": rtv_label,
+        "Blueprint Score": rtv_score,
+        "Blueprint Label": rtv_label,
         "Result": "Failed" if failed else "Survived",
         "Lasts Until Age": lasts_until_age,
         "Years Covered": years_covered,
@@ -2463,9 +2463,9 @@ def run_stress_test_scenario(
 def plot_stress_test_chart(stress_df):
     fig, ax = plt.subplots(figsize=(12, 5.5))
 
-    bars = ax.bar(stress_df["Scenario"], stress_df["RTV Score"])
+    bars = ax.bar(stress_df["Scenario"], stress_df["Blueprint Score"])
 
-    for bar, score in zip(bars, stress_df["RTV Score"]):
+    for bar, score in zip(bars, stress_df["Blueprint Score"]):
         ax.text(
             bar.get_x() + bar.get_width() / 2,
             score + 1,
@@ -2479,8 +2479,8 @@ def plot_stress_test_chart(stress_df):
     ax.axhline(90, linestyle="--", linewidth=2, label="Very Strong")
 
     ax.set_ylim(0, 105)
-    ax.set_ylabel("RTV Score")
-    ax.set_title("Stress Test RTV Scores", fontsize=15, fontweight="bold", loc="left")
+    ax.set_ylabel("Blueprint Score")
+    ax.set_title("Stress Test Blueprint Scores", fontsize=15, fontweight="bold", loc="left")
     ax.grid(axis="y", alpha=0.25)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
@@ -2558,9 +2558,9 @@ def make_pdf_table(rows, col_widths=None, header=True):
 
 def build_action_plan_rows(df, rtv_score):
     actions = build_rtv_improvement_recommendations(df, rtv_score)
-    top = [a for a in actions if a["RTV Impact"] > 0][:7]
+    top = [a for a in actions if a["Blueprint Impact"] > 0][:7]
 
-    rows = [["Possible Recommendation", "Why It May Help", "RTV Impact", "New RTV"]]
+    rows = [["Possible Recommendation", "Why It May Help", "Blueprint Impact", "New Blueprint Score"]]
 
     if not top:
         rows.append([
@@ -2589,8 +2589,8 @@ def build_action_plan_rows(df, rtv_score):
             rows.append([
                 action,
                 why,
-                f"+{a['RTV Impact']}" if a["RTV Impact"] > 0 else str(a["RTV Impact"]),
-                str(a["New RTV"]),
+                f"+{a['Blueprint Impact']}" if a["Blueprint Impact"] > 0 else str(a["Blueprint Impact"]),
+                str(a["New Blueprint Score"]),
             ])
 
     return rows
@@ -2727,9 +2727,9 @@ def build_pdf_report(df):
     total_withdrawals = float(df["Portfolio Withdrawal"].sum())
 
     # Cover
-    story.append(Paragraph("Retirement Readiness Report", title_style))
+    story.append(Paragraph("Retirement Blueprint 101 Report", title_style))
     story.append(Paragraph(
-        "A personalized planning report based on the current assumptions entered in the Retirement Decision Engine.",
+        "A personalized planning report based on the current assumptions entered in Retirement Blueprint 101.",
         subtitle_style
     ))
 
@@ -2739,8 +2739,8 @@ def build_pdf_report(df):
 
     summary_rows = [
         [
-            Paragraph(f"<b><font color='{score_color}'>{rtv_score}/100</font></b><br/>RTV Score", body),
-            Paragraph(f"<b>{rtv_label}</b><br/>RTV Label", body),
+            Paragraph(f"<b><font color='{score_color}'>{rtv_score}/100</font></b><br/>Blueprint Score", body),
+            Paragraph(f"<b>{rtv_label}</b><br/>Blueprint Label", body),
             Paragraph(f"<b>{money(ending)}</b><br/>End of Plan Portfolio", body),
             Paragraph(f"<b>{pct(max_wr)}</b><br/>Max Withdrawal Rate", body),
         ],
@@ -2851,7 +2851,7 @@ def build_pdf_report(df):
         story.append(Paragraph(f"- {rec}", body))
 
     story.append(Spacer(1, 0.15 * inch))
-    story.append(Paragraph("RTV Improvement Ideas", h2))
+    story.append(Paragraph("Blueprint Improvement Ideas", h2))
     action_rows = build_action_plan_rows(df, rtv_score)
     story.append(make_pdf_table(action_rows, col_widths=[2.15 * inch, 2.55 * inch, 0.95 * inch, 0.95 * inch]))
 
@@ -2859,12 +2859,12 @@ def build_pdf_report(df):
     story.append(Paragraph("Can the user spend more?", h2))
 
     spend_more_rows = build_spend_more_tests(rtv_score)
-    spend_rows = [["Scenario", "New Monthly Spending", "New RTV", "Ending Portfolio"]]
+    spend_rows = [["Scenario", "New Monthly Spending", "New Blueprint Score", "Ending Portfolio"]]
     for row in spend_more_rows:
         spend_rows.append([
             row["Scenario"],
             money(row["New Monthly Spending"]),
-            str(row["New RTV"]),
+            str(row["New Blueprint Score"]),
             money(row["Ending Portfolio"]),
         ])
     story.append(make_pdf_table(spend_rows, col_widths=[2.0 * inch, 1.55 * inch, 1.05 * inch, 1.9 * inch]))
@@ -2898,7 +2898,7 @@ def build_pdf_report(df):
         for _, row in stress_df.iterrows():
             stress_rows.append([
                 str(row.get("Scenario", "")),
-                str(row.get("RTV Score", "")),
+                str(row.get("Blueprint Score", "")),
                 str(row.get("Result", "")),
                 str(row.get("Lasts Until Age", "")),
                 money(row.get("Ending Portfolio", 0)),
@@ -2942,7 +2942,7 @@ def build_pdf_report(df):
         canvas.saveState()
         canvas.setFont("Helvetica", 8)
         canvas.setFillColor(colors.HexColor("#6b7280"))
-        canvas.drawString(0.55 * inch, 0.32 * inch, "Retirement Decision Engine - Educational Planning Report")
+        canvas.drawString(0.55 * inch, 0.32 * inch, "Retirement Blueprint 101 - Educational Planning Report")
         canvas.drawRightString(7.95 * inch, 0.32 * inch, f"Page {doc.page}")
         canvas.restoreState()
 
@@ -4092,6 +4092,25 @@ PAGE_ICONS = {
     "Help / Instructions": "❓",
 }
 
+NAV_LABELS = {
+    "Home": "Home",
+    "Guided Questions": "Start My Blueprint",
+    "Budget Builder": "Spending Plan",
+    "Income Builder": "Income Plan",
+    "Spouse Questions": "Household Plan",
+    "Review Answers": "Review Inputs",
+    "Dashboard": "Blueprint Dashboard",
+    "Recommendations": "Action Plan",
+    "Projection Table": "Projection",
+    "Saved Scenarios": "Saved Blueprints",
+    "Best Places to Retire": "Places to Retire",
+    "Monte Carlo": "Confidence Test",
+    "Stress Tests": "Stress Tests",
+    "PDF Report": "Blueprint Report",
+    "AI Retirement Coach": "Blueprint Coach",
+    "Help / Instructions": "Help",
+}
+
 if "active_page" not in st.session_state or st.session_state.active_page not in PAGE_NAMES:
     st.session_state.active_page = "Home"
 
@@ -4116,7 +4135,8 @@ def render_navigation():
             with col:
                 is_active = st.session_state.active_page == page_name
                 icon = PAGE_ICONS.get(page_name, "")
-                label = f"{icon} {page_name}"
+                display_name = NAV_LABELS.get(page_name, page_name)
+                label = f"{icon} {display_name}"
                 if st.button(
                     label,
                     key=f"nav_btn_{row_index}_{page_name}",
@@ -4133,9 +4153,9 @@ active_page = st.session_state.active_page
 
 if active_page == PAGE_NAMES[0]:
     st.markdown("""
-    <div class="rb-page-title">Home Dashboard</div>
+    <div class="rb-page-title">Blueprint Dashboard</div>
     <div class="rb-accent-line"></div>
-    <div class="rb-muted">A quick overview of your retirement plan setup, saved scenarios, and next best steps.</div>
+    <div class="rb-muted">A quick overview of your retirement blueprint, saved plans, and next best steps.</div>
     """, unsafe_allow_html=True)
 
     missing_items_home = required_missing()
@@ -4167,17 +4187,17 @@ if active_page == PAGE_NAMES[0]:
         max_wr_home = pct(safe_df_home["Withdrawal Rate"].max())
         income_coverage_home = pct(safe_df_home["Income Coverage Ratio"].mean())
         status_title = "Your plan is ready to review."
-        status_note = "Use Dashboard, Recommendations, Monte Carlo, Stress Tests, and PDF Report for deeper analysis."
+        status_note = "Use the Blueprint Dashboard, Action Plan, Confidence Test, Stress Tests, and Blueprint Report for deeper analysis."
         required_panel = ""
     else:
         rtv_value_home = "Incomplete"
-        rtv_note_home = "Complete your plan to see your RTV Score."
+        rtv_note_home = "Complete your plan to see your Blueprint Score."
         ending_portfolio_home = "$0"
         max_wr_home = "0.0%"
         income_coverage_home = "0.0%"
         status_title = "You are not signed in." if not user else "Your plan needs a little more information."
-        status_note = "You can still use the planner, but saved scenarios require an account." if not user else "Complete the required fields below to unlock projections and recommendations."
-        required_panel = ", ".join(missing_items_home) if missing_items_home else "Review Guided Questions and Budget Builder."
+        status_note = "You can still use the planner, but saved blueprints require an account." if not user else "Complete the required fields below to unlock projections and recommendations."
+        required_panel = ", ".join(missing_items_home) if missing_items_home else "Review Start My Blueprint and Spending Plan."
 
     st.markdown(f"""
     <div class="rb-banner">
@@ -4201,7 +4221,7 @@ if active_page == PAGE_NAMES[0]:
     st.markdown(f"""
     <div class="rb-card-grid">
       <div class="rb-card">
-        <div class="rb-card-top"><div class="rb-card-label">RTV Score</div><div class="rb-icon">☆</div></div>
+        <div class="rb-card-top"><div class="rb-card-label">Blueprint Score</div><div class="rb-icon">☆</div></div>
         <div class="rb-card-value">{rtv_value_home}</div>
         <div class="rb-card-note">{rtv_note_home}</div>
       </div>
@@ -4237,10 +4257,10 @@ if active_page == PAGE_NAMES[0]:
         """, unsafe_allow_html=True)
         c_warn_left, c_warn_btn = st.columns([4, 1.35])
         with c_warn_btn:
-            if st.button("Go to Guided Questions", use_container_width=True, key="home_go_guided_required"):
+            if st.button("Go to Start My Blueprint", use_container_width=True, key="home_go_guided_required"):
                 go_to_page("Guided Questions")
     else:
-        st.success("Your plan has enough information to review the dashboard, recommendations, Monte Carlo, stress tests, and reports.")
+        st.success("Your blueprint has enough information to review the dashboard, action plan, confidence test, stress tests, and reports.")
 
     left_panel, right_panel = st.columns([1.35, 1])
 
@@ -4248,29 +4268,29 @@ if active_page == PAGE_NAMES[0]:
         st.markdown("""
         <div class="rb-panel">
           <div class="rb-panel-title"><span>🚀</span><span>Quick Start</span></div>
-          <div class="rb-step"><span class="rb-step-num">1</span><span>Complete your core retirement details.</span></div>
-          <div class="rb-step"><span class="rb-step-num">2</span><span>Add spending and budget assumptions.</span></div>
-          <div class="rb-step"><span class="rb-step-num">3</span><span>Add other income sources.</span></div>
-          <div class="rb-step"><span class="rb-step-num">4</span><span>Review Dashboard and Recommendations.</span></div>
-          <div class="rb-step"><span class="rb-step-num">5</span><span>Save and compare scenarios.</span></div>
-          <div class="rb-step"><span class="rb-step-num">6</span><span>Run Monte Carlo, Stress Tests, and export a PDF Report.</span></div>
+          <div class="rb-step"><span class="rb-step-num">1</span><span>Complete your core retirement blueprint details.</span></div>
+          <div class="rb-step"><span class="rb-step-num">2</span><span>Build your spending plan.</span></div>
+          <div class="rb-step"><span class="rb-step-num">3</span><span>Add income sources.</span></div>
+          <div class="rb-step"><span class="rb-step-num">4</span><span>Review the Blueprint Dashboard and Action Plan.</span></div>
+          <div class="rb-step"><span class="rb-step-num">5</span><span>Save and compare blueprints.</span></div>
+          <div class="rb-step"><span class="rb-step-num">6</span><span>Run the Confidence Test, Stress Tests, and export a Blueprint Report.</span></div>
         </div>
         """, unsafe_allow_html=True)
         q1, q2, q3 = st.columns(3)
         with q1:
-            if st.button("Guided Questions", use_container_width=True, key="qs_guided"):
+            if st.button("Start My Blueprint", use_container_width=True, key="qs_guided"):
                 go_to_page("Guided Questions")
             if st.button("Dashboard", use_container_width=True, key="qs_dashboard"):
                 go_to_page("Dashboard")
         with q2:
-            if st.button("Budget Builder", use_container_width=True, key="qs_budget"):
+            if st.button("Spending Plan", use_container_width=True, key="qs_budget"):
                 go_to_page("Budget Builder")
-            if st.button("Saved Scenarios", use_container_width=True, key="qs_saved"):
+            if st.button("Saved Blueprints", use_container_width=True, key="qs_saved"):
                 go_to_page("Saved Scenarios")
         with q3:
-            if st.button("Income Builder", use_container_width=True, key="qs_income"):
+            if st.button("Income Plan", use_container_width=True, key="qs_income"):
                 go_to_page("Income Builder")
-            if st.button("PDF Report", use_container_width=True, key="qs_pdf"):
+            if st.button("Blueprint Report", use_container_width=True, key="qs_pdf"):
                 go_to_page("PDF Report")
 
     with right_panel:
@@ -4279,29 +4299,29 @@ if active_page == PAGE_NAMES[0]:
           <div class="rb-panel-title"><span>✅</span><span>Next Best Step</span></div>
           <div class="rb-next-box">
             <div class="rb-next-heading">Start with your personal details</div>
-            <div class="rb-muted">Answer a few key questions about you and your retirement goals to build a plan that is right for you.</div>
+            <div class="rb-muted">Answer a few key questions about your retirement goals to build a blueprint that is right for you.</div>
           </div>
           <div class="rb-tips">
             <div class="rb-tips-title">💡 Helpful Tips</div>
             <ul>
               <li>Answer questions as completely as you can for the best results.</li>
               <li>Review your plan often and update as life changes.</li>
-              <li>Use scenarios to compare different strategies.</li>
+              <li>Use saved blueprints to compare different strategies.</li>
             </ul>
           </div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("Start Guided Questions", use_container_width=True, key="next_start_guided"):
+        if st.button("Start My Blueprint", use_container_width=True, key="next_start_guided"):
             go_to_page("Guided Questions")
 
     st.caption("Educational planning tool only. Not financial, tax, legal, insurance, or investment advice.")
 
 
 if active_page == PAGE_NAMES[1]:
-    render_page_shell("Guided Retirement Questions", "Set the core numbers that drive your retirement projection: ages, savings, contributions, Social Security, returns, and your bucket strategy.", "🧭")
+    render_page_shell("Start My Blueprint", "Set the core numbers that drive your retirement blueprint: ages, savings, contributions, Social Security, returns, and your bucket strategy.", "🧭")
     page_help(
         "Guided Retirement Questions",
-        "This page collects the core numbers for the retirement projection: ages, savings, contributions, Social Security, expected returns, inflation, Roth conversions, and Bucket 1 strategy. These inputs drive the Dashboard, RTV score, Recommendations, and Projection Table."
+        "This page collects the core numbers for your retirement blueprint: ages, savings, contributions, Social Security, expected returns, inflation, Roth conversions, and Bucket 1 strategy. These inputs drive the Blueprint Dashboard, Blueprint Score, Action Plan, and Projection."
     )
 
     with st.form("guided_form"):
@@ -4384,7 +4404,7 @@ if active_page == PAGE_NAMES[1]:
         st.success("Main answers saved.")
 
 if active_page == PAGE_NAMES[2]:
-    render_page_shell("Household Spending / Budget Builder", "Estimate your retirement lifestyle costs using either a quick monthly number or a more detailed category-by-category budget.", "💳")
+    render_page_shell("Spending Plan", "Estimate your retirement lifestyle costs using either a quick monthly number or a more detailed category-by-category budget.", "💳")
     page_help(
         "Budget Builder",
         "This page estimates how much money you need each year in retirement. You can use a simple flat monthly amount or enter a detailed monthly budget. Healthcare is handled separately so the app can model it more clearly."
@@ -4510,7 +4530,7 @@ if active_page == PAGE_NAMES[2]:
 
 
 if active_page == PAGE_NAMES[3]:
-    render_page_shell("Other Income Builder", "Add pensions, rental income, side income, annuities, or any other cash flows that reduce pressure on your portfolio.", "💼")
+    render_page_shell("Income Plan", "Add pensions, rental income, side income, annuities, or any other cash flows that reduce pressure on your portfolio.", "💼")
     page_help(
         "Income Builder",
         "This page captures income besides portfolio withdrawals, such as pensions, rental income, part-time work, consulting, annuities, or business income. More reliable income usually reduces portfolio withdrawal pressure."
@@ -4564,7 +4584,7 @@ if active_page == PAGE_NAMES[3]:
             st.success("Advanced income sources saved.")
 
 if active_page == PAGE_NAMES[4]:
-    render_page_shell("Spouse / Partner Questions", "Capture spouse timing, Social Security, healthcare, and survivor planning so the plan reflects the full household picture.", "👥")
+    render_page_shell("Household Plan", "Capture spouse or partner timing, Social Security, healthcare, and survivor planning so the blueprint reflects the full household picture.", "👥")
     page_help(
         "Spouse Questions",
         "This page adds spouse or partner timing, healthcare, contributions, and Social Security. This matters because retirement timing, survivor benefits, and spending needs often change when two people are included."
@@ -4677,7 +4697,7 @@ if active_page == PAGE_NAMES[4]:
 
 
 if active_page == PAGE_NAMES[5]:
-    render_page_shell("Review Answers", "See a clean summary of your current inputs before running deeper analysis or sharing the results.", "📝")
+    render_page_shell("Review Inputs", "See a clean summary of your current inputs before running deeper analysis or sharing the results.", "📝")
     page_help(
         "Review Answers",
         "This page summarizes your saved inputs before running the plan. Use it to catch missing or incorrect assumptions before trusting the results."
@@ -4725,10 +4745,10 @@ can_run = len(required_missing()) == 0
 df = run_projection() if can_run else pd.DataFrame()
 
 if active_page == PAGE_NAMES[6]:
-    render_page_shell("Dashboard", "Review your plan outcome, year-by-year trends, and the key retirement metrics that show whether your plan is on track.", "📊")
+    render_page_shell("Blueprint Dashboard", "Review your blueprint outcome, year-by-year trends, and the key retirement metrics that show whether your plan is on track.", "📊")
     page_help(
         "Dashboard",
-        "This page shows the main retirement outcome. RTV means Retirement Timing Viability. It summarizes whether your plan appears funded, how much money may remain, income coverage, withdrawals, and risk areas."
+        "This page shows the main retirement outcome. The Blueprint Score summarizes whether your plan appears funded, how much money may remain, income coverage, withdrawals, and risk areas."
     )
     if not can_run:
         st.info("Complete required inputs first.")
@@ -4759,7 +4779,7 @@ if active_page == PAGE_NAMES[6]:
 
         risk_scores = calculate_risk_scores(summary_dashboard)
 
-        st.markdown("## Retirement Readiness Dashboard")
+        st.markdown("## Blueprint Dashboard")
 
         hero1, hero2 = st.columns([1.1, 2])
 
@@ -4810,10 +4830,10 @@ if active_page == PAGE_NAMES[6]:
             else:
                 st.error("Your current retirement timing assumptions appear aggressive.")
 
-        st.subheader("RTV - Retirement Timing Viability")
+        st.subheader("Blueprint Score")
 
         c1, c2, c3, c4, c5 = st.columns(5)
-        c1.metric("RTV Score", f"{rtv_score}/100", rtv_label)
+        c1.metric("Blueprint Score", f"{rtv_score}/100", rtv_label)
         c2.metric("Outcome", "Funded" if not depleted else "Needs Work")
         c3.metric("Ending Portfolio", money(ending))
         c4.metric("Max Withdrawal Rate", pct(df["Withdrawal Rate"].max()))
@@ -4822,22 +4842,22 @@ if active_page == PAGE_NAMES[6]:
         st.progress(rtv_score / 100)
 
         if rtv_score >= 90:
-            st.success("RTV: Very strong retirement timing viability.")
+            st.success("Blueprint Score: Very strong retirement readiness.")
         elif rtv_score >= 75:
-            st.success("RTV: Your target retirement age appears likely viable.")
+            st.success("Blueprint Score: Your target retirement age appears likely viable.")
         elif rtv_score >= 60:
-            st.warning("RTV: Your plan may work, but it needs optimization.")
+            st.warning("Blueprint Score: Your plan may work, but it needs optimization.")
         else:
-            st.error("RTV: Your retirement timing appears high risk under current assumptions.")
+            st.error("Blueprint Score: Your retirement timing appears high risk under current assumptions.")
 
-        with st.expander("Why did I get this RTV score?"):
+        with st.expander("Why did I get this Blueprint Score?"):
             if rtv_reasons:
                 for reason in rtv_reasons:
                     st.write(f"- {reason}")
             else:
                 st.write("No major risk flags found.")
 
-        st.caption("RTV is an educational score based on portfolio longevity, max withdrawal rate, income coverage, and unmet spending needs.")
+        st.caption("Blueprint Score is an educational score based on portfolio longevity, max withdrawal rate, income coverage, and unmet spending needs.")
 
         st.subheader("Home & Housing Strategy")
         h1, h2, h3, h4 = st.columns(4)
@@ -4872,12 +4892,12 @@ if active_page == PAGE_NAMES[6]:
         st.pyplot(plot_withdrawal_rate_chart(df), use_container_width=True)
 
 if active_page == PAGE_NAMES[7]:
-    render_page_shell("Recommendations", "Get action-oriented ideas to improve readiness, reduce pressure, and strengthen the odds that your retirement plan succeeds.", "💡")
+    render_page_shell("Action Plan", "Get action-oriented ideas to improve readiness, reduce pressure, and strengthen the odds that your retirement blueprint succeeds.", "💡")
     page_help(
         "Recommendations",
-        "This page tests ways to improve your RTV score, such as retiring later, spending less, contributing more, or changing Social Security timing. It also tests whether you may be able to spend more and still keep a strong score."
+        "This page tests ways to improve your Blueprint Score, such as retiring later, spending less, contributing more, or changing Social Security timing. It also tests whether you may be able to spend more and still keep a strong score."
     )
-    st.caption("Practical ways to improve your RTV score and understand whether you can safely spend more.")
+    st.caption("Practical ways to improve your Blueprint Score and understand whether you can safely spend more.")
 
     if not can_run:
         st.info("Complete required inputs first.")
@@ -4892,7 +4912,7 @@ if active_page == PAGE_NAMES[7]:
         st.subheader("Your Retirement Timing Viability")
 
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("RTV Score", f"{rtv_score}/100", rtv_label)
+        c1.metric("Blueprint Score", f"{rtv_score}/100", rtv_label)
         c2.metric("Ending Portfolio", money(ending_portfolio))
         c3.metric("Max Withdrawal Rate", pct(max_wr))
         c4.metric("Income Coverage", pct(avg_income_coverage))
@@ -4917,20 +4937,20 @@ if active_page == PAGE_NAMES[7]:
 
         st.divider()
 
-        st.subheader("How to Improve Your RTV Score")
+        st.subheader("How to Improve Your Blueprint Score")
 
         actions = build_rtv_improvement_recommendations(df, rtv_score)
-        positive_actions = [a for a in actions if a["RTV Impact"] > 0]
+        positive_actions = [a for a in actions if a["Blueprint Impact"] > 0]
 
         if positive_actions:
             best = positive_actions[0]
             st.success(
-                f"Highest-impact action: **{best['Action']}** could move RTV from "
-                f"**{rtv_score} to {best['New RTV']}**."
+                f"Highest-impact action: **{best['Action']}** could move your Blueprint Score from "
+                f"**{rtv_score} to {best['New Blueprint Score']}**."
             )
 
             action_df = pd.DataFrame(positive_actions[:8])
-            action_df["RTV Impact"] = action_df["RTV Impact"].map(lambda x: f"+{x}" if x > 0 else str(x))
+            action_df["Blueprint Impact"] = action_df["Blueprint Impact"].map(lambda x: f"+{x}" if x > 0 else str(x))
             action_df["Ending Portfolio"] = action_df["Ending Portfolio"].map(money)
             action_df["Max Withdrawal Rate"] = action_df["Max Withdrawal Rate"].map(pct)
             action_df["Income Coverage"] = action_df["Income Coverage"].map(pct)
@@ -4938,7 +4958,7 @@ if active_page == PAGE_NAMES[7]:
 
             st.dataframe(action_df, use_container_width=True, hide_index=True)
         else:
-            st.info("Your current score is already strong or the tested changes did not materially improve RTV.")
+            st.info("Your current score is already strong or the tested changes did not materially improve your Blueprint Score.")
 
         st.markdown("### Plain-English Recommendations")
 
@@ -4964,7 +4984,7 @@ if active_page == PAGE_NAMES[7]:
             st.write("- **Protect the cushion:** Your ending balance is not huge, so avoid aggressive spending increases.")
 
         if st.session_state.end_age > 90:
-            st.write("- **Long planning horizon:** Planning past age 90 is conservative. Reducing the planning age can raise RTV, but it also lowers longevity protection.")
+            st.write("- **Long planning horizon:** Planning past age 90 is conservative. Reducing the planning age can raise your Blueprint Score, but it also lowers longevity protection.")
         elif st.session_state.end_age < 90:
             st.write("- **Shorter planning horizon:** This can improve the score, but make sure it matches your longevity assumptions.")
 
@@ -4976,19 +4996,19 @@ if active_page == PAGE_NAMES[7]:
 
         if spend_more_rows:
             spend_df = pd.DataFrame(spend_more_rows)
-            safe_spend = spend_df[spend_df["New RTV"] >= 80]
+            safe_spend = spend_df[spend_df["New Blueprint Score"] >= 80]
 
             if not safe_spend.empty:
                 best_spend = safe_spend.iloc[-1]
                 st.success(
                     f"You may be able to spend more. Tested increase: **{best_spend['Scenario']}** "
-                    f"still leaves RTV at **{int(best_spend['New RTV'])}**."
+                    f"still leaves your Blueprint Score at **{int(best_spend['New Blueprint Score'])}**."
                 )
             else:
-                st.warning("The tested spending increases lower RTV below the strong range. Increase spending carefully.")
+                st.warning("The tested spending increases lower your Blueprint Score below the strong range. Increase spending carefully.")
 
             spend_df["New Monthly Spending"] = spend_df["New Monthly Spending"].map(money)
-            spend_df["RTV Impact"] = spend_df["RTV Impact"].map(lambda x: f"{x:+}")
+            spend_df["Blueprint Impact"] = spend_df["Blueprint Impact"].map(lambda x: f"{x:+}")
             spend_df["Ending Portfolio"] = spend_df["Ending Portfolio"].map(money)
             spend_df["Max Withdrawal Rate"] = spend_df["Max Withdrawal Rate"].map(pct)
 
@@ -4998,12 +5018,12 @@ if active_page == PAGE_NAMES[7]:
 
         st.subheader("Spending Target Finder")
         st.write(
-            "This tool estimates what monthly spending level may help the plan reach a target RTV score. "
+            "This tool estimates what monthly spending level may help the plan reach a target Blueprint Score. "
             "It can also show whether the plan may support more spending."
         )
 
         target_rtv_score = st.slider(
-            "Target RTV score",
+            "Target Blueprint Score",
             min_value=60,
             max_value=95,
             value=80,
@@ -5018,7 +5038,7 @@ if active_page == PAGE_NAMES[7]:
                 if spending_result is None:
                     st.warning("Add household spending and complete the required inputs before using the Spending Target Finder.")
                 elif spending_result["suggested_monthly"] is None:
-                    st.error("The plan could not reach the target RTV score by reducing spending alone. Try a later retirement age, more contributions, more income, or lower healthcare/housing costs.")
+                    st.error("The plan could not reach the target Blueprint Score by reducing spending alone. Try a later retirement age, more contributions, more income, or lower healthcare/housing costs.")
                 else:
                     current_monthly = spending_result["current_monthly"]
                     suggested_monthly = spending_result["suggested_monthly"]
@@ -5028,7 +5048,7 @@ if active_page == PAGE_NAMES[7]:
                     c1.metric("Current Monthly Spending", money(current_monthly))
                     c2.metric("Suggested Monthly Spending", money(suggested_monthly))
                     c3.metric("Monthly Difference", money(monthly_difference))
-                    c4.metric("Estimated RTV Score", f"{spending_result['suggested_score']}/100", spending_result["suggested_label"])
+                    c4.metric("Estimated Blueprint Score", f"{spending_result['suggested_score']}/100", spending_result["suggested_label"])
 
                     if spending_result["mode"] == "lower":
                         st.warning(
@@ -5047,7 +5067,7 @@ if active_page == PAGE_NAMES[7]:
                             )
 
                     st.caption(
-                        "This is an educational estimate. It uses the app's RTV model and current assumptions, not financial advice."
+                        "This is an educational estimate. It uses the app's Blueprint Score model and current assumptions, not financial advice."
                     )
 
             except Exception as e:
@@ -5087,7 +5107,7 @@ if active_page == PAGE_NAMES[7]:
             st.warning("Lower home equity: your home may provide less flexibility unless the mortgage is reduced or the home appreciates.")
 
         if monthly_mort > 0 and payoff_age > retire_age_val:
-            st.warning("Mortgage continues into retirement: test whether paying it down faster, refinancing, or downsizing improves your RTV score.")
+            st.warning("Mortgage continues into retirement: test whether paying it down faster, refinancing, or downsizing improves your Blueprint Score.")
         elif monthly_mort > 0 and payoff_age > 0:
             st.success("Mortgage payoff appears to happen before or around retirement, which may reduce retirement cash-flow pressure.")
 
@@ -5129,8 +5149,8 @@ if active_page == PAGE_NAMES[7]:
 
                 possible.append({
                     "Retirement Age": test_age,
-                    "RTV Score": test_score,
-                    "RTV Label": test_label,
+                    "Blueprint Score": test_score,
+                    "Blueprint Label": test_label,
                     "Portfolio at Retirement": portfolio_at_retirement,
                     "End of Plan Portfolio": tdf["End Total"].iloc[-1],
                     "Max Withdrawal Rate": tdf["Withdrawal Rate"].max(),
@@ -5161,7 +5181,7 @@ if active_page == PAGE_NAMES[7]:
             st.dataframe(show, use_container_width=True, hide_index=True)
 
 if active_page == PAGE_NAMES[8]:
-    render_page_shell("Projection Table", "Review the detailed annual projection behind the scenes, including balances, withdrawals, taxes, income, and ending values.", "📈")
+    render_page_shell("Projection", "Review the detailed annual projection behind the scenes, including balances, withdrawals, taxes, income, and ending values.", "📈")
     page_help(
         "Projection Table",
         "This table shows the year-by-year math behind the plan. It includes balances, spending, income, withdrawals, Roth conversions, unmet needs, and withdrawal rates by age."
@@ -5480,12 +5500,12 @@ if active_page == PAGE_NAMES[9]:
     def build_pdf_report_bytes(name, data, summary, recommendations):
         buffer = io.BytesIO()
         fig = plt.figure(figsize=(8.5, 11))
-        fig.text(0.08, 0.94, "Retirement Scenario Report", fontsize=22, weight="bold")
+        fig.text(0.08, 0.94, "Retirement Blueprint Scenario Report", fontsize=22, weight="bold")
         fig.text(0.08, 0.90, name, fontsize=16, weight="bold")
 
         y = 0.84
         lines = [
-            f"RTV Score: {summary['score']}/100 ({summary['label']})",
+            f"Blueprint Score: {summary['score']}/100 ({summary['label']})",
             f"Current Age: {summary['current_age']}",
             f"Retirement Age: {summary['retire_age']}",
             f"Plan Until Age: {summary['end_age']}",
@@ -5617,7 +5637,7 @@ if active_page == PAGE_NAMES[9]:
                     with card_cols[i % len(card_cols)]:
                         with st.container(border=True):
                             st.subheader(item["name"])
-                            st.metric("RTV Score", f"{s['score']}/100", s["label"])
+                            st.metric("Blueprint Score", f"{s['score']}/100", s["label"])
                             st.progress(s["score"] / 100)
                             st.write(f"Retire Age: **{s['retire_age']}**")
                             st.write(f"Total Assets: **{money(s['total_assets'])}**")
@@ -5631,7 +5651,7 @@ if active_page == PAGE_NAMES[9]:
                     s = item["summary"]
                     compare_rows.append({
                         "Scenario": item["name"],
-                        "RTV Score": s["score"],
+                        "Blueprint Score": s["score"],
                         "Status": s["label"],
                         "Retire Age": s["retire_age"],
                         "Plan Until": s["end_age"],
@@ -5705,7 +5725,7 @@ if active_page == PAGE_NAMES[9]:
                     m5.metric("💼 Income Annual", money(summary["annual_income"]))
 
                     with m6:
-                        st.markdown("RTV Score")
+                        st.markdown("Blueprint Score")
                         st.markdown(
                             f"<div class='{summary['score_class']}'>{summary['score']}</div>"
                             f"<div class='tiny-caption'>{summary['label']}</div>",
@@ -5939,7 +5959,7 @@ if active_page == PAGE_NAMES[9]:
 
 
 if active_page == PAGE_NAMES[10]:
-    render_page_shell("Best Places to Retire", "Compare states and retirement locations using taxes, affordability, healthcare, and lifestyle considerations.", "📍")
+    render_page_shell("Places to Retire", "Compare states and retirement locations using taxes, affordability, healthcare, and lifestyle considerations.", "📍")
     page_help(
         "Best Places to Retire",
         "Phase 1 compares states. Phase 2 adds personalized tax estimates. Phase 3 adds city/place recommendations. Phase 4 adds state comparison. Phase 5 adds a personalized location recommendation engine."
@@ -6550,7 +6570,7 @@ This is not a replacement for a CPA or tax-planning software. It is meant to hel
 
 
 if active_page == PAGE_NAMES[11]:
-    render_page_shell("Monte Carlo Simulator", "Stress test your plan across many market paths to understand the probability of success and the range of possible outcomes.", "🎲")
+    render_page_shell("Confidence Test", "Stress test your blueprint across many market paths to understand the probability of success and the range of possible outcomes.", "🎲")
     page_help(
         "Monte Carlo Simulator",
         "This page runs hundreds or thousands of randomized market-return paths to estimate how often the retirement plan survives. It helps show sequence-of-return risk and the range of possible ending portfolio balances."
@@ -6774,7 +6794,7 @@ if active_page == PAGE_NAMES[12]:
 
 
 if active_page == PAGE_NAMES[13]:
-    render_page_shell("PDF Report", "Create a shareable retirement summary you can save, print, or discuss with a spouse, advisor, or planner.", "📄")
+    render_page_shell("Blueprint Report", "Create a shareable retirement blueprint you can save, print, or discuss with a spouse, advisor, or planner.", "📄")
     page_help(
         "PDF Report",
         "This page exports a visually polished retirement report with the plan summary, assumptions, dashboard charts, recommendations, Monte Carlo results, stress tests, and a projection snapshot."
@@ -6789,7 +6809,7 @@ if active_page == PAGE_NAMES[13]:
         st.write("""
 The PDF report includes:
 
-- RTV score and executive summary
+- Blueprint Score and executive summary
 - Key planning assumptions
 - Portfolio, spending, income, and withdrawal charts
 - Possible recommendations and planning observations
@@ -6806,13 +6826,13 @@ The PDF report includes:
         if "stress_results_df" not in st.session_state:
             st.warning("Stress tests have not been run yet. The PDF will include a placeholder for that section.")
 
-        if st.button("Generate PDF Report", type="primary", use_container_width=True):
+        if st.button("Generate Blueprint Report", type="primary", use_container_width=True):
             with st.spinner("Creating report..."):
                 st.session_state.pdf_report_bytes = build_pdf_report(df)
 
         if "pdf_report_bytes" in st.session_state:
             st.download_button(
-                "Download Retirement Report PDF",
+                "Download Blueprint Report PDF",
                 data=st.session_state.pdf_report_bytes,
                 file_name="retirement_readiness_report.pdf",
                 mime="application/pdf",
@@ -6821,7 +6841,7 @@ The PDF report includes:
 
 
 if active_page == PAGE_NAMES[14]:
-    render_page_shell("AI Retirement Coach", "Ask follow-up questions, explore trade-offs, and get plain-English explanations of what your plan results mean.", "🤖")
+    render_page_shell("Blueprint Coach", "Ask follow-up questions, explore trade-offs, and get plain-English explanations of what your blueprint results mean.", "🤖")
     page_help(
         "AI Retirement Coach",
         "This chat explains the retirement numbers in plain English. It uses your current plan context, but it is educational only and not financial, tax, legal, insurance, or investment advice."
@@ -6867,8 +6887,8 @@ if active_page == PAGE_NAMES[14]:
         Average income coverage: {df["Income Coverage Ratio"].mean()}
         Ending portfolio: {df["End Total"].iloc[-1]}
         Max withdrawal rate: {df["Withdrawal Rate"].max()}
-        RTV Score: {rtv_score}/100
-        RTV Label: {rtv_label}
+        Blueprint Score: {rtv_score}/100
+        Blueprint Label: {rtv_label}
         RTV Reasons: {", ".join(rtv_reasons)}
         """
     else:
@@ -6880,7 +6900,7 @@ if active_page == PAGE_NAMES[14]:
     Use the model numbers when available. Do not invent missing values.
     Focus on retirement timing, spending, other income, income gaps, Roth conversions,
     Social Security, Bucket 1, sequence risk, spouse/survivor planning, and the RTV score.
-    RTV means Retirement Timing Viability.
+    Blueprint Score is the app’s educational retirement readiness score.
     Important: Do not over-penalize a plan for low outside-income coverage or a high one-year withdrawal rate
     if the full projection ends with a large portfolio balance and no unmet spending needs.
     Ending balance and plan survivability are the primary success signals.
@@ -6896,7 +6916,7 @@ if active_page == PAGE_NAMES[14]:
     with st.form("ai_chat_form", clear_on_submit=True):
         question = st.text_area(
             "Ask your retirement coach a question",
-            placeholder="Example: Can I retire at 58? Should I take Social Security at 62 or 67? How can I improve my RTV score?",
+            placeholder="Example: Can I retire at 58? Should I take Social Security at 62 or 67? How can I improve my Blueprint Score?",
             height=90,
             key="ai_question_box"
         )
@@ -6938,7 +6958,7 @@ if active_page == PAGE_NAMES[15]:
 
     st.subheader("Key Terms")
     terms = pd.DataFrame([
-        ["RTV Score", "Retirement Timing Viability. A 0–100 score estimating whether the selected retirement age appears sustainable under the current assumptions."],
+        ["Blueprint Score", "Retirement Timing Viability. A 0–100 score estimating whether the selected retirement age appears sustainable under the current assumptions."],
         ["Portfolio at Retirement", "The projected investment balance when retirement begins."],
         ["End of Plan Portfolio", "The projected balance left at the final age selected in the plan."],
         ["Max Withdrawal Rate", "The highest annual portfolio withdrawal divided by portfolio balance in the projection."],
@@ -6964,10 +6984,10 @@ if active_page == PAGE_NAMES[15]:
 4. Complete **Spouse / Partner Questions** only if applicable.
 5. Review answers, then check the dashboard and recommendations.
 6. Use **Saved Scenarios** to save, reload, and compare planning versions.
-7. Use RTV, Retirement Timing Viability, as a quick confidence score for your retirement timing.
+7. Use Blueprint Score as a quick confidence score for your retirement timing.
 8. Add home and mortgage information to evaluate home equity, mortgage cash flow, downsizing, relocation, and housing flexibility.
 9. Use planned spending changes when retirement spending will change at a future age, such as higher travel spending early and lower spending later.
-10. Use the Spending Target Finder to estimate a monthly spending level that may improve or maintain your RTV score.
+10. Use the Spending Target Finder to estimate a monthly spending level that may improve or maintain your Blueprint Score.
 8. Use **Best Places to Retire** to compare retirement-friendly states and cities by taxes, cost of living, healthcare, lifestyle, climate, and recreation.
 9. Use **Monte Carlo** to estimate probability of success across randomized market paths.
 
