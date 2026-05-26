@@ -6274,6 +6274,7 @@ def render_navigation():
             "Dashboard",
             "Recommendations",
             "Projection Table",
+            "Saved Scenarios",
             "Retirement Age Optimizer",
             "Best Places to Retire",
             "PDF Report",
