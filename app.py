@@ -3194,7 +3194,7 @@ def render_retirement_age_optimizer_page():
         "A higher cushion makes the recommendation more conservative."
     )
 
-    if st.button("Calculate My Recommended Retirement Age", type="primary", use_container_width=True):
+    if st.button("Calculate My Can I Retire at This Age?", type="primary", use_container_width=True):
         with st.spinner("Testing retirement ages with your current blueprint..."):
             st.session_state.retirement_age_optimizer = build_retirement_age_optimizer_results(
                 start_age=int(start_age),
@@ -6559,18 +6559,37 @@ if active_page == PAGE_NAMES[0]:
 
         rtv_value_home = f"{rtv_score_home}/100"
         rtv_note_home = f"{rtv_label_home} readiness score based on your current inputs."
-        ending_portfolio_home = money(safe_df_home["End Total"].iloc[-1])
-        max_wr_home = pct(safe_df_home["Withdrawal Rate"].max())
-        income_coverage_home = pct(safe_df_home["Income Coverage Ratio"].mean())
+        planning_age_home = int(st.session_state.get("end_age", 90) or 90)
+        money_left_home = money(safe_df_home["End Total"].iloc[-1])
+
+        unmet_need_home = float(safe_df_home["Unmet Need"].sum() or 0)
+        end_total_home = float(safe_df_home["End Total"].iloc[-1] or 0)
+        if unmet_need_home > 0 or end_total_home <= 0:
+            retire_status_home = "Not Yet"
+            retire_status_note_home = "The current target age may need changes."
+        elif rtv_score_home >= 80:
+            retire_status_home = "Looks Good"
+            retire_status_note_home = "Your target retirement age appears realistic."
+        else:
+            retire_status_home = "Maybe"
+            retire_status_note_home = "The plan may work, but needs review."
+
+        avg_gap_home = float(safe_df_home["Portfolio Need"].mean() if "Portfolio Need" in safe_df_home.columns else 0)
+        if avg_gap_home <= 0 and "Total Spending" in safe_df_home.columns and "Total Non-Portfolio Income" in safe_df_home.columns:
+            avg_gap_home = float((safe_df_home["Total Spending"] - safe_df_home["Total Non-Portfolio Income"]).clip(lower=0).mean())
+        monthly_gap_home = money(max(avg_gap_home, 0) / 12)
+
         status_title = "Your plan is ready to review."
         status_note = "Use the Blueprint Dashboard, Action Plan, Confidence Test, Stress Tests, and Blueprint Report for deeper analysis."
         required_panel = ""
     else:
         rtv_value_home = "Incomplete"
         rtv_note_home = "Complete your plan to see your Blueprint Score."
-        ending_portfolio_home = "$0"
-        max_wr_home = "0.0%"
-        income_coverage_home = "0.0%"
+        planning_age_home = int(st.session_state.get("end_age", 90) or 90)
+        money_left_home = "$0"
+        retire_status_home = "Not Ready"
+        retire_status_note_home = "Enter your core numbers to test your retirement age."
+        monthly_gap_home = "$0"
         status_title = "You are not signed in." if not user else "Your plan needs a little more information."
         status_note = "You can still use the planner, but saved blueprints require an account." if not user else "Complete the required fields below to unlock projections and recommendations."
         required_panel = ", ".join(missing_items_home) if missing_items_home else "Review Start My Blueprint and Spending Plan."
@@ -6602,24 +6621,40 @@ if active_page == PAGE_NAMES[0]:
         <div class="rb-card-note">{rtv_note_home}</div>
       </div>
       <div class="rb-card">
-        <div class="rb-card-top"><div class="rb-card-label">Ending Portfolio</div><div class="rb-icon">$</div></div>
-        <div class="rb-card-value">{ending_portfolio_home}</div>
-        <div class="rb-card-note">Estimated portfolio value at end of plan.</div>
+        <div class="rb-card-top"><div class="rb-card-label">Can I Retire at This Age?</div><div class="rb-icon">✓</div></div>
+        <div class="rb-card-value">{retire_status_home}</div>
+        <div class="rb-card-note">{retire_status_note_home}</div>
       </div>
       <div class="rb-card">
-        <div class="rb-card-top"><div class="rb-card-label">Max Withdrawal Rate</div><div class="rb-icon">↗</div></div>
-        <div class="rb-card-value">{max_wr_home}</div>
-        <div class="rb-card-note">Max sustainable withdrawal rate based on the current projection.</div>
+        <div class="rb-card-top"><div class="rb-card-label">Money Left at Age {planning_age_home}</div><div class="rb-icon">$</div></div>
+        <div class="rb-card-value">{money_left_home}</div>
+        <div class="rb-card-note">Estimated money remaining at the end of the plan.</div>
       </div>
       <div class="rb-card">
-        <div class="rb-card-top"><div class="rb-card-label">Income Coverage</div><div class="rb-icon">✓</div></div>
-        <div class="rb-card-value">{income_coverage_home}</div>
-        <div class="rb-card-note">Percent of expenses covered by income in retirement.</div>
+        <div class="rb-card-top"><div class="rb-card-label">Monthly Gap From Savings</div><div class="rb-icon">↗</div></div>
+        <div class="rb-card-value">{monthly_gap_home}</div>
+        <div class="rb-card-note">Estimated monthly spending that needs to come from savings.</div>
       </div>
     </div>
     """, unsafe_allow_html=True)
 
-    if not required_panel:
+    if required_panel:
+        st.markdown(f"""
+        <div class="rb-warning-panel">
+          <div class="rb-warning-left">
+            <div class="rb-warning-icon">⚠</div>
+            <div>
+              <div class="rb-warning-title">Complete these required items</div>
+              <div class="rb-muted">{required_panel}</div>
+            </div>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+        c_warn_left, c_warn_btn = st.columns([4, 1.35])
+        with c_warn_btn:
+            if st.button("Go to Start My Blueprint", use_container_width=True, key="home_go_guided_required"):
+                go_to_page("Guided Questions")
+    else:
         st.success("Your blueprint has enough information to review the dashboard, action plan, confidence test, stress tests, and reports.")
         render_premium_insight("What your blueprint is telling you", df if can_run else None, "general")
 
@@ -7071,6 +7106,22 @@ def render_dashboard_close_to_mock(df, rtv_score, rtv_label, rtv_reasons):
     max_wr = float(df["Withdrawal Rate"].max() or 0)
     chosen_age = int(st.session_state.get("retire_age", 0) or 0)
 
+    unmet_need = float(df["Unmet Need"].sum() or 0)
+    if unmet_need > 0 or ending <= 0:
+        retire_status = "Not Yet"
+        retire_status_note = "The current target age may need changes."
+    elif rtv_score >= 80:
+        retire_status = "Looks Good"
+        retire_status_note = "Your target age appears realistic."
+    else:
+        retire_status = "Maybe"
+        retire_status_note = "The plan may work, but needs review."
+
+    avg_gap = float(df["Portfolio Need"].mean() if "Portfolio Need" in df.columns else 0)
+    if avg_gap <= 0 and "Total Spending" in df.columns and "Total Non-Portfolio Income" in df.columns:
+        avg_gap = float((df["Total Spending"] - df["Total Non-Portfolio Income"]).clip(lower=0).mean())
+    monthly_gap = money(max(avg_gap, 0) / 12)
+
     # Header
     st.markdown(f"""
     <div class="rb-saas-hero">
@@ -7113,7 +7164,7 @@ def render_dashboard_close_to_mock(df, rtv_score, rtv_label, rtv_reasons):
           <div class="rb-kpi-label">Recommended Retirement Age</div>
           <div class="rb-kpi-value">{chosen_age}</div>
           <div class="rb-kpi-pill">Current target</div>
-          <div class="rb-kpi-note">Use Age Optimizer to test earlier and later ages.</div>
+          <div class="rb-kpi-note">Shows whether your target retirement age appears realistic.</div>
         </div>
         """, unsafe_allow_html=True)
     with c3:
@@ -7128,10 +7179,10 @@ def render_dashboard_close_to_mock(df, rtv_score, rtv_label, rtv_reasons):
     with c4:
         st.markdown(f"""
         <div class="rb-kpi-card-v2">
-          <div class="rb-kpi-label">Income Coverage</div>
-          <div class="rb-kpi-value">{pct(income_cov)}</div>
-          <div class="rb-kpi-pill">Plan metric</div>
-          <div class="rb-kpi-note">Percent of expenses covered by non-portfolio income.</div>
+          <div class="rb-kpi-label">Monthly Gap From Savings</div>
+          <div class="rb-kpi-value">{monthly_gap}</div>
+          <div class="rb-kpi-pill">Savings need</div>
+          <div class="rb-kpi-note">Estimated monthly amount that needs to come from savings.</div>
         </div>
         """, unsafe_allow_html=True)
 
