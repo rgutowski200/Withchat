@@ -283,6 +283,29 @@ section[data-testid="stSidebar"] div.stButton > button:disabled {
     font-weight: 900;
 }
 
+
+/* Hide Streamlit's 'Press Enter to submit form' placeholder text in all input boxes */
+input::placeholder,
+textarea::placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
+}
+input::-webkit-input-placeholder,
+textarea::-webkit-input-placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
+}
+input::-moz-placeholder,
+textarea::-moz-placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
+}
+input:-ms-input-placeholder,
+textarea:-ms-input-placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
