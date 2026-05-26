@@ -1538,6 +1538,21 @@ def render_premium_lock_cards():
         <div class="rb-lock-title">Full Blueprint Report</div>
         <div class="rb-lock-copy">Export a polished report with executive summary, risks, action plan, taxes, and location insights.</div>
       </div>
+      <div class="rb-lock-card">
+        <div class="rb-lock-icon">🤖</div>
+        <div class="rb-lock-title">Blueprint Coach</div>
+        <div class="rb-lock-copy">Ask plain-English questions about your retirement blueprint and get educational guidance.</div>
+      </div>
+      <div class="rb-lock-card">
+        <div class="rb-lock-icon">📍</div>
+        <div class="rb-lock-title">Best Places to Retire</div>
+        <div class="rb-lock-copy">Compare retirement locations using taxes, cost of living, healthcare, climate, and lifestyle fit.</div>
+      </div>
+      <div class="rb-lock-card">
+        <div class="rb-lock-icon">📈</div>
+        <div class="rb-lock-title">Projection Table</div>
+        <div class="rb-lock-copy">Review the year-by-year math behind balances, income, withdrawals, taxes, and projected money left.</div>
+      </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1548,6 +1563,8 @@ def render_premium_lock_cards():
             go_to_page("Retirement Age Optimizer")
         if st.button("Open Tax-Aware Plan", use_container_width=True, key="premium_open_tax_plan"):
             go_to_page("Projection Table")
+        if st.button("Open Blueprint Coach", use_container_width=True, key="premium_open_blueprint_coach"):
+            go_to_page("AI Retirement Coach")
     with c2:
         if st.button("Open 2-Bucket Strategy", use_container_width=True, key="premium_open_bucket_strategy"):
             st.session_state.dashboard_focus = "2-Bucket Strategy"
@@ -1555,12 +1572,16 @@ def render_premium_lock_cards():
         if st.button("Open Roth Conversion Explorer", use_container_width=True, key="premium_open_roth_explorer"):
             st.session_state.dashboard_focus = "Roth Conversion Explorer"
             go_to_page("Dashboard")
+        if st.button("Open Best Places to Retire", use_container_width=True, key="premium_open_best_places"):
+            go_to_page("Best Places to Retire")
     with c3:
         if st.button("Open Scenario Comparison", use_container_width=True, key="premium_open_scenario_comparison"):
             st.session_state.dashboard_focus = "Scenario Comparison"
             go_to_page("Dashboard")
         if st.button("Open Blueprint Report", use_container_width=True, key="premium_open_blueprint_report"):
             go_to_page("PDF Report")
+        if st.button("Open Projection Table", use_container_width=True, key="premium_open_projection_table"):
+            go_to_page("Projection Table")
 
 def build_blueprint_insight(df=None, page="general"):
     if df is None or getattr(df, "empty", True):
@@ -5887,7 +5908,7 @@ if active_page == PAGE_NAMES[0]:
         render_premium_insight("What your blueprint is telling you", df if can_run else None, "general")
 
     st.markdown("### Premium Retirement Tools")
-    st.caption("Go beyond a basic score with tools that help compare retirement ages, reduce risk, plan withdrawals, and create a full retirement blueprint.")
+    st.caption("Go beyond a basic score with tools that help compare retirement ages, reduce risk, plan withdrawals, review projections, explore locations, and create a full retirement blueprint.")
     render_premium_lock_cards()
 
     left_panel, right_panel = st.columns([1.35, 1])
