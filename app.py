@@ -1941,6 +1941,8 @@ def render_bucket_strategy_comparison_panel(df=None):
         - **Bucket 2: Growth Bucket** — everything else, invested for longer-term growth
 
         The 2-bucket system is designed to make retirement easier to understand and less stressful during market drops.
+
+        **Key idea:** 2 Bucket is not always designed to make the user richer. It is designed to make retirement withdrawals safer, clearer, and easier to stick with during bad markets.
         """
     )
 
@@ -1956,6 +1958,24 @@ def render_bucket_strategy_comparison_panel(df=None):
         st.info(
             "Think of Bucket 1 like a retirement paycheck reserve. "
             "Bucket 2 is the long-term engine that is meant to keep growing and refill Bucket 1 later."
+        )
+
+    with st.expander("When is 2 Bucket better than 1 Bucket?", expanded=False):
+        st.markdown(
+            """
+            A 2-bucket system may be better when the user cares more about **retirement stability and peace of mind** than getting the highest possible ending balance.
+
+            It is especially useful when:
+            - The user is retiring soon or newly retired
+            - The market performs badly in the first few retirement years
+            - The user wants a few years of spending kept safer
+            - The user may panic if all their retirement money rises and falls together
+            - The user is bridging years before Social Security or Medicare
+            - The user wants retirement to feel like a more predictable paycheck system
+
+            **Simple takeaway:**  
+            **1 Bucket may be best for maximum long-term growth. 2 Bucket may be best for a smoother, easier-to-understand retirement paycheck system.**
+            """
         )
 
     view = st.radio(
@@ -2051,7 +2071,8 @@ def render_bucket_strategy_comparison_panel(df=None):
     else:
         st.info(
             "Under normal returns, 1 Bucket may show more money left because more of the portfolio stays invested for growth. "
-            "The 2-bucket system may show less money left, but its purpose is to protect near-term spending and make the plan easier to live with."
+            "That does not automatically make it better. The 2-bucket system may show less money left because some money is kept safer, "
+            "but its purpose is to protect near-term spending and make the plan easier to live with."
         )
 
     st.markdown("### What the numbers mean")
@@ -2106,7 +2127,8 @@ def render_bucket_strategy_comparison_panel(df=None):
         )
     elif delta < 0:
         st.info(
-            f"Both strategies last through the plan. The 1-bucket system ends with more money, while the 2-bucket system trades some growth for clearer near-term spending safety."
+            "Both strategies last through the plan. The 1-bucket system ends with more money, while the 2-bucket system trades some growth "
+            "for clearer near-term spending safety. This can still be a good tradeoff for someone who wants retirement withdrawals to feel more stable."
         )
     else:
         st.success(
