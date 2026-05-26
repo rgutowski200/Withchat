@@ -1508,12 +1508,59 @@ def premium_badge(text="Premium Preview"):
 def render_premium_lock_cards():
     st.markdown("""
     <div class="rb-lock-grid">
-      <div class="rb-lock-card"><div class="rb-lock-icon">🪣</div><div class="rb-lock-title">2-Bucket Strategy</div><div class="rb-lock-copy">Make retirement easier to understand with one safety bucket and one long-term growth bucket.</div></div>
-      <div class="rb-lock-card"><div class="rb-lock-icon">🔁</div><div class="rb-lock-title">Scenario Comparison</div><div class="rb-lock-copy">Compare retirement ages, spending changes, and Social Security timing side by side.</div></div>
-      <div class="rb-lock-card"><div class="rb-lock-icon">📄</div><div class="rb-lock-title">Full Blueprint Report</div><div class="rb-lock-copy">Export a polished report with executive summary, risks, action plan, taxes, and location insights.</div></div>
+      <div class="rb-lock-card">
+        <div class="rb-lock-icon">🎯</div>
+        <div class="rb-lock-title">Smart Retirement Age Optimizer</div>
+        <div class="rb-lock-copy">Find the retirement age that gives the best balance of retiring sooner, safety, and long-term cushion.</div>
+      </div>
+      <div class="rb-lock-card">
+        <div class="rb-lock-icon">🪣</div>
+        <div class="rb-lock-title">2-Bucket Strategy</div>
+        <div class="rb-lock-copy">Split retirement money into safer spending money and long-term growth money.</div>
+      </div>
+      <div class="rb-lock-card">
+        <div class="rb-lock-icon">🔁</div>
+        <div class="rb-lock-title">Scenario Comparison</div>
+        <div class="rb-lock-copy">Compare retirement ages, spending changes, and Social Security timing side by side.</div>
+      </div>
+      <div class="rb-lock-card">
+        <div class="rb-lock-icon">💸</div>
+        <div class="rb-lock-title">Tax-Aware Withdrawal Plan</div>
+        <div class="rb-lock-copy">See which accounts may make sense to draw from first: taxable, traditional, or Roth.</div>
+      </div>
+      <div class="rb-lock-card">
+        <div class="rb-lock-icon">🔄</div>
+        <div class="rb-lock-title">Roth Conversion Explorer</div>
+        <div class="rb-lock-copy">Estimate whether Roth conversions may help lower future taxes and reduce RMD pressure.</div>
+      </div>
+      <div class="rb-lock-card">
+        <div class="rb-lock-icon">📄</div>
+        <div class="rb-lock-title">Full Blueprint Report</div>
+        <div class="rb-lock-copy">Export a polished report with executive summary, risks, action plan, taxes, and location insights.</div>
+      </div>
     </div>
     """, unsafe_allow_html=True)
 
+    st.caption("Open a premium tool:")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        if st.button("Open Age Optimizer", use_container_width=True, key="premium_open_age_optimizer"):
+            go_to_page("Retirement Age Optimizer")
+        if st.button("Open Tax-Aware Plan", use_container_width=True, key="premium_open_tax_plan"):
+            go_to_page("Projection Table")
+    with c2:
+        if st.button("Open 2-Bucket Strategy", use_container_width=True, key="premium_open_bucket_strategy"):
+            st.session_state.dashboard_focus = "2-Bucket Strategy"
+            go_to_page("Dashboard")
+        if st.button("Open Roth Conversion Explorer", use_container_width=True, key="premium_open_roth_explorer"):
+            st.session_state.dashboard_focus = "Roth Conversion Explorer"
+            go_to_page("Dashboard")
+    with c3:
+        if st.button("Open Scenario Comparison", use_container_width=True, key="premium_open_scenario_comparison"):
+            st.session_state.dashboard_focus = "Scenario Comparison"
+            go_to_page("Dashboard")
+        if st.button("Open Blueprint Report", use_container_width=True, key="premium_open_blueprint_report"):
+            go_to_page("PDF Report")
 
 def build_blueprint_insight(df=None, page="general"):
     if df is None or getattr(df, "empty", True):
@@ -5839,7 +5886,8 @@ if active_page == PAGE_NAMES[0]:
         st.success("Your blueprint has enough information to review the dashboard, action plan, confidence test, stress tests, and reports.")
         render_premium_insight("What your blueprint is telling you", df if can_run else None, "general")
 
-    st.markdown("### Premium Features Coming Into Focus")
+    st.markdown("### Premium Retirement Tools")
+    st.caption("Go beyond a basic score with tools that help compare retirement ages, reduce risk, plan withdrawals, and create a full retirement blueprint.")
     render_premium_lock_cards()
 
     left_panel, right_panel = st.columns([1.35, 1])
@@ -6354,6 +6402,12 @@ if active_page == PAGE_NAMES[5]:
 
 if active_page == PAGE_NAMES[6]:
     render_page_shell("Blueprint Dashboard", "Review your blueprint outcome, year-by-year trends, and the key retirement metrics that show whether your plan is on track.", "📊")
+    if st.session_state.get("dashboard_focus"):
+        focus_label = st.session_state.get("dashboard_focus")
+        st.info(f"Opened from Premium Retirement Tools: **{focus_label}**. Scroll down to the matching section on this dashboard.")
+        if st.button("Clear premium tool note", key="clear_dashboard_focus"):
+            st.session_state.dashboard_focus = ""
+            st.rerun()
     page_help(
         "Dashboard",
         "This page shows the main retirement outcome. The Blueprint Score summarizes whether your plan appears funded, how much money may remain, income coverage, withdrawals, and risk areas."
@@ -6500,6 +6554,22 @@ if active_page == PAGE_NAMES[6]:
 
         st.subheader("Compare 1 Bucket vs 2 Bucket")
         render_bucket_strategy_comparison_panel(df)
+
+        st.subheader("Roth Conversion Explorer")
+        st.caption("Educational preview: test an annual Roth conversion amount in Start My Blueprint, then review the tax and balance impact in the Projection Table.")
+        rcol1, rcol2 = st.columns(2)
+        with rcol1:
+            st.metric("Annual Roth Conversion Tested", money(float(st.session_state.get("annual_conversion", 0) or 0)))
+        with rcol2:
+            st.metric("Traditional / Roth Balance", f"{money(float(st.session_state.get('traditional', 0) or 0))} / {money(float(st.session_state.get('roth', 0) or 0))}")
+        rr1, rr2 = st.columns(2)
+        with rr1:
+            if st.button("Edit Roth Conversion Amount", use_container_width=True, key="dashboard_edit_roth_conversion"):
+                go_to_page("Guided Questions")
+        with rr2:
+            if st.button("Review Tax Impact in Projection", use_container_width=True, key="dashboard_review_roth_projection"):
+                go_to_page("Projection Table")
+        st.warning("Educational purposes only. Roth conversions can create taxes today and should be reviewed with a qualified tax or financial professional.")
 
         st.subheader("Portfolio Balance")
         st.caption("Shows how each account type contributes to your total projected portfolio over time.")
