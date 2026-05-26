@@ -1558,29 +1558,40 @@ def render_premium_lock_cards():
 
     st.caption("Open a premium tool:")
     c1, c2, c3 = st.columns(3)
+
     with c1:
         if st.button("Open Age Optimizer", use_container_width=True, key="premium_open_age_optimizer"):
             go_to_page("Retirement Age Optimizer")
+
         if st.button("Open Tax-Aware Plan", use_container_width=True, key="premium_open_tax_plan"):
+            st.session_state.projection_focus = "Tax-Aware Withdrawal Plan"
             go_to_page("Projection Table")
+
         if st.button("Open Blueprint Coach", use_container_width=True, key="premium_open_blueprint_coach"):
             go_to_page("AI Retirement Coach")
+
     with c2:
         if st.button("Open 2-Bucket Strategy", use_container_width=True, key="premium_open_bucket_strategy"):
             st.session_state.dashboard_focus = "2-Bucket Strategy"
             go_to_page("Dashboard")
+
         if st.button("Open Roth Conversion Explorer", use_container_width=True, key="premium_open_roth_explorer"):
             st.session_state.dashboard_focus = "Roth Conversion Explorer"
             go_to_page("Dashboard")
+
         if st.button("Open Best Places to Retire", use_container_width=True, key="premium_open_best_places"):
             go_to_page("Best Places to Retire")
+
     with c3:
         if st.button("Open Scenario Comparison", use_container_width=True, key="premium_open_scenario_comparison"):
             st.session_state.dashboard_focus = "Scenario Comparison"
             go_to_page("Dashboard")
+
         if st.button("Open Blueprint Report", use_container_width=True, key="premium_open_blueprint_report"):
             go_to_page("PDF Report")
+
         if st.button("Open Projection Table", use_container_width=True, key="premium_open_projection_table"):
+            st.session_state.projection_focus = "Projection Table"
             go_to_page("Projection Table")
 
 def build_blueprint_insight(df=None, page="general"):
@@ -6903,6 +6914,12 @@ if active_page == PAGE_NAMES[7]:
 
 if active_page == PAGE_NAMES[8]:
     render_page_shell("Projection", "Review the detailed annual projection behind the scenes, including balances, withdrawals, taxes, income, and ending values.", "📈")
+    if st.session_state.get("projection_focus"):
+        focus_label = st.session_state.get("projection_focus")
+        st.info(f"Opened from Premium Retirement Tools: **{focus_label}**. Review the projection table below for year-by-year balances, withdrawals, taxes, and Roth conversion impact.")
+        if st.button("Clear projection note", key="clear_projection_focus"):
+            st.session_state.projection_focus = ""
+            st.rerun()
     page_help(
         "Projection Table",
         "This table shows the year-by-year math behind the plan. It includes balances, spending, income, withdrawals, Roth conversions, unmet needs, and withdrawal rates by age."
