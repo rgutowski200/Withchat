@@ -1508,7 +1508,7 @@ def premium_badge(text="Premium Preview"):
 def render_premium_lock_cards():
     st.markdown("""
     <div class="rb-lock-grid">
-      <div class="rb-lock-card"><div class="rb-lock-icon">🪣</div><div class="rb-lock-title">3-Bucket Strategy</div><div class="rb-lock-copy">Move beyond a simple cash bucket with safer money, income/balanced assets, and long-term growth.</div></div>
+      <div class="rb-lock-card"><div class="rb-lock-icon">🪣</div><div class="rb-lock-title">2-Bucket Strategy</div><div class="rb-lock-copy">Make retirement easier to understand with one safety bucket and one long-term growth bucket.</div></div>
       <div class="rb-lock-card"><div class="rb-lock-icon">🔁</div><div class="rb-lock-title">Scenario Comparison</div><div class="rb-lock-copy">Compare retirement ages, spending changes, and Social Security timing side by side.</div></div>
       <div class="rb-lock-card"><div class="rb-lock-icon">📄</div><div class="rb-lock-title">Full Blueprint Report</div><div class="rb-lock-copy">Export a polished report with executive summary, risks, action plan, taxes, and location insights.</div></div>
     </div>
@@ -1574,36 +1574,89 @@ def render_confidence_meters(df):
     st.markdown(html, unsafe_allow_html=True)
 
 
-def build_three_bucket_strategy(df=None):
-    total_assets = float(st.session_state.get("traditional",0) or 0) + float(st.session_state.get("roth",0) or 0) + float(st.session_state.get("taxable",0) or 0) + float(st.session_state.get("cash",0) or 0)
-    annual_need = annual_household_spending() + float(st.session_state.get("healthcare",0) or 0)
+
+def build_two_bucket_strategy(df=None):
+    """
+    Build a simple, consumer-friendly 2-bucket retirement framework:
+    - Bucket 1: Safety money for near-term spending.
+    - Bucket 2: Long-term investment money for growth and refilling Bucket 1.
+    """
+    total_assets = (
+        float(st.session_state.get("traditional", 0) or 0)
+        + float(st.session_state.get("roth", 0) or 0)
+        + float(st.session_state.get("taxable", 0) or 0)
+        + float(st.session_state.get("cash", 0) or 0)
+    )
+
+    annual_need = annual_household_spending() + float(st.session_state.get("healthcare", 0) or 0)
     if df is not None and not df.empty and "Income Gap" in df.columns:
         retired_rows = df[df["Household Retired"] == True]
         if not retired_rows.empty:
             annual_need = max(float(retired_rows["Income Gap"].head(5).mean()), annual_need * 0.5)
+
     b1_years = float(st.session_state.get("bucket1_years", 3) or 3)
-    b2_years = float(st.session_state.get("bucket2_years", 5) or 5)
+
     bucket1_target = min(total_assets, max(0, annual_need * b1_years))
-    bucket2_target = min(max(total_assets - bucket1_target, 0), max(0, annual_need * b2_years))
-    bucket3_target = max(total_assets - bucket1_target - bucket2_target, 0)
+    bucket2_target = max(total_assets - bucket1_target, 0)
+
     return pd.DataFrame([
-        {"Bucket": "Bucket 1", "Purpose": "Safety / near-term spending", "Suggested Amount": bucket1_target, "Target Years": b1_years, "Example Holdings": "Cash, money market, CDs, short-term bonds", "Risk Level": "Low"},
-        {"Bucket": "Bucket 2", "Purpose": "Income / refill Bucket 1", "Suggested Amount": bucket2_target, "Target Years": b2_years, "Example Holdings": "Short/intermediate bonds, balanced income funds", "Risk Level": "Moderate"},
-        {"Bucket": "Bucket 3", "Purpose": "Long-term growth", "Suggested Amount": bucket3_target, "Target Years": "Long term", "Example Holdings": "Diversified equity/growth portfolio", "Risk Level": "Higher"},
+        {
+            "Bucket": "Bucket 1",
+            "Plain-English Name": "Safety Bucket",
+            "Purpose": "Money for the next few years of retirement spending",
+            "Suggested Amount": bucket1_target,
+            "Target Years": b1_years,
+            "Example Holdings": "Cash, money market, CDs, short-term bonds",
+            "Risk Level": "Lower"
+        },
+        {
+            "Bucket": "Bucket 2",
+            "Plain-English Name": "Growth Bucket",
+            "Purpose": "Long-term money designed to grow and refill Bucket 1 over time",
+            "Suggested Amount": bucket2_target,
+            "Target Years": "Long term",
+            "Example Holdings": "Diversified stock/bond portfolio based on risk tolerance",
+            "Risk Level": "Moderate to higher"
+        },
     ])
 
 
-def render_three_bucket_strategy(df=None):
-    premium_badge("Premium 3-Bucket Strategy")
-    strat = build_three_bucket_strategy(df)
+# Backward-compatible alias so older report code still works after the simplification.
+def build_three_bucket_strategy(df=None):
+    return build_two_bucket_strategy(df)
+
+
+def render_two_bucket_strategy(df=None):
+    premium_badge("Premium 2-Bucket Strategy")
+    st.markdown(
+        """
+        The 2-bucket system keeps retirement simple:
+
+        **Bucket 1 = Safety money.** This is the money you can use during the next few years, especially if the market is down.
+
+        **Bucket 2 = Growth money.** This is the rest of the portfolio, invested for longer-term growth and used to refill Bucket 1 over time.
+        """
+    )
+
+    strat = build_two_bucket_strategy(df)
     cards = ''
     for i, row in strat.iterrows():
-        cards += f"""<div class="rb-bucket-card"><div class="rb-bucket-num">{i+1}</div><div class="rb-bucket-title">{row['Bucket']}: {row['Purpose']}</div><div class="rb-bucket-amount">{money(row['Suggested Amount'])}</div><div class="rb-bucket-copy"><b>Target:</b> {row['Target Years']} years<br/><b>Examples:</b> {row['Example Holdings']}<br/><b>Risk:</b> {row['Risk Level']}</div></div>"""
+        cards += f"""<div class="rb-bucket-card"><div class="rb-bucket-num">{i+1}</div><div class="rb-bucket-title">{row['Bucket']}: {row['Plain-English Name']}</div><div class="rb-bucket-amount">{money(row['Suggested Amount'])}</div><div class="rb-bucket-copy"><b>Purpose:</b> {row['Purpose']}<br/><b>Target:</b> {row['Target Years']} years<br/><b>Examples:</b> {row['Example Holdings']}<br/><b>Risk:</b> {row['Risk Level']}</div></div>"""
     st.markdown(f'<div class="rb-bucket-grid">{cards}</div>', unsafe_allow_html=True)
+
     show = strat.copy()
     show["Suggested Amount"] = show["Suggested Amount"].map(money)
     st.dataframe(show, use_container_width=True, hide_index=True)
+
+    st.info(
+        "Simple version: keep a few years of safer spending money in Bucket 1, and let Bucket 2 stay invested for long-term growth."
+    )
     st.caption("This is an educational allocation framework. It does not replace investment, tax, or advisor guidance. Phase 1 displays suggested bucket targets without reclassifying tax accounts.")
+
+
+# Backward-compatible alias so old calls render the new simplified experience.
+def render_three_bucket_strategy(df=None):
+    render_two_bucket_strategy(df)
 
 
 
@@ -1622,8 +1675,8 @@ def _bucket_strategy_first_need(df=None):
 def simulate_bucket_strategy(strategy="2 Bucket", df=None, stress=False):
     """
     Educational bucket comparison simulator.
-    It uses the app's projected annual portfolio withdrawal needs, then applies different virtual
-    bucket return/refill rules so users can compare 1-, 2-, and 3-bucket structures side by side.
+    It uses the app's projected annual portfolio withdrawal needs, then applies simple virtual
+    return/refill rules so users can compare a single portfolio against a 2-bucket structure.
     This does not replace the tax-aware account projection; it is a strategy overlay.
     """
     if df is None or df.empty:
@@ -1631,34 +1684,25 @@ def simulate_bucket_strategy(strategy="2 Bucket", df=None, stress=False):
     if df is None or df.empty:
         return pd.DataFrame(), {}
 
-    total_assets = float(st.session_state.get("traditional", 0) or 0) + float(st.session_state.get("roth", 0) or 0) + float(st.session_state.get("taxable", 0) or 0) + float(st.session_state.get("cash", 0) or 0)
+    total_assets = (
+        float(st.session_state.get("traditional", 0) or 0)
+        + float(st.session_state.get("roth", 0) or 0)
+        + float(st.session_state.get("taxable", 0) or 0)
+        + float(st.session_state.get("cash", 0) or 0)
+    )
     safe_return = float(st.session_state.get("safe_return", 0.04) or 0.04)
     growth_return = float(st.session_state.get("growth_return", 0.07) or 0.07)
-    middle_return = max(safe_return, (safe_return + growth_return) / 2)
     first_need = _bucket_strategy_first_need(df)
     b1_years = float(st.session_state.get("bucket1_years", 3) or 3)
-    b2_years = float(st.session_state.get("bucket2_years", 5) or 5)
 
     if strategy == "1 Bucket":
         b1 = 0.0
-        b2 = 0.0
-        b3 = total_assets
+        b2 = total_assets
         target_b1 = 0.0
-        target_b2 = 0.0
-    elif strategy == "2 Bucket":
-        # Preserve the user's entered safe bucket, but compare against a rational target.
-        target_b1 = min(total_assets, max(float(st.session_state.get("cash", 0) or 0), first_need * b1_years))
-        b1 = target_b1
-        b2 = 0.0
-        b3 = max(total_assets - b1, 0.0)
-        target_b2 = 0.0
     else:
         target_b1 = min(total_assets, max(float(st.session_state.get("cash", 0) or 0), first_need * b1_years))
-        remaining = max(total_assets - target_b1, 0.0)
-        target_b2 = min(remaining, first_need * b2_years)
         b1 = target_b1
-        b2 = target_b2
-        b3 = max(total_assets - b1 - b2, 0.0)
+        b2 = max(total_assets - b1, 0.0)
 
     rows = []
     depleted_age = None
@@ -1669,17 +1713,17 @@ def simulate_bucket_strategy(strategy="2 Bucket", df=None, stress=False):
 
     for idx, row in df.reset_index(drop=True).iterrows():
         age = int(row.get("Age", int(st.session_state.get("current_age", 0) or 0) + idx))
-        start_total = b1 + b2 + b3
+        start_total = b1 + b2
         worst_start_total = min(worst_start_total, start_total)
 
-        # Contributions before retirement go to long-term growth.
+        # Contributions before retirement go to the long-term growth bucket.
         if age < int(st.session_state.get("retire_age", 0) or 0):
-            b3 += float(st.session_state.get("annual_contribution", 0) or 0)
+            b2 += float(st.session_state.get("annual_contribution", 0) or 0)
         spouse_age = row.get("Spouse Age", "")
         try:
             spouse_age_num = int(spouse_age)
             if bool(st.session_state.get("has_spouse", False)) and spouse_age_num < int(st.session_state.get("spouse_retire_age", 0) or 0):
-                b3 += float(st.session_state.get("spouse_annual_contribution", 0) or 0)
+                b2 += float(st.session_state.get("spouse_annual_contribution", 0) or 0)
         except Exception:
             pass
 
@@ -1688,41 +1732,21 @@ def simulate_bucket_strategy(strategy="2 Bucket", df=None, stress=False):
         years_after_retire = max(age - int(st.session_state.get("retire_age", age) or age), 0)
         if stress and is_retired_year and years_after_retire < 3:
             g_ret = -0.15
-            m_ret = min(middle_return, -0.04)
         else:
             g_ret = growth_return
-            m_ret = middle_return
 
         b1 *= (1 + safe_return)
-        b2 *= (1 + m_ret)
-        b3 *= (1 + g_ret)
+        b2 *= (1 + g_ret)
 
         need = float(row.get("Portfolio Withdrawal", 0) or 0)
         shortfall = 0.0
-        used_b1 = used_b2 = used_b3 = 0.0
+        used_b1 = used_b2 = 0.0
 
         if strategy == "1 Bucket":
-            take = min(b3, need)
-            b3 -= take
-            used_b3 += take
+            take = min(b2, need)
+            b2 -= take
+            used_b2 += take
             shortfall = max(need - take, 0)
-        elif strategy == "2 Bucket":
-            take = min(b1, need)
-            b1 -= take
-            used_b1 += take
-            need -= take
-            if need > 0:
-                take = min(b3, need)
-                b3 -= take
-                used_b3 += take
-                need -= take
-            shortfall = max(need, 0)
-
-            # Refill Bucket 1 after the annual withdrawal if growth bucket can support it.
-            refill = min(max(target_b1 - b1, 0.0), b3)
-            b3 -= refill
-            b1 += refill
-            total_refills += refill
         else:
             take = min(b1, need)
             b1 -= take
@@ -1733,26 +1757,18 @@ def simulate_bucket_strategy(strategy="2 Bucket", df=None, stress=False):
                 b2 -= take
                 used_b2 += take
                 need -= take
-            if need > 0:
-                take = min(b3, need)
-                b3 -= take
-                used_b3 += take
-                need -= take
             shortfall = max(need, 0)
 
-            # Refill waterfall: Bucket 2 refills Bucket 1; Bucket 3 refills Bucket 2.
-            refill_b1 = min(max(target_b1 - b1, 0.0), b2)
-            b2 -= refill_b1
-            b1 += refill_b1
-            refill_b2 = min(max(target_b2 - b2, 0.0), b3)
-            b3 -= refill_b2
-            b2 += refill_b2
-            total_refills += refill_b1 + refill_b2
+            # Refill Bucket 1 after the annual withdrawal if the growth bucket can support it.
+            refill = min(max(target_b1 - b1, 0.0), b2)
+            b2 -= refill
+            b1 += refill
+            total_refills += refill
 
-        actual = used_b1 + used_b2 + used_b3
+        actual = used_b1 + used_b2
         total_withdrawals += actual
         cumulative_shortfall += shortfall
-        end_total = b1 + b2 + b3
+        end_total = b1 + b2
         if depleted_age is None and (end_total <= 0 or shortfall > 0):
             depleted_age = age
         rows.append({
@@ -1760,9 +1776,8 @@ def simulate_bucket_strategy(strategy="2 Bucket", df=None, stress=False):
             "Strategy": strategy,
             "Start Total": start_total,
             "End Total": end_total,
-            "Bucket 1": b1,
-            "Bucket 2": b2,
-            "Bucket 3 / Growth": b3,
+            "Bucket 1 — Safety": b1,
+            "Bucket 2 — Growth": b2,
             "Portfolio Withdrawal Need": float(row.get("Portfolio Withdrawal", 0) or 0),
             "Actual Withdrawal": actual,
             "Shortfall": shortfall,
@@ -1791,7 +1806,7 @@ def simulate_bucket_strategy(strategy="2 Bucket", df=None, stress=False):
 
 
 def build_bucket_strategy_comparison(df=None, stress=False):
-    strategies = ["1 Bucket", "2 Bucket", "3 Bucket"]
+    strategies = ["1 Bucket", "2 Bucket"]
     summaries = []
     paths = []
     for strategy in strategies:
@@ -1806,29 +1821,35 @@ def build_bucket_strategy_comparison(df=None, stress=False):
         base_short = float(summary_df.loc[summary_df["Strategy"] == "1 Bucket", "Shortfall"].iloc[0]) if "1 Bucket" in summary_df["Strategy"].values else float(summary_df["Shortfall"].iloc[0])
         summary_df["Ending Change vs 1 Bucket"] = summary_df["Ending Portfolio"] - base_end
         summary_df["Shortfall Change vs 1 Bucket"] = summary_df["Shortfall"] - base_short
-        summary_df["Tradeoff"] = summary_df["Strategy"].map({
-            "1 Bucket": "Highest expected growth; highest sequence-risk exposure.",
-            "2 Bucket": "Adds a safety reserve; may reduce forced selling after market drops.",
-            "3 Bucket": "Adds a middle refill layer; smoother risk control but may lower upside."
+        summary_df["Plain-English Meaning"] = summary_df["Strategy"].map({
+            "1 Bucket": "Everything stays together. Simple, but more exposed if the market drops early in retirement.",
+            "2 Bucket": "A safety bucket covers near-term spending while the rest stays invested for growth."
         })
     return summary_df, paths_df
 
 
 def render_bucket_strategy_comparison_panel(df=None):
     if not can_run:
-        st.info("Complete your core inputs to compare 1-, 2-, and 3-bucket strategies.")
+        st.info("Complete your core inputs to compare a 1-bucket approach against the 2-bucket strategy.")
         return
     if df is None or df.empty:
         df = run_projection()
-    premium_badge("Premium Bucket Strategy Comparison")
-    st.markdown("Compare how a **1-bucket**, **2-bucket**, and **3-bucket** approach changes ending balance, withdrawal pressure, shortfall risk, and downside protection. This is an educational strategy overlay on top of your current blueprint.")
+    premium_badge("Premium 2-Bucket Comparison")
+    st.markdown(
+        """
+        Compare a simple **1-bucket** portfolio against the easier-to-understand **2-bucket** system.
+
+        - **1 Bucket:** all retirement money is treated as one pool.
+        - **2 Bucket:** Bucket 1 covers near-term spending; Bucket 2 stays invested for long-term growth.
+        """
+    )
 
     view = st.radio(
         "Comparison view",
         ["Normal return assumptions", "Bad first 3 retirement years"],
         horizontal=True,
         key="bucket_compare_view",
-        help="The stress view applies a simplified bad-market start to retirement so users can see how bucket design may help or hurt sequence-of-return risk."
+        help="The stress view applies a simplified bad-market start to retirement so users can see how a safety bucket may help sequence-of-return risk."
     )
     stress = view == "Bad first 3 retirement years"
     summary_df, paths_df = build_bucket_strategy_comparison(df, stress=stress)
@@ -1836,13 +1857,12 @@ def render_bucket_strategy_comparison_panel(df=None):
         st.info("Not enough projection data to compare bucket strategies yet.")
         return
 
-    # Cards for the top-line comparison.
-    c1, c2, c3 = st.columns(3)
-    for col, strategy in zip([c1, c2, c3], ["1 Bucket", "2 Bucket", "3 Bucket"]):
+    c1, c2 = st.columns(2)
+    for col, strategy in zip([c1, c2], ["1 Bucket", "2 Bucket"]):
         row = summary_df[summary_df["Strategy"] == strategy].iloc[0]
         delta = float(row.get("Ending Change vs 1 Bucket", 0) or 0)
         col.metric(strategy, money(row["Ending Portfolio"]), f"{money(delta)} vs 1 Bucket")
-        col.caption(row["Tradeoff"])
+        col.caption(row["Plain-English Meaning"])
 
     show = summary_df.copy()
     for money_col in ["Ending Portfolio", "Lowest Portfolio", "Total Withdrawals", "Total Refills", "Shortfall", "Ending Change vs 1 Bucket", "Shortfall Change vs 1 Bucket"]:
@@ -1856,7 +1876,7 @@ def render_bucket_strategy_comparison_panel(df=None):
         fig, ax = plt.subplots(figsize=(9, 4.5))
         for strategy, group in paths_df.groupby("Strategy"):
             ax.plot(group["Age"], group["End Total"], label=strategy, linewidth=2)
-        ax.set_title("Projected Portfolio by Bucket Strategy")
+        ax.set_title("Projected Portfolio: 1 Bucket vs 2 Bucket")
         ax.set_xlabel("Age")
         ax.set_ylabel("Portfolio Value")
         ax.legend()
@@ -1868,9 +1888,10 @@ def render_bucket_strategy_comparison_panel(df=None):
     if best_ending["Strategy"] == lowest_shortfall["Strategy"]:
         st.success(f"Best tested strategy: **{best_ending['Strategy']}**. It has the strongest ending portfolio while also minimizing shortfall in this comparison.")
     else:
-        st.info(f"Highest ending balance: **{best_ending['Strategy']}**. Lowest shortfall/risk pressure: **{lowest_shortfall['Strategy']}**. This is the core tradeoff: more growth potential versus more downside protection.")
+        st.info(f"Highest ending balance: **{best_ending['Strategy']}**. Lowest shortfall/risk pressure: **{lowest_shortfall['Strategy']}**. This is the tradeoff: more growth potential versus more downside protection.")
 
     st.caption("Bucket comparison is educational and simplified. It does not reclassify every tax account or guarantee investment results. The main projection remains the source of truth for tax-aware withdrawals.")
+
 
 
 def run_projection_with_temp_retire_age(test_age):
@@ -3820,7 +3841,7 @@ def build_pdf_report(df):
     story.append(Paragraph(tax_assumption_note(), small))
 
     story.append(Spacer(1, 0.15 * inch))
-    story.append(Paragraph("Premium 3-Bucket Strategy", h2))
+    story.append(Paragraph("Premium 2-Bucket Strategy", h2))
     bucket_rows = [["Bucket", "Purpose", "Suggested Amount", "Target", "Risk"]]
     for _, b in build_three_bucket_strategy(df).iterrows():
         bucket_rows.append([b["Bucket"], b["Purpose"], money(b["Suggested Amount"]), str(b["Target Years"]), b["Risk Level"]])
@@ -5405,7 +5426,7 @@ if active_page == PAGE_NAMES[1]:
     render_page_shell("Start My Blueprint", "Set the core numbers that drive your retirement blueprint: ages, savings, contributions, Social Security, returns, and your bucket strategy.", "🧭")
     page_help(
         "Guided Retirement Questions",
-        "This page collects the core numbers for your retirement blueprint: ages, savings, contributions, Social Security, expected returns, inflation, Roth conversions, and premium 3-bucket strategy. These inputs drive the Blueprint Dashboard, Blueprint Score, Action Plan, and Projection."
+        "This page collects the core numbers for your retirement blueprint: ages, savings, contributions, Social Security, expected returns, inflation, Roth conversions, and premium 2-bucket strategy. These inputs drive the Blueprint Dashboard, Blueprint Score, Action Plan, and Projection."
     )
 
     with st.form("guided_form"):
@@ -5438,8 +5459,9 @@ if active_page == PAGE_NAMES[1]:
         st.subheader("Strategy")
         c1, c2 = st.columns(2)
         annual_conversion = c1.number_input("Annual Roth conversion to test", min_value=0, value=int(st.session_state.annual_conversion), step=5000, help=FIELD_HELP["annual_conversion"])
-        bucket1_years = c2.number_input("Bucket 1 target years of spending", min_value=0.0, max_value=10.0, value=float(st.session_state.bucket1_years), step=0.5, help=FIELD_HELP["bucket1_years"])
-        bucket2_years = c2.number_input("Bucket 2 target years of spending", min_value=0.0, max_value=10.0, value=float(st.session_state.get("bucket2_years", 5.0)), step=0.5, help="Premium 3-bucket planning: how many years of future spending to earmark for an income/balanced bucket after Bucket 1.")
+        bucket1_years = c2.number_input("Bucket 1 safety years of spending", min_value=0.0, max_value=10.0, value=float(st.session_state.bucket1_years), step=0.5, help="How many years of near-term retirement spending to keep in the safer Safety Bucket.")
+        bucket2_years = float(st.session_state.get("bucket2_years", 5.0))
+        c2.caption("Bucket 2 is the remaining long-term Growth Bucket. No extra bucket setup needed.")
 
         st.subheader("Federal Tax Estimate")
         st.caption("Phase 2: estimates federal ordinary income tax using IRS brackets, filing status, standard deduction, traditional withdrawals, Roth conversions, and taxable Social Security.")
@@ -5512,7 +5534,7 @@ if active_page == PAGE_NAMES[1]:
 
     render_premium_insight("Premium bucket strategy", df if can_run else None, "bucket")
     render_three_bucket_strategy(df if can_run else None)
-    st.subheader("Compare 1, 2, and 3 Bucket Strategies")
+    st.subheader("Compare 1 Bucket vs 2 Bucket")
     render_bucket_strategy_comparison_panel(df if can_run else None)
 
 if active_page == PAGE_NAMES[2]:
@@ -5998,10 +6020,10 @@ if active_page == PAGE_NAMES[6]:
         if st.button("Open Smart Retirement Age Optimizer", use_container_width=True, key="dashboard_open_age_optimizer"):
             go_to_page("Retirement Age Optimizer")
 
-        st.subheader("Premium 3-Bucket Strategy")
+        st.subheader("Premium 2-Bucket Strategy")
         render_three_bucket_strategy(df)
 
-        st.subheader("Compare 1, 2, and 3 Bucket Strategies")
+        st.subheader("Compare 1 Bucket vs 2 Bucket")
         render_bucket_strategy_comparison_panel(df)
 
         st.subheader("Portfolio Balance")
@@ -7960,7 +7982,7 @@ The PDF report includes:
 - Recommended actions to improve the score
 - Spend-more analysis
 - Premium scenario comparison
-- Premium 3-bucket strategy summary
+- Premium 2-bucket strategy summary
 - Monte Carlo results, if already run
 - Stress test results, if already run
 - Projection snapshot
@@ -8125,7 +8147,6 @@ def render_resources_page():
         ["Healthcare", "Medicare Planning", "At Medicare age, planning shifts to Parts A, B, D, Medigap, Medicare Advantage, IRMAA, and out-of-pocket exposure.", "Medicare, IRMAA, part B, part D"],
         ["Bucket Strategy", "Bucket 1 — Safety", "Near-term cash or safer assets intended to cover spending during bad markets.", "bucket 1, cash, safety"],
         ["Bucket Strategy", "Bucket 2 — Income / Refill", "Moderate-risk assets intended to refill Bucket 1 and reduce pressure on long-term growth investments.", "bucket 2, income, bonds, balanced"],
-        ["Bucket Strategy", "Bucket 3 — Growth", "Long-term growth assets intended to support later retirement years and inflation protection.", "bucket 3, growth, stocks"],
         ["Lifestyle", "Best Places to Retire", "Compare states and cities by taxes, cost, healthcare, climate, lifestyle, and recreation fit.", "places to retire, state tax, climate"],
         ["Lifestyle", "Snowbird Planning", "Splitting time between states can affect spending, taxes, insurance, housing, and healthcare access.", "snowbird, Florida, South Carolina, winter"],
         ["Checklists", "Before You Retire Checklist", "Review income sources, healthcare, emergency reserves, debt, spending, tax plan, estate documents, and spouse protection.", "checklist, retire, before retirement"],
@@ -8151,7 +8172,6 @@ def render_resources_page():
         "Medicare Planning": "https://www.medicare.gov/basics/get-started-with-medicare/medicare-basics/parts-of-medicare",
         "Bucket 1 — Safety": "https://www.investor.gov/introduction-investing/investing-basics/glossary/risk",
         "Bucket 2 — Income / Refill": "https://www.investor.gov/introduction-investing/investing-basics/glossary/risk",
-        "Bucket 3 — Growth": "https://www.investor.gov/introduction-investing/investing-basics/glossary/risk",
         "Best Places to Retire": "https://www.taxfoundation.org/data/all/state/",
         "Snowbird Planning": "https://www.irs.gov/individuals/international-taxpayers/residency-starting-and-ending-dates",
         "Before You Retire Checklist": "https://www.consumerfinance.gov/consumer-tools/retirement/",
@@ -8173,7 +8193,6 @@ def render_resources_page():
         "Medicare Planning": "Medicare.gov",
         "Bucket 1 — Safety": "Investor.gov",
         "Bucket 2 — Income / Refill": "Investor.gov",
-        "Bucket 3 — Growth": "Investor.gov",
         "Best Places to Retire": "Tax Foundation",
         "Snowbird Planning": "IRS",
         "Before You Retire Checklist": "CFPB",
@@ -8251,7 +8270,7 @@ def render_resources_page():
         bucket_df = display_df[display_df["Category"].eq("Bucket Strategy")]
         show_resource_table(bucket_df)
         st.markdown("""
-**Premium planning idea:** A 3-bucket strategy separates near-term safety money, medium-term refill/income assets, and long-term growth assets. It can help users understand *where spending is coming from* instead of only asking whether the total portfolio is large enough.
+**Premium planning idea:** A 2-bucket strategy separates near-term safety money from long-term growth money. It helps users understand *where spending is coming from* without making the plan feel overly complicated.
 """)
 
     with tabs[6]:
@@ -8279,7 +8298,7 @@ def render_resources_page():
                 "Review withdrawal rate and income coverage.",
                 "Check Roth conversion opportunity before year-end.",
                 "Review RMD risk and future tax brackets.",
-                "Rebalance Bucket 1 / Bucket 2 / Bucket 3 targets.",
+                "Rebalance Bucket 1 and Bucket 2 targets.",
                 "Refresh healthcare and insurance assumptions.",
                 "Compare whether relocating or snowbirding changes the plan.",
                 "Export a new Blueprint Report after major life changes.",
@@ -8321,7 +8340,6 @@ if active_page == "Help / Instructions":
         ["Income Coverage", "How much of annual spending is covered by non-portfolio income such as Social Security, pension, or other income."],
         ["Bucket 1", "Safer money intended to cover near-term retirement spending and reduce sequence-of-return risk."],
         ["Bucket 2", "Moderate-risk income/balanced assets intended to refill Bucket 1 and reduce pressure on long-term growth assets."],
-        ["Bucket 3", "Long-term growth assets intended to support later retirement years and inflation protection."],
         ["Roth Conversion", "Moving money from traditional pre-tax accounts to Roth accounts. This may create taxes today but can reduce future tax exposure."],
         ["Unmet Need", "Spending need that the plan could not cover in a projected year. Any unmet need is a major warning sign."],
     ], columns=["Term", "Meaning"])
