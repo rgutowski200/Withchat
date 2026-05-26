@@ -2068,9 +2068,6 @@ def premium_badge(text="Premium Preview"):
 
 
 def render_premium_lock_cards():
-    st.markdown("### Premium Retirement Tools")
-    st.caption("Start with the main retirement planning tools below, then explore more advanced tools when you’re ready.")
-
     main_tools = [
         ("🎯", "Smart Retirement Age Optimizer", "Find the retirement age that gives the best balance of retiring sooner, safety, and long-term cushion.", "Open Age Optimizer", "age"),
         ("🪣", "2-Bucket Strategy", "Split retirement money into safer spending money and long-term growth money.", "Open 2-Bucket Strategy", "bucket"),
