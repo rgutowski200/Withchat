@@ -227,7 +227,10 @@ section[data-testid="stSidebar"] div.stButton > button:disabled {
     border-radius:18px;
     padding:16px;
     background:#FFFFFF;
-    min-height:160px;
+    min-height:260px;
+    height:260px;
+    display:flex;
+    flex-direction:column;
     box-shadow:0 10px 24px rgba(15,23,42,.045);
 }
 .rb-premium-mini-icon {
@@ -253,15 +256,18 @@ section[data-testid="stSidebar"] div.stButton > button:disabled {
     font-size:.8rem;
     line-height:1.35;
     margin-bottom:8px;
+    flex:1 1 auto;
 }
 .rb-premium-mini-badge {
     display:inline-block;
+    width:fit-content;
     padding:4px 9px;
     border-radius:999px;
     background:#EEF2FF;
     color:#2563EB;
     font-size:.72rem;
     font-weight:850;
+    margin-top:auto;
 }
 @media (max-width: 1100px) {
     .rb-roadmap-steps { grid-template-columns:repeat(3,minmax(0,1fr)); }
@@ -401,7 +407,10 @@ st.markdown("""
     border-radius: 18px;
     background: #FFFFFF;
     padding: 16px;
-    min-height: 150px;
+    min-height: 280px;
+    height: 280px;
+    display: flex;
+    flex-direction: column;
     box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
 }
 .rb-premium-icon {
@@ -427,15 +436,18 @@ st.markdown("""
     font-size: 0.9rem;
     line-height: 1.4;
     margin-bottom: 8px;
+    flex: 1 1 auto;
 }
 .rb-premium-badge {
     display: inline-block;
+    width: fit-content;
     padding: 4px 10px;
     border-radius: 999px;
     background: #EEF2FF;
     color: #1D4ED8;
     font-size: 0.76rem;
     font-weight: 700;
+    margin-top: auto;
 }
 @media (max-width: 1100px) {
     .rb-roadmap-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -6639,20 +6651,25 @@ if active_page == PAGE_NAMES[0]:
           <div class="rb-qs-step"><span class="rb-qs-step-num">6</span><span class="rb-qs-step-text">Run the Confidence Test, Stress Tests, and export a Blueprint Report.</span></div>
         </div>
         """, unsafe_allow_html=True)
-        q1, q2, q3 = st.columns(3)
-        with q1:
+        qs_row1_col1, qs_row1_col2, qs_row1_col3 = st.columns(3)
+        with qs_row1_col1:
             if st.button("Start My Blueprint", use_container_width=True, key="qs_guided"):
                 go_to_page("Guided Questions")
-            if st.button("Dashboard", use_container_width=True, key="qs_dashboard"):
-                go_to_page("Dashboard")
-        with q2:
+        with qs_row1_col2:
             if st.button("Spending Plan", use_container_width=True, key="qs_budget"):
                 go_to_page("Budget Builder")
-            if st.button("Saved Blueprints", use_container_width=True, key="qs_saved"):
-                go_to_page("Saved Scenarios")
-        with q3:
+        with qs_row1_col3:
             if st.button("Income Plan", use_container_width=True, key="qs_income"):
                 go_to_page("Income Builder")
+
+        qs_row2_col1, qs_row2_col2, qs_row2_col3 = st.columns(3)
+        with qs_row2_col1:
+            if st.button("Dashboard", use_container_width=True, key="qs_dashboard"):
+                go_to_page("Dashboard")
+        with qs_row2_col2:
+            if st.button("Saved Blueprints", use_container_width=True, key="qs_saved"):
+                go_to_page("Saved Scenarios")
+        with qs_row2_col3:
             if st.button("Blueprint Report", use_container_width=True, key="qs_pdf"):
                 go_to_page("PDF Report")
 
