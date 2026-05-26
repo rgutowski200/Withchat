@@ -277,6 +277,12 @@ section[data-testid="stSidebar"] div.stButton > button:disabled {
     .rb-roadmap-steps { grid-template-columns:repeat(2,minmax(0,1fr)); }
     .rb-premium-grid-v2 { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
+
+.rb-qs-step-text b {
+    color: #0f172a;
+    font-weight: 900;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -6633,66 +6639,48 @@ if active_page == PAGE_NAMES[0]:
         st.success("Your blueprint has enough information to review the dashboard, action plan, confidence test, stress tests, and reports.")
         render_premium_insight("What your blueprint is telling you", df if can_run else None, "general")
 
-    st.markdown("### Premium Retirement Tools")
-    st.caption("Go beyond a basic score with tools that help compare retirement ages, reduce risk, plan withdrawals, review projections, explore locations, and create a full retirement blueprint.")
-    render_premium_lock_cards()
+    st.markdown("### Start Here: Your Retirement Blueprint Process")
+    st.caption("Follow these steps in order. The sidebar stays available when you are ready to jump around, but this gives new users the clearest path.")
 
-    left_panel, right_panel = st.columns([1.35, 1])
+    process_left, process_right = st.columns([1.35, 1])
 
-    with left_panel:
+    with process_left:
         st.markdown("""
         <div class="rb-panel">
-          <div class="rb-panel-title"><span>🚀</span><span>Quick Start</span></div>
-          <div class="rb-qs-step"><span class="rb-qs-step-num">1</span><span class="rb-qs-step-text">Complete your core retirement blueprint details.</span></div>
-          <div class="rb-qs-step"><span class="rb-qs-step-num">2</span><span class="rb-qs-step-text">Build your spending plan.</span></div>
-          <div class="rb-qs-step"><span class="rb-qs-step-num">3</span><span class="rb-qs-step-text">Add income sources.</span></div>
-          <div class="rb-qs-step"><span class="rb-qs-step-num">4</span><span class="rb-qs-step-text">Review the Blueprint Dashboard and Action Plan.</span></div>
-          <div class="rb-qs-step"><span class="rb-qs-step-num">5</span><span class="rb-qs-step-text">Save and compare blueprints.</span></div>
-          <div class="rb-qs-step"><span class="rb-qs-step-num">6</span><span class="rb-qs-step-text">Run the Confidence Test, Stress Tests, and export a Blueprint Report.</span></div>
+          <div class="rb-panel-title"><span>🚀</span><span>Quick Start Roadmap</span></div>
+          <div class="rb-qs-step"><span class="rb-qs-step-num">1</span><span class="rb-qs-step-text"><b>Start My Blueprint</b><br/>Enter your age, savings, retirement age, Social Security, returns, and household setup.</span></div>
+          <div class="rb-qs-step"><span class="rb-qs-step-num">2</span><span class="rb-qs-step-text"><b>Build Your Spending Plan</b><br/>Estimate how much you want to spend each year in retirement.</span></div>
+          <div class="rb-qs-step"><span class="rb-qs-step-num">3</span><span class="rb-qs-step-text"><b>Add Income Sources</b><br/>Include pension, rental income, part-time work, or other retirement income.</span></div>
+          <div class="rb-qs-step"><span class="rb-qs-step-num">4</span><span class="rb-qs-step-text"><b>Review Your Dashboard</b><br/>See your Blueprint Score, projected money left, withdrawal pressure, and income coverage.</span></div>
+          <div class="rb-qs-step"><span class="rb-qs-step-num">5</span><span class="rb-qs-step-text"><b>Compare and Improve</b><br/>Use the Action Plan, Age Optimizer, scenarios, and bucket strategy to improve the plan.</span></div>
+          <div class="rb-qs-step"><span class="rb-qs-step-num">6</span><span class="rb-qs-step-text"><b>Save or Export</b><br/>Save blueprints, compare options, and export a full Blueprint Report.</span></div>
         </div>
         """, unsafe_allow_html=True)
-        qs_row1_col1, qs_row1_col2, qs_row1_col3 = st.columns(3)
-        with qs_row1_col1:
-            if st.button("Start My Blueprint", use_container_width=True, key="qs_guided"):
-                go_to_page("Guided Questions")
-        with qs_row1_col2:
-            if st.button("Spending Plan", use_container_width=True, key="qs_budget"):
-                go_to_page("Budget Builder")
-        with qs_row1_col3:
-            if st.button("Income Plan", use_container_width=True, key="qs_income"):
-                go_to_page("Income Builder")
 
-        qs_row2_col1, qs_row2_col2, qs_row2_col3 = st.columns(3)
-        with qs_row2_col1:
-            if st.button("Dashboard", use_container_width=True, key="qs_dashboard"):
-                go_to_page("Dashboard")
-        with qs_row2_col2:
-            if st.button("Saved Blueprints", use_container_width=True, key="qs_saved"):
-                go_to_page("Saved Scenarios")
-        with qs_row2_col3:
-            if st.button("Blueprint Report", use_container_width=True, key="qs_pdf"):
-                go_to_page("PDF Report")
-
-    with right_panel:
+    with process_right:
         st.markdown("""
         <div class="rb-panel">
           <div class="rb-panel-title"><span>✅</span><span>Next Best Step</span></div>
           <div class="rb-next-box">
-            <div class="rb-next-heading">Start with your personal details</div>
-            <div class="rb-muted">Answer a few key questions about your retirement goals to build a blueprint that is right for you.</div>
+            <div class="rb-next-heading">Start with your blueprint inputs</div>
+            <div class="rb-muted">Begin with the core numbers. Once those are saved, the dashboard, projections, and premium tools become much more useful.</div>
           </div>
           <div class="rb-tips">
             <div class="rb-tips-title">💡 Helpful Tips</div>
             <ul>
-              <li>Answer questions as completely as you can for the best results.</li>
-              <li>Review your plan often and update as life changes.</li>
-              <li>Use saved blueprints to compare different strategies.</li>
+              <li>Use estimates at first. You can refine them later.</li>
+              <li>Move left-to-right through the sidebar for the easiest flow.</li>
+              <li>Save multiple blueprints to compare different retirement choices.</li>
             </ul>
           </div>
         </div>
         """, unsafe_allow_html=True)
         if st.button("Start My Blueprint", use_container_width=True, key="next_start_guided"):
             go_to_page("Guided Questions")
+
+    st.markdown("### Premium Retirement Tools")
+    st.caption("Once the basics are entered, these tools help compare retirement ages, reduce risk, plan withdrawals, and create a fuller retirement blueprint.")
+    render_premium_lock_cards()
 
     st.caption("Educational planning tool only. Not financial, tax, legal, insurance, or investment advice.")
 
