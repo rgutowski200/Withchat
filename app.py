@@ -6271,7 +6271,6 @@ def render_navigation():
             "Guided Questions",
             "Budget Builder",
             "Income Builder",
-            "Spouse Questions",
             "Dashboard",
             "Recommendations",
             "Projection Table",
@@ -6651,6 +6650,43 @@ if active_page == PAGE_NAMES[1]:
         user_ss_age = c3.number_input("Your Social Security start age", 62, 70, st.session_state.user_ss_age, help=FIELD_HELP["user_ss_age"])
         user_ss = c4.number_input("Your annual Social Security", min_value=0, value=st.session_state.user_ss, step=1000, help=FIELD_HELP["user_ss"])
 
+        st.subheader("Household")
+        has_spouse = st.checkbox(
+            "Include spouse or partner in this blueprint?",
+            value=st.session_state.has_spouse,
+            help="Turn this on if the retirement plan should include a spouse or partner. Leave it off for an individual plan."
+        )
+
+        if has_spouse:
+            st.info("Spouse / partner fields are included in this blueprint.")
+            c1, c2, c3 = st.columns(3)
+            spouse_age = c1.number_input("Spouse current age", min_value=0, max_value=110, value=st.session_state.spouse_age, help=FIELD_HELP["spouse_age"])
+            spouse_retire_age = c2.number_input("Spouse retirement age", min_value=0, max_value=110, value=st.session_state.spouse_retire_age, help=FIELD_HELP["spouse_retire_age"])
+            spouse_plan_age = c3.number_input("Spouse plan-through age", min_value=0, max_value=120, value=st.session_state.spouse_plan_age, help=FIELD_HELP["spouse_plan_age"])
+
+            c1, c2, c3, c4 = st.columns(4)
+            spouse_annual_contribution = c1.number_input("Spouse annual contributions", min_value=0, value=st.session_state.spouse_annual_contribution, step=5000, help=FIELD_HELP["spouse_annual_contribution"])
+            spouse_healthcare = c2.number_input("Spouse annual healthcare", min_value=0, value=st.session_state.spouse_healthcare, step=1000, help=FIELD_HELP["spouse_healthcare"])
+            spouse_ss_age = c3.number_input("Spouse Social Security age", 62, 70, st.session_state.spouse_ss_age, help=FIELD_HELP["spouse_ss_age"])
+            spouse_ss = c4.number_input("Spouse annual Social Security", min_value=0, value=st.session_state.spouse_ss, step=1000, help=FIELD_HELP["spouse_ss"])
+
+            survivor_ss_strategy = st.selectbox(
+                "Survivor Social Security strategy",
+                ["Higher benefit continues", "User benefit only"],
+                index=0 if st.session_state.survivor_ss_strategy == "Higher benefit continues" else 1,
+                help="Usually, the surviving spouse keeps the higher Social Security benefit and loses the smaller one."
+            )
+        else:
+            spouse_age = 0
+            spouse_retire_age = 0
+            spouse_plan_age = 90
+            spouse_annual_contribution = 0
+            spouse_healthcare = 0
+            spouse_ss_age = 62
+            spouse_ss = 0
+            survivor_ss_strategy = "Higher benefit continues"
+            st.caption("Individual plan selected. Spouse / partner fields are hidden and will not affect the projection.")
+
         st.subheader("Assumptions")
         c1, c2, c3 = st.columns(3)
         growth_return = c1.slider("Growth return", 0.0, 15.0, st.session_state.growth_return * 100, help=FIELD_HELP["growth_return"]) / 100
@@ -6720,6 +6756,15 @@ if active_page == PAGE_NAMES[1]:
             "traditional": traditional, "roth": roth, "taxable": taxable, "cash": cash,
             "annual_contribution": annual_contribution, "healthcare": healthcare,
             "user_ss_age": user_ss_age, "user_ss": user_ss,
+            "has_spouse": has_spouse,
+            "spouse_age": spouse_age,
+            "spouse_retire_age": spouse_retire_age,
+            "spouse_plan_age": spouse_plan_age,
+            "spouse_annual_contribution": spouse_annual_contribution,
+            "spouse_healthcare": spouse_healthcare,
+            "spouse_ss_age": spouse_ss_age,
+            "spouse_ss": spouse_ss,
+            "survivor_ss_strategy": survivor_ss_strategy,
             "growth_return": growth_return, "safe_return": safe_return, "inflation": inflation,
             "annual_conversion": annual_conversion, "bucket1_years": bucket1_years, "bucket2_years": bucket2_years,
             "tax_year": tax_year, "filing_status": filing_status,
@@ -6919,117 +6964,10 @@ if active_page == PAGE_NAMES[3]:
             st.success("Advanced income sources saved.")
 
 if active_page == PAGE_NAMES[4]:
-    render_page_shell("Household Plan", "Capture spouse or partner timing, Social Security, healthcare, and survivor planning so the blueprint reflects the full household picture.", "👥")
-    page_help(
-        "Spouse Questions",
-        "This page adds spouse or partner timing, healthcare, contributions, and Social Security. This matters because retirement timing, survivor benefits, and spending needs often change when two people are included."
-    )
-
-    has_spouse = st.checkbox(
-        "Include spouse or partner in this plan?",
-        value=st.session_state.has_spouse,
-        help="Turn this on only if you want the plan to include a spouse or partner. Leave it off for an individual retirement plan."
-    )
-
-    # Store this immediately so the page redraws and spouse fields appear/disappear right away.
-    st.session_state.has_spouse = has_spouse
-
-    if has_spouse:
-        st.info("Spouse / partner fields are included in this scenario.")
-
-        with st.form("spouse_form"):
-            c1, c2, c3 = st.columns(3)
-            spouse_age = c1.number_input(
-                "Spouse current age",
-                min_value=0,
-                max_value=110,
-                value=st.session_state.spouse_age,
-                help=FIELD_HELP["spouse_age"]
-            )
-            spouse_retire_age = c2.number_input(
-                "Spouse retirement age",
-                min_value=0,
-                max_value=110,
-                value=st.session_state.spouse_retire_age,
-                help=FIELD_HELP["spouse_retire_age"]
-            )
-            spouse_plan_age = c3.number_input(
-                "Spouse plan-through age",
-                min_value=0,
-                max_value=120,
-                value=st.session_state.spouse_plan_age,
-                help=FIELD_HELP["spouse_plan_age"]
-            )
-
-            c1, c2, c3, c4 = st.columns(4)
-            spouse_annual_contribution = c1.number_input(
-                "Spouse annual contributions",
-                min_value=0,
-                value=st.session_state.spouse_annual_contribution,
-                step=5000,
-                help=FIELD_HELP["spouse_annual_contribution"]
-            )
-            spouse_healthcare = c2.number_input(
-                "Spouse annual healthcare",
-                min_value=0,
-                value=st.session_state.spouse_healthcare,
-                step=1000,
-                help=FIELD_HELP["spouse_healthcare"]
-            )
-            spouse_ss_age = c3.number_input(
-                "Spouse Social Security age",
-                62,
-                70,
-                st.session_state.spouse_ss_age,
-                help=FIELD_HELP["spouse_ss_age"]
-            )
-            spouse_ss = c4.number_input(
-                "Spouse annual Social Security",
-                min_value=0,
-                value=st.session_state.spouse_ss,
-                step=1000,
-                help=FIELD_HELP["spouse_ss"]
-            )
-
-            survivor_ss_strategy = st.selectbox(
-                "Survivor Social Security strategy",
-                ["Higher benefit continues", "User benefit only"],
-                index=0 if st.session_state.survivor_ss_strategy == "Higher benefit continues" else 1,
-                help="Usually, the surviving spouse keeps the higher Social Security benefit and loses the smaller one."
-            )
-
-            save_spouse = st.form_submit_button("Save spouse answers")
-
-        if save_spouse:
-            for k, v in {
-                "has_spouse": has_spouse,
-                "spouse_age": spouse_age,
-                "spouse_retire_age": spouse_retire_age,
-                "spouse_plan_age": spouse_plan_age,
-                "spouse_annual_contribution": spouse_annual_contribution,
-                "spouse_healthcare": spouse_healthcare,
-                "spouse_ss_age": spouse_ss_age,
-                "spouse_ss": spouse_ss,
-                "survivor_ss_strategy": survivor_ss_strategy,
-            }.items():
-                st.session_state[k] = v
-
-            st.success("Spouse / partner answers saved.")
-
-    else:
-        st.info("No spouse or partner is included in this scenario. The projection will run as an individual plan.")
-
-        # Clear spouse values for individual plans so they do not accidentally affect projections.
-        st.session_state.has_spouse = False
-        st.session_state.spouse_age = 0
-        st.session_state.spouse_retire_age = 0
-        st.session_state.spouse_plan_age = 90
-        st.session_state.spouse_annual_contribution = 0
-        st.session_state.spouse_healthcare = 0
-        st.session_state.spouse_ss_age = 62
-        st.session_state.spouse_ss = 0
-        st.session_state.survivor_ss_strategy = "Higher benefit continues"
-
+    render_page_shell("Household Plan", "Household setup now lives inside Start My Blueprint.", "👥")
+    st.info("Household planning is now included directly on the Start My Blueprint page. Use the spouse / partner checkbox there to include or hide household fields.")
+    if st.button("Go to Start My Blueprint", use_container_width=True, key="go_guided_from_household_removed"):
+        go_to_page("Guided Questions")
 
 if active_page == PAGE_NAMES[5]:
     render_page_shell("Review Inputs", "See a clean summary of your current inputs before running deeper analysis or sharing the results.", "📝")
