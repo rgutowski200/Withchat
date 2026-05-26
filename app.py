@@ -903,6 +903,38 @@ def inject_app_styles():
         color: #0f62fe;
     }
 
+    .rb-qs-step {
+        display: grid;
+        grid-template-columns: 38px 1fr;
+        align-items: start;
+        gap: 12px;
+        margin: 14px 0;
+        color: #334155;
+        line-height: 1.4;
+    }
+
+    .rb-qs-step-num {
+        width: 30px;
+        height: 30px;
+        min-width: 30px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #2563eb;
+        color: #ffffff;
+        font-size: 0.88rem;
+        font-weight: 900;
+        margin-top: 1px;
+    }
+
+    .rb-qs-step-text {
+        color: #334155;
+        font-size: 1rem;
+        line-height: 1.42;
+        padding-top: 2px;
+    }
+
     .rb-next-box {
         border: 1px solid #86efac;
         background: linear-gradient(135deg, #f0fdf4 0%, #ecfeff 100%);
@@ -2021,57 +2053,82 @@ def render_premium_lock_cards():
     st.markdown("### Premium Retirement Tools")
     st.caption("Start with the main retirement planning tools below, then explore more advanced tools when you’re ready.")
 
-    st.markdown("""
-    <div class="rb-lock-grid">
-      <div class="rb-premium-card-compact"><div class="rb-premium-icon">🎯</div><div class="rb-premium-title">Smart Retirement Age Optimizer</div><div class="rb-premium-copy">Find the retirement age that gives the best balance of retiring sooner, safety, and long-term cushion.</div><div class="rb-premium-badge">Premium</div></div>
-      <div class="rb-premium-card-compact"><div class="rb-premium-icon">🪣</div><div class="rb-premium-title">2-Bucket Strategy</div><div class="rb-premium-copy">Split retirement money into safer spending money and long-term growth money.</div><div class="rb-premium-badge">Premium</div></div>
-      <div class="rb-premium-card-compact"><div class="rb-premium-icon">🔁</div><div class="rb-premium-title">Scenario Comparison</div><div class="rb-premium-copy">Compare retirement ages, spending changes, and Social Security timing side by side.</div><div class="rb-premium-badge">Premium</div></div>
-      <div class="rb-premium-card-compact"><div class="rb-premium-icon">💸</div><div class="rb-premium-title">Tax-Aware Withdrawal Plan</div><div class="rb-premium-copy">See which accounts may make sense to draw from first: taxable, traditional, or Roth.</div><div class="rb-premium-badge">Premium</div></div>
-      <div class="rb-premium-card-compact"><div class="rb-premium-icon">📄</div><div class="rb-premium-title">Full Blueprint Report</div><div class="rb-premium-copy">Export a polished report with executive summary, risks, action plan, taxes, and location insights.</div><div class="rb-premium-badge">Premium</div></div>
-      <div class="rb-premium-card-compact"><div class="rb-premium-icon">🤖</div><div class="rb-premium-title">Blueprint Coach</div><div class="rb-premium-copy">Ask plain-English questions about your retirement blueprint and get educational guidance.</div><div class="rb-premium-badge">Premium</div></div>
-    </div>
-    """, unsafe_allow_html=True)
+    main_tools = [
+        ("🎯", "Smart Retirement Age Optimizer", "Find the retirement age that gives the best balance of retiring sooner, safety, and long-term cushion.", "Open Age Optimizer", "age"),
+        ("🪣", "2-Bucket Strategy", "Split retirement money into safer spending money and long-term growth money.", "Open 2-Bucket Strategy", "bucket"),
+        ("🔁", "Scenario Comparison", "Compare retirement ages, spending changes, and Social Security timing side by side.", "Open Scenario Comparison", "scenario"),
+        ("💸", "Tax-Aware Withdrawal Plan", "See which accounts may make sense to draw from first: taxable, traditional, or Roth.", "Open Tax-Aware Plan", "tax"),
+        ("📄", "Full Blueprint Report", "Export a polished report with executive summary, risks, action plan, taxes, and location insights.", "Open Blueprint Report", "report"),
+        ("🤖", "Blueprint Coach", "Ask plain-English questions about your retirement blueprint and get educational guidance.", "Open Blueprint Coach", "coach"),
+    ]
 
-    a1, a2, a3 = st.columns(3)
-    with a1:
-        if st.button("Open Age Optimizer", key="premium_main_age", use_container_width=True):
-            go_to_page("Retirement Age Optimizer")
-        if st.button("Open Tax-Aware Plan", key="premium_main_tax", use_container_width=True):
-            st.session_state.projection_focus = "Tax-Aware Withdrawal Plan"
-            go_to_page("Projection Table")
-    with a2:
-        if st.button("Open 2-Bucket Strategy", key="premium_main_bucket", use_container_width=True):
-            st.session_state.dashboard_focus = "2-Bucket Strategy"
-            go_to_page("Dashboard")
-        if st.button("Open Blueprint Report", key="premium_main_report", use_container_width=True):
-            go_to_page("PDF Report")
-    with a3:
-        if st.button("Open Scenario Comparison", key="premium_main_scenario", use_container_width=True):
-            st.session_state.dashboard_focus = "Scenario Comparison"
-            go_to_page("Dashboard")
-        if st.button("Open Blueprint Coach", key="premium_main_coach", use_container_width=True):
-            go_to_page("AI Retirement Coach")
+    for row_start in [0, 3]:
+        cols = st.columns(3)
+        for col, tool in zip(cols, main_tools[row_start:row_start+3]):
+            icon, title, copy, button_label, key = tool
+            with col:
+                st.markdown(
+                    "<div class='rb-premium-card-compact'>"
+                    + f"<div class='rb-premium-icon'>{icon}</div>"
+                    + f"<div class='rb-premium-title'>{title}</div>"
+                    + f"<div class='rb-premium-copy'>{copy}</div>"
+                    + "<div class='rb-premium-badge'>Premium</div>"
+                    + "</div>",
+                    unsafe_allow_html=True,
+                )
+                if key == "age":
+                    if st.button(button_label, key="premium_main_age", use_container_width=True):
+                        go_to_page("Retirement Age Optimizer")
+                elif key == "bucket":
+                    if st.button(button_label, key="premium_main_bucket", use_container_width=True):
+                        st.session_state.dashboard_focus = "2-Bucket Strategy"
+                        go_to_page("Dashboard")
+                elif key == "scenario":
+                    if st.button(button_label, key="premium_main_scenario", use_container_width=True):
+                        st.session_state.dashboard_focus = "Scenario Comparison"
+                        go_to_page("Dashboard")
+                elif key == "tax":
+                    if st.button(button_label, key="premium_main_tax", use_container_width=True):
+                        st.session_state.projection_focus = "Tax-Aware Withdrawal Plan"
+                        go_to_page("Projection Table")
+                elif key == "report":
+                    if st.button(button_label, key="premium_main_report", use_container_width=True):
+                        go_to_page("PDF Report")
+                elif key == "coach":
+                    if st.button(button_label, key="premium_main_coach", use_container_width=True):
+                        go_to_page("AI Retirement Coach")
 
     with st.expander("More Premium Tools", expanded=False):
-        st.markdown("""
-        <div class="rb-lock-grid">
-          <div class="rb-premium-card-compact"><div class="rb-premium-icon">🔄</div><div class="rb-premium-title">Roth Conversion Explorer</div><div class="rb-premium-copy">Estimate whether Roth conversions may help lower future taxes and reduce RMD pressure.</div><div class="rb-premium-badge">Premium</div></div>
-          <div class="rb-premium-card-compact"><div class="rb-premium-icon">📍</div><div class="rb-premium-title">Best Places to Retire</div><div class="rb-premium-copy">Compare retirement locations using taxes, cost of living, healthcare, climate, and lifestyle fit.</div><div class="rb-premium-badge">Premium</div></div>
-          <div class="rb-premium-card-compact"><div class="rb-premium-icon">📈</div><div class="rb-premium-title">Projection Table</div><div class="rb-premium-copy">Review the year-by-year math behind balances, income, withdrawals, taxes, and projected money left.</div><div class="rb-premium-badge">Premium</div></div>
-        </div>
-        """, unsafe_allow_html=True)
-        b1, b2, b3 = st.columns(3)
-        with b1:
-            if st.button("Open Roth Conversion Explorer", key="premium_more_roth", use_container_width=True):
-                st.session_state.dashboard_focus = "Roth Conversion Explorer"
-                go_to_page("Dashboard")
-        with b2:
-            if st.button("Open Best Places to Retire", key="premium_more_places", use_container_width=True):
-                go_to_page("Best Places to Retire")
-        with b3:
-            if st.button("Open Projection Table", key="premium_more_projection", use_container_width=True):
-                st.session_state.projection_focus = "Projection Table"
-                go_to_page("Projection Table")
+        more_tools = [
+            ("🔄", "Roth Conversion Explorer", "Estimate whether Roth conversions may help lower future taxes and reduce RMD pressure.", "Open Roth Conversion Explorer", "roth"),
+            ("📍", "Best Places to Retire", "Compare retirement locations using taxes, cost of living, healthcare, climate, and lifestyle fit.", "Open Best Places to Retire", "places"),
+            ("📈", "Projection Table", "Review the year-by-year math behind balances, income, withdrawals, taxes, and projected money left.", "Open Projection Table", "projection"),
+        ]
+        cols = st.columns(3)
+        for col, tool in zip(cols, more_tools):
+            icon, title, copy, button_label, key = tool
+            with col:
+                st.markdown(
+                    "<div class='rb-premium-card-compact'>"
+                    + f"<div class='rb-premium-icon'>{icon}</div>"
+                    + f"<div class='rb-premium-title'>{title}</div>"
+                    + f"<div class='rb-premium-copy'>{copy}</div>"
+                    + "<div class='rb-premium-badge'>Premium</div>"
+                    + "</div>",
+                    unsafe_allow_html=True,
+                )
+                if key == "roth":
+                    if st.button(button_label, key="premium_more_roth", use_container_width=True):
+                        st.session_state.dashboard_focus = "Roth Conversion Explorer"
+                        go_to_page("Dashboard")
+                elif key == "places":
+                    if st.button(button_label, key="premium_more_places", use_container_width=True):
+                        go_to_page("Best Places to Retire")
+                elif key == "projection":
+                    if st.button(button_label, key="premium_more_projection", use_container_width=True):
+                        st.session_state.projection_focus = "Projection Table"
+                        go_to_page("Projection Table")
+
 
 def build_blueprint_insight(df=None, page="general"):
     if df is None or getattr(df, "empty", True):
@@ -6574,12 +6631,12 @@ if active_page == PAGE_NAMES[0]:
         st.markdown("""
         <div class="rb-panel">
           <div class="rb-panel-title"><span>🚀</span><span>Quick Start</span></div>
-          <div class="rb-step"><span class="rb-step-num">1</span><span>Complete your core retirement blueprint details.</span></div>
-          <div class="rb-step"><span class="rb-step-num">2</span><span>Build your spending plan.</span></div>
-          <div class="rb-step"><span class="rb-step-num">3</span><span>Add income sources.</span></div>
-          <div class="rb-step"><span class="rb-step-num">4</span><span>Review the Blueprint Dashboard and Action Plan.</span></div>
-          <div class="rb-step"><span class="rb-step-num">5</span><span>Save and compare blueprints.</span></div>
-          <div class="rb-step"><span class="rb-step-num">6</span><span>Run the Confidence Test, Stress Tests, and export a Blueprint Report.</span></div>
+          <div class="rb-qs-step"><span class="rb-qs-step-num">1</span><span class="rb-qs-step-text">Complete your core retirement blueprint details.</span></div>
+          <div class="rb-qs-step"><span class="rb-qs-step-num">2</span><span class="rb-qs-step-text">Build your spending plan.</span></div>
+          <div class="rb-qs-step"><span class="rb-qs-step-num">3</span><span class="rb-qs-step-text">Add income sources.</span></div>
+          <div class="rb-qs-step"><span class="rb-qs-step-num">4</span><span class="rb-qs-step-text">Review the Blueprint Dashboard and Action Plan.</span></div>
+          <div class="rb-qs-step"><span class="rb-qs-step-num">5</span><span class="rb-qs-step-text">Save and compare blueprints.</span></div>
+          <div class="rb-qs-step"><span class="rb-qs-step-num">6</span><span class="rb-qs-step-text">Run the Confidence Test, Stress Tests, and export a Blueprint Report.</span></div>
         </div>
         """, unsafe_allow_html=True)
         q1, q2, q3 = st.columns(3)
@@ -7135,37 +7192,53 @@ def render_dashboard_close_to_mock(df, rtv_score, rtv_label, rtv_reasons):
         <div class="rb-premium-title-main">Premium Retirement Tools</div>
         <div style="color:#64748B;font-size:.95rem;margin-top:3px;">Advanced tools to take your plan to the next level.</div>
       </div>
-      <div class="rb-premium-see-all">See all tools →</div>
-    </div>
-    <div class="rb-premium-grid-v2">
-      <div class="rb-premium-mini"><div class="rb-premium-mini-icon">🎯</div><div class="rb-premium-mini-title">Smart Retirement Age Optimizer</div><div class="rb-premium-mini-copy">Find the best age to retire with confidence.</div><div class="rb-premium-mini-badge">Premium</div></div>
-      <div class="rb-premium-mini"><div class="rb-premium-mini-icon">🪣</div><div class="rb-premium-mini-title">2-Bucket Strategy</div><div class="rb-premium-mini-copy">Create a safer spending and growth strategy.</div><div class="rb-premium-mini-badge">Premium</div></div>
-      <div class="rb-premium-mini"><div class="rb-premium-mini-icon">🔁</div><div class="rb-premium-mini-title">Scenario Comparison</div><div class="rb-premium-mini-copy">Compare retirement scenarios side by side.</div><div class="rb-premium-mini-badge">Premium</div></div>
-      <div class="rb-premium-mini"><div class="rb-premium-mini-icon">💸</div><div class="rb-premium-mini-title">Tax-Aware Withdrawal Plan</div><div class="rb-premium-mini-copy">Withdraw smarter and reduce tax pressure.</div><div class="rb-premium-mini-badge">Premium</div></div>
-      <div class="rb-premium-mini"><div class="rb-premium-mini-icon">📄</div><div class="rb-premium-mini-title">Full Blueprint Report</div><div class="rb-premium-mini-copy">Get your complete retirement report.</div><div class="rb-premium-mini-badge">Premium</div></div>
-      <div class="rb-premium-mini"><div class="rb-premium-mini-icon">🤖</div><div class="rb-premium-mini-title">Blueprint Coach</div><div class="rb-premium-mini-copy">Get educational guidance and plain-English answers.</div><div class="rb-premium-mini-badge">Premium</div></div>
+      <div class="rb-premium-see-all">See all tools -&gt;</div>
     </div>
     """, unsafe_allow_html=True)
 
-    p1, p2, p3 = st.columns(3)
-    with p1:
-        if st.button("Open Age Optimizer", key="mock_open_age", use_container_width=True):
-            go_to_page("Retirement Age Optimizer")
-        if st.button("Open Tax-Aware Plan", key="mock_open_tax", use_container_width=True):
-            st.session_state.projection_focus = "Tax-Aware Withdrawal Plan"
-            go_to_page("Projection Table")
-    with p2:
-        if st.button("Open 2-Bucket Strategy", key="mock_open_bucket", use_container_width=True):
-            st.session_state.dashboard_focus = "2-Bucket Strategy"
-            go_to_page("Dashboard")
-        if st.button("Open Blueprint Report", key="mock_open_report", use_container_width=True):
-            go_to_page("PDF Report")
-    with p3:
-        if st.button("Open Scenario Comparison", key="mock_open_scenario", use_container_width=True):
-            st.session_state.dashboard_focus = "Scenario Comparison"
-            go_to_page("Dashboard")
-        if st.button("Open Blueprint Coach", key="mock_open_coach", use_container_width=True):
-            go_to_page("AI Retirement Coach")
+    dashboard_tools = [
+        ("🎯", "Smart Retirement Age Optimizer", "Find the best age to retire with confidence.", "Open Age Optimizer", "age"),
+        ("🪣", "2-Bucket Strategy", "Create a safer spending and growth strategy.", "Open 2-Bucket Strategy", "bucket"),
+        ("🔁", "Scenario Comparison", "Compare retirement scenarios side by side.", "Open Scenario Comparison", "scenario"),
+        ("💸", "Tax-Aware Withdrawal Plan", "Withdraw smarter and reduce tax pressure.", "Open Tax-Aware Plan", "tax"),
+        ("📄", "Full Blueprint Report", "Get your complete retirement report.", "Open Blueprint Report", "report"),
+        ("🤖", "Blueprint Coach", "Get educational guidance and plain-English answers.", "Open Blueprint Coach", "coach"),
+    ]
+    for row_start in [0, 3]:
+        cols = st.columns(3)
+        for col, tool in zip(cols, dashboard_tools[row_start:row_start+3]):
+            icon, title, copy, button_label, key = tool
+            with col:
+                st.markdown(
+                    "<div class='rb-premium-mini'>"
+                    + f"<div class='rb-premium-mini-icon'>{icon}</div>"
+                    + f"<div class='rb-premium-mini-title'>{title}</div>"
+                    + f"<div class='rb-premium-mini-copy'>{copy}</div>"
+                    + "<div class='rb-premium-mini-badge'>Premium</div>"
+                    + "</div>",
+                    unsafe_allow_html=True,
+                )
+                if key == "age":
+                    if st.button(button_label, key="mock_open_age", use_container_width=True):
+                        go_to_page("Retirement Age Optimizer")
+                elif key == "bucket":
+                    if st.button(button_label, key="mock_open_bucket", use_container_width=True):
+                        st.session_state.dashboard_focus = "2-Bucket Strategy"
+                        go_to_page("Dashboard")
+                elif key == "scenario":
+                    if st.button(button_label, key="mock_open_scenario", use_container_width=True):
+                        st.session_state.dashboard_focus = "Scenario Comparison"
+                        go_to_page("Dashboard")
+                elif key == "tax":
+                    if st.button(button_label, key="mock_open_tax", use_container_width=True):
+                        st.session_state.projection_focus = "Tax-Aware Withdrawal Plan"
+                        go_to_page("Projection Table")
+                elif key == "report":
+                    if st.button(button_label, key="mock_open_report", use_container_width=True):
+                        go_to_page("PDF Report")
+                elif key == "coach":
+                    if st.button(button_label, key="mock_open_coach", use_container_width=True):
+                        go_to_page("AI Retirement Coach")
 
     st.caption("Educational planning tool only. Not financial, tax, legal, insurance, or investment advice.")
 
