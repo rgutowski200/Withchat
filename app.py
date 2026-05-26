@@ -6801,7 +6801,31 @@ if active_page == PAGE_NAMES[1]:
             if "annual_spending" in st.session_state:
                 st.session_state.annual_spending = quick_monthly_spending * 12
 
-            st.success("Quick Blueprint saved. Review the Dashboard or continue with Detailed Blueprint for more precise planning.")
+            st.success("Quick Blueprint saved. Your starter retirement snapshot is ready.")
+
+            st.markdown("""
+            <div class="rb-next-box">
+              <div class="rb-next-heading">Your next step</div>
+              <div class="rb-muted">Review your dashboard to see whether your target retirement age looks realistic, how much money may be left, and what needs attention.</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            n1, n2, n3 = st.columns(3)
+            with n1:
+                if st.form_submit_button("View My Blueprint Dashboard", type="primary", use_container_width=True):
+                    st.session_state.active_page = "Dashboard"
+                    st.rerun()
+            with n2:
+                if st.form_submit_button("Add Spending Details", use_container_width=True):
+                    st.session_state.active_page = "Budget Builder"
+                    st.rerun()
+            with n3:
+                if st.form_submit_button("Unlock Detailed Blueprint", use_container_width=True):
+                    st.session_state.show_premium_prompt = True
+                    st.rerun()
+
+    if st.session_state.get("show_premium_prompt"):
+        st.info("Detailed Blueprint is a Premium feature. Free trial users can continue with Quick Blueprint, then unlock Premium for account-level planning, tax settings, Roth conversions, home equity, and bucket strategy.")
 
     st.subheader("Detailed Blueprint")
     st.caption("Premium planning section. Use this when you want the full planning model: account types, tax settings, home equity, Roth conversions, and bucket strategy.")
