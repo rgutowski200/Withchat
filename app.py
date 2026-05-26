@@ -283,27 +283,6 @@ section[data-testid="stSidebar"] div.stButton > button:disabled {
     font-weight: 900;
 }
 
-
-.rb-save-card {
-    border: 1px solid #e2e8f0;
-    background: #ffffff;
-    border-radius: 18px;
-    padding: 16px;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.055);
-    margin-bottom: 10px;
-}
-.rb-save-card-title {
-    color: #0f172a;
-    font-weight: 900;
-    font-size: 1rem;
-    margin-bottom: 4px;
-}
-.rb-save-card-copy {
-    color: #64748b;
-    font-size: 0.88rem;
-    line-height: 1.35;
-}
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -1695,13 +1674,7 @@ with hero_right:
             st.session_state.show_auth_form = False
             st.rerun()
     else:
-        st.markdown("""
-        <div class="rb-save-card">
-          <div class="rb-save-card-title">Save your blueprint</div>
-          <div class="rb-save-card-copy">Sign in to save, compare, and return to your plans.</div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Sign in / Create Account", use_container_width=True, key="hero_signin_button"):
+        if st.button("Not signed in — Sign in to save your blueprints", use_container_width=True, key="hero_signin_button"):
             st.session_state.show_auth_form = True
             st.rerun()
 
@@ -6629,6 +6602,13 @@ if active_page == PAGE_NAMES[0]:
       </div>
     </div>
     """, unsafe_allow_html=True)
+
+    if not user:
+        btn_left, btn_right = st.columns([4, 1.25])
+        with btn_right:
+            if st.button("Sign In / Create Account", use_container_width=True, key="open_home_auth"):
+                st.session_state.show_auth_form = True
+                st.rerun()
 
     st.markdown(f"""
     <div class="rb-card-grid">
