@@ -6812,15 +6812,15 @@ if active_page == PAGE_NAMES[1]:
 
             n1, n2, n3 = st.columns(3)
             with n1:
-                if st.form_submit_button("View My Blueprint Dashboard", type="primary", use_container_width=True):
+                if st.button("View My Blueprint Dashboard", type="primary", use_container_width=True, key="quick_next_dashboard"):
                     st.session_state.active_page = "Dashboard"
                     st.rerun()
             with n2:
-                if st.form_submit_button("Add Spending Details", use_container_width=True):
+                if st.button("Add Spending Details", use_container_width=True, key="quick_next_spending"):
                     st.session_state.active_page = "Budget Builder"
                     st.rerun()
             with n3:
-                if st.form_submit_button("Unlock Detailed Blueprint", use_container_width=True):
+                if st.button("Unlock Detailed Blueprint", use_container_width=True, key="quick_next_unlock"):
                     st.session_state.show_premium_prompt = True
                     st.rerun()
 
