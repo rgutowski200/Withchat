@@ -1919,30 +1919,131 @@ def render_scenario_comparison_panel():
     if not can_run:
         st.info("Complete your core inputs to compare retirement scenarios.")
         return
+
     premium_badge("Premium Scenario Comparison")
+    st.caption(
+        "Simple view: this shows whether retiring a little earlier or later improves the plan. "
+        "The goal is to make the tradeoff easy to understand, not overwhelm users with every calculation."
+    )
+
     current = int(st.session_state.retire_age or st.session_state.current_age or 0)
-    ages = sorted(set([max(int(st.session_state.current_age or 0), current-2), current, current+1, current+2, current+5]))
+    current_age = int(st.session_state.current_age or 0)
+    planning_age = int(st.session_state.end_age or 90)
+
+    # Keep the default comparison simple and close to the user's selected age.
+    ages = sorted(set([
+        max(current_age + 1, current - 2),
+        max(current_age + 1, current),
+        max(current_age + 1, current + 2),
+        max(current_age + 1, current + 5),
+    ]))
+
     rows = []
     for age in ages:
-        if age <= int(st.session_state.end_age or 90):
+        if age <= planning_age:
             result = run_projection_with_temp_retire_age(age)
             if result:
                 rows.append(result)
-    if rows:
-        comp = pd.DataFrame(rows)
-        base = comp[comp["Retirement Age"] == current]
-        base_score = int(base["Blueprint Score"].iloc[0]) if not base.empty else int(comp["Blueprint Score"].iloc[0])
-        comp["Score Change"] = comp["Blueprint Score"] - base_score
-        show = comp.copy()
-        show["Ending Portfolio"] = show["Ending Portfolio"].map(money)
-        show["Max Withdrawal Rate"] = show["Max Withdrawal Rate"].map(pct)
-        show["Avg Income Coverage"] = show["Avg Income Coverage"].map(pct)
-        show["Estimated Federal Tax"] = show["Estimated Federal Tax"].map(money)
-        show["Score Change"] = show["Score Change"].map(lambda x: f"{x:+}")
-        st.dataframe(show, use_container_width=True, hide_index=True)
-        best = comp.sort_values(["Blueprint Score", "Ending Portfolio"], ascending=False).iloc[0]
-        st.success(f"Best tested age: **{int(best['Retirement Age'])}** with a Blueprint Score of **{int(best['Blueprint Score'])}/100** and ending portfolio of **{money(best['Ending Portfolio'])}**.")
 
+    if not rows:
+        st.info("Not enough data to compare retirement ages yet.")
+        return
+
+    comp = pd.DataFrame(rows)
+    base = comp[comp["Retirement Age"] == current]
+    base_score = int(base["Blueprint Score"].iloc[0]) if not base.empty else int(comp["Blueprint Score"].iloc[0])
+    comp["Score Change"] = comp["Blueprint Score"] - base_score
+
+    def simple_status(score, ending_portfolio):
+        if score >= 90:
+            return "Very Strong"
+        if score >= 75:
+            return "Strong"
+        if score >= 60:
+            return "Possible, but tight"
+        if ending_portfolio <= 0:
+            return "High Risk"
+        return "Needs work"
+
+    def simple_takeaway(row):
+        age = int(row["Retirement Age"])
+        score = int(row["Blueprint Score"])
+        score_change = int(row["Score Change"])
+        withdrawal_rate = float(row.get("Max Withdrawal Rate", 0) or 0)
+        ending = float(row.get("Ending Portfolio", 0) or 0)
+
+        if ending <= 0 or score < 60:
+            return "Likely too risky with current inputs."
+        if score_change >= 10:
+            return "Working longer materially improves the plan."
+        if score_change >= 3:
+            return "Some improvement versus the current age."
+        if score_change <= -10:
+            return "Earlier retirement adds meaningful risk."
+        if withdrawal_rate > 0.07:
+            return "Watch withdrawals; spending may be too high."
+        if score >= 90:
+            return "Strong option based on current inputs."
+        return "Possible option; review details."
+
+    comp["Simple Status"] = comp.apply(lambda r: simple_status(r["Blueprint Score"], r["Ending Portfolio"]), axis=1)
+    comp["Plain-English Takeaway"] = comp.apply(simple_takeaway, axis=1)
+
+    # Pick the best tested age using score first, then ending portfolio.
+    best = comp.sort_values(["Blueprint Score", "Ending Portfolio"], ascending=False).iloc[0]
+    current_row = comp.iloc[(comp["Retirement Age"] - current).abs().argsort()].iloc[0]
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Current Test Age", int(current_row["Retirement Age"]), f"Score {int(current_row['Blueprint Score'])}/100")
+    c2.metric("Best Tested Age", int(best["Retirement Age"]), f"Score {int(best['Blueprint Score'])}/100")
+    c3.metric("Plan Strength", best["Simple Status"], f"{money(best['Ending Portfolio'])} at age {planning_age}")
+
+    st.success(
+        f"Best tested age: **{int(best['Retirement Age'])}**. "
+        f"Blueprint Score: **{int(best['Blueprint Score'])}/100**. "
+        f"Simple takeaway: **{best['Plain-English Takeaway']}**"
+    )
+
+    st.markdown("#### Simple comparison")
+    simple_show = comp[[
+        "Retirement Age",
+        "Blueprint Score",
+        "Score Change",
+        "Simple Status",
+        "Plain-English Takeaway",
+    ]].copy()
+    simple_show["Blueprint Score"] = simple_show["Blueprint Score"].map(lambda x: f"{int(x)}/100")
+    simple_show["Score Change"] = simple_show["Score Change"].map(lambda x: f"{int(x):+}")
+    simple_show = simple_show.rename(columns={
+        "Retirement Age": "Retire at Age",
+        "Score Change": "Score Change vs Current",
+        "Simple Status": "Status",
+        "Plain-English Takeaway": "What it means",
+    })
+    st.dataframe(simple_show, use_container_width=True, hide_index=True)
+
+    with st.expander("Show advanced numbers", expanded=False):
+        advanced = comp[[
+            "Retirement Age",
+            "Blueprint Score",
+            "Label",
+            "Ending Portfolio",
+            "Max Withdrawal Rate",
+            "Avg Income Coverage",
+            "Estimated Federal Tax",
+        ]].copy()
+        advanced["Ending Portfolio"] = advanced["Ending Portfolio"].map(money)
+        advanced["Max Withdrawal Rate"] = advanced["Max Withdrawal Rate"].map(pct)
+        advanced["Avg Income Coverage"] = advanced["Avg Income Coverage"].map(pct)
+        advanced["Estimated Federal Tax"] = advanced["Estimated Federal Tax"].map(money)
+        advanced = advanced.rename(columns={
+            "Retirement Age": "Retire at Age",
+            "Label": "Detailed Label",
+        })
+        st.dataframe(advanced, use_container_width=True, hide_index=True)
+        st.caption(
+            "Advanced numbers are useful for deeper analysis, but the simple comparison above is the user-friendly summary."
+        )
 
 def build_retirement_age_optimizer_results(start_age=None, end_age=None, safety_target=None):
     """
