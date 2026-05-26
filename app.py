@@ -6309,6 +6309,7 @@ PAGE_NAMES = [
     "AI Retirement Coach",
     "Retirement Age Optimizer",
     "Resources",
+    "Plans & Pricing",
     "Help / Instructions",
 ]
 
@@ -6330,6 +6331,7 @@ PAGE_ICONS = {
     "AI Retirement Coach": "🤖",
     "Retirement Age Optimizer": "🎯",
     "Resources": "📚",
+    "Plans & Pricing": "💎",
     "Help / Instructions": "❓",
 }
 
@@ -6351,6 +6353,7 @@ NAV_LABELS = {
     "AI Retirement Coach": "Blueprint Coach",
     "Retirement Age Optimizer": "Age Optimizer",
     "Resources": "Resources",
+    "Plans & Pricing": "Plans & Pricing",
     "Help / Instructions": "Help",
 }
 
@@ -6393,6 +6396,7 @@ def render_navigation():
             "PDF Report",
             "AI Retirement Coach",
             "Resources",
+            "Plans & Pricing",
             "Help / Instructions",
         ]
 
@@ -7534,17 +7538,33 @@ def render_basic_blueprint_dashboard():
     </div>
     """, unsafe_allow_html=True)
 
-    u1, u2, u3 = st.columns(3)
-    with u1:
-        if st.button("Unlock Detailed Blueprint", type="primary", use_container_width=True, key="basic_unlock_detailed"):
+    is_premium_user = bool(st.session_state.get("is_premium_user", False))
+
+    if is_premium_user:
+        u1, u2, u3 = st.columns(3)
+        with u1:
+            if st.button("Open Detailed Blueprint", type="primary", use_container_width=True, key="basic_unlock_detailed"):
+                go_to_page("Guided Questions")
+        with u2:
+            if st.button("Run Age Optimizer", use_container_width=True, key="basic_age_optimizer"):
+                go_to_page("Retirement Age Optimizer")
+        with u3:
+            if st.button("Save This Blueprint", use_container_width=True, key="basic_save_blueprint"):
+                go_to_page("Saved Scenarios")
+    else:
+        st.markdown("""
+        <div class="rb-insight-card">
+          <div class="rb-insight-kicker">Premium Preview</div>
+          <div class="rb-insight-title">Unlock the full retirement planning tools</div>
+          <div class="rb-insight-copy">
+            Premium unlocks Detailed Blueprint, Age Optimizer, saved blueprint comparisons,
+            tax-aware withdrawal planning, Roth conversion testing, and the full Blueprint Report.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Upgrade to Get a Detailed Blueprint", type="primary", use_container_width=True, key="basic_upgrade_prompt"):
             st.session_state.show_premium_prompt = True
-            go_to_page("Guided Questions")
-    with u2:
-        if st.button("Run Age Optimizer", use_container_width=True, key="basic_age_optimizer"):
-            go_to_page("Retirement Age Optimizer")
-    with u3:
-        if st.button("Save This Blueprint", use_container_width=True, key="basic_save_blueprint"):
-            go_to_page("Saved Scenarios")
+            go_to_page("Plans & Pricing")
 
     st.caption("Basic Blueprint is educational and simplified. It is not financial, tax, legal, insurance, or investment advice.")
 
@@ -9941,6 +9961,111 @@ if active_page == "Retirement Age Optimizer":
 
 if active_page == "Resources":
     render_resources_page()
+
+
+
+if active_page == "Plans & Pricing":
+    render_page_shell("Plans & Pricing", "Choose the level of retirement planning detail that fits where you are today.", "💎")
+    page_help(
+        "Plans & Pricing",
+        "This page explains what is included in the free Basic Blueprint and what users unlock with Detailed Blueprint and Premium tools."
+    )
+
+    st.markdown("""
+    <div class="rb-insight-card">
+      <div class="rb-insight-kicker">Upgrade Path</div>
+      <div class="rb-insight-title">From basic retirement snapshot to full retirement blueprint</div>
+      <div class="rb-insight-copy">
+        The free Basic Blueprint gives users a fast first look. Premium unlocks the detailed planning tools needed
+        to compare scenarios, improve the plan, and create a fuller retirement strategy.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+        st.markdown("""
+        <div class="rb-premium-card-compact">
+          <div class="rb-premium-icon">🟢</div>
+          <div class="rb-premium-title">Basic Blueprint</div>
+          <div class="rb-premium-copy">
+            A simple starter snapshot using age, retirement age, savings, spending, Social Security, and return assumptions.
+          </div>
+          <div class="rb-premium-badge">Free Trial</div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown("**Included:**")
+        st.write("- Quick Blueprint inputs")
+        st.write("- Basic retirement snapshot")
+        st.write("- Basic money-left estimate")
+        st.write("- Basic monthly savings gap")
+        st.write("- Educational resources")
+        st.metric("Price", "$0")
+
+    with c2:
+        st.markdown("""
+        <div class="rb-premium-card-compact">
+          <div class="rb-premium-icon">💎</div>
+          <div class="rb-premium-title">Detailed Blueprint</div>
+          <div class="rb-premium-copy">
+            A fuller planning experience with more precise inputs, account-level detail, and personalized planning insights.
+          </div>
+          <div class="rb-premium-badge">Recommended</div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown("**Unlocks:**")
+        st.write("- Detailed spending plan")
+        st.write("- Account-level savings")
+        st.write("- 2-bucket strategy")
+        st.write("- Scenario comparisons")
+        st.write("- Tax-aware withdrawal preview")
+        st.write("- Roth conversion explorer")
+        st.write("- Full Blueprint Report")
+        st.metric("Price", "$9–$19/mo")
+        if st.button("Upgrade to Detailed Blueprint", type="primary", use_container_width=True, key="plans_upgrade_detailed"):
+            st.session_state.show_premium_prompt = True
+            st.info("Payment connection comes next. For now, this button marks the intended upgrade path.")
+
+    with c3:
+        st.markdown("""
+        <div class="rb-premium-card-compact">
+          <div class="rb-premium-icon">📄</div>
+          <div class="rb-premium-title">One-Time Blueprint Report</div>
+          <div class="rb-premium-copy">
+            A one-time polished report for users who want a snapshot they can save, print, or review with a spouse or advisor.
+          </div>
+          <div class="rb-premium-badge">One-Time</div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown("**Good for:**")
+        st.write("- Non-subscription users")
+        st.write("- Retirement checkups")
+        st.write("- Spouse conversations")
+        st.write("- Advisor review meetings")
+        st.write("- Exportable report")
+        st.metric("Price", "$19–$49")
+        if st.button("Get One-Time Report", use_container_width=True, key="plans_onetime_report"):
+            st.session_state.show_premium_prompt = True
+            st.info("One-time report checkout can be connected in the monetization phase.")
+
+    st.subheader("Simple feature comparison")
+    comparison = pd.DataFrame([
+        ["Quick Blueprint", "Yes", "Yes", "Included in detailed planning"],
+        ["Basic retirement snapshot", "Yes", "Yes", "Yes"],
+        ["Detailed spending plan", "No", "Yes", "Yes"],
+        ["Account-level planning", "No", "Yes", "Yes"],
+        ["Scenario comparison", "Preview only", "Yes", "Yes"],
+        ["Age Optimizer", "Locked", "Yes", "Yes"],
+        ["Tax-aware withdrawal plan", "Locked", "Yes", "Yes"],
+        ["Roth Conversion Explorer", "Locked", "Yes", "Yes"],
+        ["Full Blueprint Report", "Locked", "Yes", "Yes"],
+        ["Saved blueprint comparisons", "Locked", "Yes", "Optional"],
+    ], columns=["Feature", "Basic Free", "Detailed Premium", "One-Time Report"])
+    st.dataframe(comparison, use_container_width=True, hide_index=True)
+
+    st.warning("Pricing is a planning placeholder. This app is educational only and does not provide financial, tax, legal, insurance, or investment advice.")
+
 
 
 if active_page == "Help / Instructions":
