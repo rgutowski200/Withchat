@@ -6619,23 +6619,7 @@ if active_page == PAGE_NAMES[0]:
     </div>
     """, unsafe_allow_html=True)
 
-    if required_panel:
-        st.markdown(f"""
-        <div class="rb-warning-panel">
-          <div class="rb-warning-left">
-            <div class="rb-warning-icon">⚠</div>
-            <div>
-              <div class="rb-warning-title">Complete these required items</div>
-              <div class="rb-muted">{required_panel}</div>
-            </div>
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
-        c_warn_left, c_warn_btn = st.columns([4, 1.35])
-        with c_warn_btn:
-            if st.button("Go to Start My Blueprint", use_container_width=True, key="home_go_guided_required"):
-                go_to_page("Guided Questions")
-    else:
+    if not required_panel:
         st.success("Your blueprint has enough information to review the dashboard, action plan, confidence test, stress tests, and reports.")
         render_premium_insight("What your blueprint is telling you", df if can_run else None, "general")
 
