@@ -1930,6 +1930,35 @@ def render_scenario_comparison_panel():
     current_age = int(st.session_state.current_age or 0)
     planning_age = int(st.session_state.end_age or 90)
 
+    starting_nest_egg = (
+        float(st.session_state.get("traditional", 0) or 0)
+        + float(st.session_state.get("roth", 0) or 0)
+        + float(st.session_state.get("taxable", 0) or 0)
+        + float(st.session_state.get("cash", 0) or 0)
+    )
+    yearly_spending = annual_household_spending()
+    growth_return = float(st.session_state.get("growth_return", 0.07) or 0.07)
+    safe_return = float(st.session_state.get("safe_return", 0.045) or 0.045)
+    safety_assets = float(st.session_state.get("cash", 0) or 0)
+    growth_assets = max(starting_nest_egg - safety_assets, 0)
+    if starting_nest_egg > 0:
+        blended_return = ((growth_assets * growth_return) + (safety_assets * safe_return)) / starting_nest_egg
+    else:
+        blended_return = growth_return
+
+    st.markdown("#### Scenario assumptions")
+    st.caption("These are the main numbers this comparison is using, so users can understand the story before looking at the results.")
+
+    a1, a2, a3, a4 = st.columns(4)
+    a1.metric("Your Current Age", int(current_age))
+    a1.caption("Starting age for this plan")
+    a2.metric("Starting Nest Egg", money(starting_nest_egg))
+    a2.caption("Retirement savings entered today")
+    a3.metric("Yearly Spending", money(yearly_spending))
+    a3.caption("Planned lifestyle spending per year")
+    a4.metric("Avg Return Used", pct(blended_return))
+    a4.caption("Blended from growth and safety assumptions")
+
     # Keep the default comparison simple and close to the user's selected age.
     ages = sorted(set([
         max(current_age + 1, current - 2),
