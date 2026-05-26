@@ -1927,24 +1927,57 @@ def render_bucket_strategy_comparison_panel(df=None):
         return
     if df is None or df.empty:
         df = run_projection()
+
     premium_badge("Premium 2-Bucket Comparison")
+
+    st.markdown("### Compare the retirement withdrawal system")
     st.markdown(
         """
-        Compare a simple **1-bucket** portfolio against the easier-to-understand **2-bucket** system.
+        This compares **how retirement money is organized and withdrawn**.
 
-        - **1 Bucket:** all retirement money is treated as one pool and uses the growth return assumption.
-        - **2 Bucket:** Bucket 1 holds the selected years of safer spending money and uses the Bucket 1 safe return. Bucket 2 holds the rest and uses the growth return.
+        **1 Bucket** keeps everything together in one investment portfolio.  
+        **2 Bucket** separates the money into:
+        - **Bucket 1: Safety Bucket** — the next few years of planned spending
+        - **Bucket 2: Growth Bucket** — everything else, invested for longer-term growth
+
+        The 2-bucket system is designed to make retirement easier to understand and less stressful during market drops.
         """
     )
+
+    with st.expander("Simple explanation of the system", expanded=True):
+        st.markdown(
+            """
+            | **Strategy** | **How spending works** | **Why someone might choose it** |
+            |---|---|---|
+            | **1 Bucket** | Withdraw money from one combined portfolio every year | Simple and may grow more if markets do well |
+            | **2 Bucket** | Spend from Bucket 1 first; refill it from Bucket 2 over time | Keeps near-term spending money safer so the user may avoid selling growth investments during bad markets |
+            """
+        )
+        st.info(
+            "Think of Bucket 1 like a retirement paycheck reserve. "
+            "Bucket 2 is the long-term engine that is meant to keep growing and refill Bucket 1 later."
+        )
 
     view = st.radio(
         "Comparison view",
-        ["Normal return assumptions", "Bad first 3 retirement years"],
+        ["Normal return assumptions", "Bad first 3 retirement years (-15% growth return each year)"],
         horizontal=True,
         key="bucket_compare_view",
-        help="The stress view applies a simplified bad-market start to retirement so users can see how a safety bucket may help sequence-of-return risk."
+        help="Normal returns show the base case. The bad-start view assumes growth investments lose 15% per year for the first 3 retired years while Bucket 1 still earns the safer return."
     )
-    stress = view == "Bad first 3 retirement years"
+
+    stress = view.startswith("Bad first 3 retirement years")
+
+    if stress:
+        st.warning(
+            "Stress test assumption: for the first 3 years after retirement, the growth portfolio is modeled at **-15% per year**. "
+            "Bucket 1 still uses the safer return assumption. This is not a prediction — it is an educational downside test."
+        )
+    else:
+        st.caption(
+            "Normal view uses the return assumptions entered in the app: the full portfolio for 1 Bucket, and Bucket 1 / Bucket 2 returns for the 2-bucket system."
+        )
+
     summary_df, paths_df = build_bucket_strategy_comparison(df, stress=stress)
     if summary_df.empty:
         st.info("Not enough projection data to compare bucket strategies yet.")
@@ -1952,77 +1985,133 @@ def render_bucket_strategy_comparison_panel(df=None):
 
     one = summary_df[summary_df["Strategy"] == "1 Bucket"].iloc[0]
     two = summary_df[summary_df["Strategy"] == "2 Bucket"].iloc[0]
-    delta = float(two.get("Ending Change vs 1 Bucket", 0) or 0)
+
+    one_ending = float(one.get("Ending Portfolio", 0) or 0)
+    two_ending = float(two.get("Ending Portfolio", 0) or 0)
+    one_shortfall = float(one.get("Shortfall", 0) or 0)
+    two_shortfall = float(two.get("Shortfall", 0) or 0)
+    one_depletion = one.get("Depletion Age", "Not depleted")
+    two_depletion = two.get("Depletion Age", "Not depleted")
+
+    delta = two_ending - one_ending
     abs_delta = abs(delta)
+
     growth_return = float(st.session_state.get("growth_return", 0.07) or 0.07)
     safe_return = float(st.session_state.get("safe_return", 0.045) or 0.045)
     bucket1_years = float(st.session_state.get("bucket1_years", 3) or 3)
 
-    st.markdown("#### What this comparison means")
-    st.info(
-        "These numbers show the **projected money left at the end of the plan** for each strategy. "
-        "A higher ending balance is not automatically 'better' for every person. The tradeoff is usually: "
-        "more growth potential with 1 Bucket versus more near-term safety with 2 Buckets."
-    )
+    st.markdown("### Big picture result")
 
     c1, c2 = st.columns(2)
+
     with c1:
-        st.metric("1 Bucket: projected money left", money(one["Ending Portfolio"]))
-        st.caption(f"All money uses the growth return assumption: {pct(growth_return)}.")
+        st.markdown(
+            f"""
+            <div style="border:1px solid #e5e7eb;border-radius:18px;padding:22px;background:#fff;box-shadow:0 10px 24px rgba(15,23,42,.06);min-height:265px;">
+                <div style="color:#6b7280;font-size:15px;">1 Bucket System</div>
+                <div style="font-size:36px;font-weight:800;color:#111827;margin:8px 0;">{money(one_ending)}</div>
+                <div style="color:#6b7280;">Projected money left at the end of the plan</div>
+                <hr style="border:none;border-top:1px solid #eef2f7;margin:16px 0;">
+                <b>How it works:</b><br>
+                All money stays in one portfolio and withdrawals come from that same portfolio each year.<br><br>
+                <b>Return used:</b> {pct(growth_return)} on the full portfolio
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
     with c2:
-        st.metric("2 Bucket: projected money left", money(two["Ending Portfolio"]))
         if delta < 0:
-            st.caption(f"Tradeoff: {money(abs_delta)} lower projected ending balance, with Bucket 1 safety money.")
+            comparison_sentence = f"Projected to end with {money(abs_delta)} less than 1 Bucket, mainly because Bucket 1 uses a safer/lower return."
         elif delta > 0:
-            st.caption(f"Projected ending balance is {money(abs_delta)} higher than 1 Bucket in this test.")
+            comparison_sentence = f"Projected to end with {money(abs_delta)} more than 1 Bucket in this test."
         else:
-            st.caption("Projected ending balance is the same as 1 Bucket in this test.")
+            comparison_sentence = "Projected to end with about the same amount as 1 Bucket."
 
-    r1, r2, r3 = st.columns(3)
-    r1.metric("Bucket 1 Safe Return", pct(safe_return))
-    r1.caption("Used for Safety Bucket money")
-    r2.metric("Bucket 2 Growth Return", pct(growth_return))
-    r2.caption("Used for Growth Bucket money")
-    r3.metric("Bucket 1 Size", f"{bucket1_years:g} years")
-    r3.caption("Years of expenses held safer")
+        st.markdown(
+            f"""
+            <div style="border:1px solid #e5e7eb;border-radius:18px;padding:22px;background:#fff;box-shadow:0 10px 24px rgba(15,23,42,.06);min-height:265px;">
+                <div style="color:#6b7280;font-size:15px;">2 Bucket System</div>
+                <div style="font-size:36px;font-weight:800;color:#111827;margin:8px 0;">{money(two_ending)}</div>
+                <div style="color:#6b7280;">Projected money left at the end of the plan</div>
+                <hr style="border:none;border-top:1px solid #eef2f7;margin:16px 0;">
+                <b>How it works:</b><br>
+                Bucket 1 holds {bucket1_years:g} years of safer spending money. Bucket 2 holds the rest for growth.<br><br>
+                <b>Return used:</b> {pct(safe_return)} on Bucket 1 / {pct(growth_return)} on Bucket 2
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-    if delta < 0:
+    if stress:
         st.warning(
-            f"In this scenario, the 2-bucket strategy leaves **{money(abs_delta)} less** at the end of the plan than 1 Bucket. "
-            "That does not mean it failed. It means some money was kept in the safer bucket at a lower assumed return, which can reduce growth but may make withdrawals easier to understand during rough markets."
+            "This view tests a rough market start to retirement: growth investments are modeled at **-15% per year for the first 3 retired years**. "
+            "A 2-bucket system is meant to help here because near-term spending can come from Bucket 1 instead of selling growth investments while they are down."
         )
-    elif delta > 0:
-        st.success(
-            f"In this scenario, the 2-bucket strategy leaves **{money(abs_delta)} more** at the end of the plan than 1 Bucket."
+    else:
+        st.info(
+            "Under normal returns, 1 Bucket may show more money left because more of the portfolio stays invested for growth. "
+            "The 2-bucket system may show less money left, but its purpose is to protect near-term spending and make the plan easier to live with."
         )
 
-    simple_rows = []
-    for _, row in summary_df.iterrows():
-        strategy = row["Strategy"]
-        ending = float(row["Ending Portfolio"] or 0)
-        shortfall = float(row.get("Shortfall", 0) or 0)
-        depletion = row.get("Depletion Age", "Not depleted")
-        if strategy == "1 Bucket":
-            return_used = f"{pct(growth_return)} on the full portfolio"
-            plain = "Simple and growth-focused, but more exposed to market drops early in retirement."
-        else:
-            return_used = f"{pct(safe_return)} on Bucket 1 / {pct(growth_return)} on Bucket 2"
-            if delta < 0:
-                plain = "More near-term safety, but lower projected ending balance in this test."
-            elif delta > 0:
-                plain = "More near-term safety and a higher projected ending balance in this test."
-            else:
-                plain = "More near-term safety with about the same projected ending balance."
-        simple_rows.append({
-            "Strategy": strategy,
-            "Projected Money Left": money(ending),
-            "Return Assumptions Used": return_used,
-            "Runs Out?": "No" if shortfall <= 0 and depletion == "Not depleted" else f"Yes / age {depletion}",
-            "Plain-English Meaning": plain,
-        })
+    st.markdown("### What the numbers mean")
 
-    st.markdown("#### Simple comparison")
+    simple_rows = [
+        {
+            "Question": "How is the money organized?",
+            "1 Bucket": "Everything stays in one portfolio",
+            "2 Bucket": f"Bucket 1 = {bucket1_years:g} years of expenses; Bucket 2 = everything else"
+        },
+        {
+            "Question": "Where does spending come from?",
+            "1 Bucket": "The same portfolio every year",
+            "2 Bucket": "Bucket 1 first, then Bucket 2 refills Bucket 1 over time"
+        },
+        {
+            "Question": "What return is assumed?",
+            "1 Bucket": f"{'-15.0% for first 3 retired years, then ' if stress else ''}{pct(growth_return)} on the full portfolio",
+            "2 Bucket": f"{pct(safe_return)} on Bucket 1; {'-15.0% for first 3 retired years, then ' if stress else ''}{pct(growth_return)} on Bucket 2"
+        },
+        {
+            "Question": "Projected money left",
+            "1 Bucket": money(one_ending),
+            "2 Bucket": money(two_ending)
+        },
+        {
+            "Question": "Does it run out?",
+            "1 Bucket": "No" if one_shortfall <= 0 and one_depletion == "Not depleted" else f"Yes, around age {one_depletion}",
+            "2 Bucket": "No" if two_shortfall <= 0 and two_depletion == "Not depleted" else f"Yes, around age {two_depletion}"
+        },
+        {
+            "Question": "Plain-English takeaway",
+            "1 Bucket": "More growth-focused, but more exposed to early market drops",
+            "2 Bucket": comparison_sentence
+        }
+    ]
+
     st.dataframe(pd.DataFrame(simple_rows), use_container_width=True, hide_index=True)
+
+    st.markdown("### Bottom line")
+    if one_shortfall > 0 and two_shortfall > 0:
+        st.error(
+            "Both strategies run out in this test. The user may need to retire later, spend less, save more, or use different assumptions."
+        )
+    elif one_shortfall > 0 and two_shortfall <= 0:
+        st.success(
+            "In this test, the 2-bucket system helps the plan last longer than the 1-bucket system."
+        )
+    elif two_shortfall > 0 and one_shortfall <= 0:
+        st.warning(
+            "In this test, the 1-bucket system lasts longer, but it may be more exposed to market drops. Review the return assumptions and Bucket 1 size."
+        )
+    elif delta < 0:
+        st.info(
+            f"Both strategies last through the plan. The 1-bucket system ends with more money, while the 2-bucket system trades some growth for clearer near-term spending safety."
+        )
+    else:
+        st.success(
+            "Both strategies last through the plan, and the 2-bucket system also provides clearer near-term spending protection."
+        )
 
     with st.expander("Show advanced numbers", expanded=False):
         st.caption("Advanced numbers are useful for deeper analysis, but the simple comparison above is the user-friendly summary.")
@@ -2048,19 +2137,11 @@ def render_bucket_strategy_comparison_panel(df=None):
         ax.grid(True, alpha=0.25)
         st.pyplot(fig, use_container_width=True)
 
-    best_ending = summary_df.sort_values("Ending Portfolio", ascending=False).iloc[0]
-    lowest_shortfall = summary_df.sort_values(["Shortfall", "Ending Portfolio"], ascending=[True, False]).iloc[0]
-    if best_ending["Strategy"] == lowest_shortfall["Strategy"]:
-        st.success(f"Best tested strategy: **{best_ending['Strategy']}**. It has the strongest ending portfolio while also minimizing shortfall in this comparison.")
-    else:
-        st.info(f"Highest ending balance: **{best_ending['Strategy']}**. Lowest shortfall/risk pressure: **{lowest_shortfall['Strategy']}**. This is the tradeoff: more growth potential versus more downside protection.")
-
     st.warning(
-        "Educational purposes only. This comparison is a simplified planning illustration, not financial, tax, investment, or legal advice. It does not guarantee results or replace guidance from a qualified professional."
+        "Educational purposes only. This comparison is a simplified planning illustration, not financial, tax, investment, or legal advice. "
+        "It does not guarantee results or replace guidance from a qualified professional."
     )
     st.caption("The main projection remains the source of truth for tax-aware withdrawals. This bucket comparison is a strategy overlay using the return assumptions shown above.")
-
-
 
 def run_projection_with_temp_retire_age(test_age):
     original = st.session_state.retire_age
