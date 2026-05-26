@@ -6796,10 +6796,17 @@ if active_page == PAGE_NAMES[1]:
                 st.session_state[k] = v
 
             st.session_state.monthly_spending = quick_monthly_spending
+            st.session_state.spending_quick_monthly = quick_monthly_spending
+            st.session_state.basic_blueprint_monthly_spending = quick_monthly_spending
+            st.session_state.basic_blueprint_annual_spending = quick_monthly_spending * 12
             if "monthly_expenses" in st.session_state:
                 st.session_state.monthly_expenses = quick_monthly_spending
             if "annual_spending" in st.session_state:
                 st.session_state.annual_spending = quick_monthly_spending * 12
+            if "monthly_needs" in st.session_state:
+                st.session_state.monthly_needs = quick_monthly_spending
+            if "retirement_monthly_spending" in st.session_state:
+                st.session_state.retirement_monthly_spending = quick_monthly_spending
 
             st.session_state.quick_blueprint_saved = True
             st.success("Quick Blueprint saved. Your Basic Blueprint is ready.")
@@ -6819,6 +6826,7 @@ if active_page == PAGE_NAMES[1]:
         b1, b2 = st.columns(2)
         with b1:
             if st.button("View My Basic Blueprint", type="primary", use_container_width=True, key="quick_next_dashboard"):
+                st.session_state.quick_blueprint_saved = True
                 st.session_state.active_page = "Dashboard"
                 st.rerun()
         with b2:
@@ -7421,6 +7429,127 @@ def render_dashboard_close_to_mock(df, rtv_score, rtv_label, rtv_reasons):
     st.caption("Educational planning tool only. Not financial, tax, legal, insurance, or investment advice.")
 
 
+
+def calculate_basic_blueprint_snapshot():
+    current_age = int(st.session_state.get("current_age", 0) or 0)
+    retire_age = int(st.session_state.get("retire_age", 0) or 0)
+    end_age = int(st.session_state.get("end_age", 90) or 90)
+    starting_savings = float(st.session_state.get("traditional", 0) or 0) + float(st.session_state.get("roth", 0) or 0) + float(st.session_state.get("taxable", 0) or 0) + float(st.session_state.get("cash", 0) or 0)
+    annual_contribution = float(st.session_state.get("annual_contribution", 0) or 0)
+    monthly_spending = float(st.session_state.get("basic_blueprint_monthly_spending", 0) or st.session_state.get("monthly_spending", 0) or 0)
+    annual_spending = monthly_spending * 12
+    ss_age = int(st.session_state.get("user_ss_age", 62) or 62)
+    ss_annual = float(st.session_state.get("user_ss", 0) or 0)
+    growth_return = float(st.session_state.get("growth_return", 0.07) or 0.07)
+    inflation = float(st.session_state.get("inflation", 0.03) or 0.03)
+
+    years_to_retire = max(retire_age - current_age, 0)
+    balance_at_retirement = starting_savings
+    for _ in range(years_to_retire):
+        balance_at_retirement = balance_at_retirement * (1 + growth_return) + annual_contribution
+
+    balance = balance_at_retirement
+    first_year_gap = max(annual_spending - (ss_annual if retire_age >= ss_age else 0), 0)
+    depletion_age = None
+    for age in range(retire_age, end_age + 1):
+        spending = annual_spending * ((1 + inflation) ** max(age - retire_age, 0))
+        income = ss_annual if age >= ss_age else 0
+        gap = max(spending - income, 0)
+        balance = balance * (1 + growth_return) - gap
+        if balance <= 0 and depletion_age is None:
+            depletion_age = age
+            balance = 0
+            break
+
+    money_left = max(balance, 0)
+    if current_age <= 0 or retire_age <= 0 or annual_spending <= 0:
+        status = "Needs Inputs"
+        status_note = "Enter age, retirement age, and spending to see your basic result."
+        score = "Incomplete"
+    elif depletion_age:
+        status = "Not Yet"
+        status_note = f"Basic estimate shows savings could run out around age {depletion_age}."
+        score = "Needs Work"
+    elif money_left > balance_at_retirement * 0.5:
+        status = "Looks Good"
+        status_note = "Basic estimate shows money lasting through the plan."
+        score = "Strong"
+    else:
+        status = "Maybe"
+        status_note = "Basic estimate works, but the cushion may need review."
+        score = "Fair"
+
+    return {
+        "retire_age": retire_age, "end_age": end_age, "money_left": money_left,
+        "monthly_gap": first_year_gap / 12, "status": status,
+        "status_note": status_note, "score": score,
+    }
+
+
+def render_basic_blueprint_dashboard():
+    snap = calculate_basic_blueprint_snapshot()
+    st.markdown("""
+    <div class="rb-insight-card">
+      <div class="rb-insight-kicker">Basic Blueprint</div>
+      <div class="rb-insight-title">Your starter retirement snapshot is ready</div>
+      <div class="rb-insight-copy">
+        This is a simplified estimate based on your Quick Blueprint inputs. Upgrade to Detailed Blueprint
+        for account-level planning, taxes, Roth conversions, detailed spending, home equity, and bucket strategy.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div class="rb-card-grid">
+      <div class="rb-card">
+        <div class="rb-card-top"><div class="rb-card-label">Basic Blueprint Score</div><div class="rb-icon">☆</div></div>
+        <div class="rb-card-value">{snap['score']}</div>
+        <div class="rb-card-note">Starter score based on quick inputs.</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-top"><div class="rb-card-label">Can I Retire at {snap['retire_age']}?</div><div class="rb-icon">✓</div></div>
+        <div class="rb-card-value">{snap['status']}</div>
+        <div class="rb-card-note">{snap['status_note']}</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-top"><div class="rb-card-label">Money Left at Age {snap['end_age']}</div><div class="rb-icon">$</div></div>
+        <div class="rb-card-value">{money(snap['money_left'])}</div>
+        <div class="rb-card-note">Basic estimate after retirement spending and Social Security.</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-top"><div class="rb-card-label">Monthly Gap From Savings</div><div class="rb-icon">↗</div></div>
+        <div class="rb-card-value">{money(snap['monthly_gap'])}</div>
+        <div class="rb-card-note">Estimated first-year monthly amount needed from savings.</div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="rb-next-box">
+      <div class="rb-next-heading">Want a more accurate answer?</div>
+      <div class="rb-muted">
+        Your basic blueprint does not yet include account-by-account taxes, detailed spending categories,
+        Roth conversion impact, home equity, or bucket strategy.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    u1, u2, u3 = st.columns(3)
+    with u1:
+        if st.button("Unlock Detailed Blueprint", type="primary", use_container_width=True, key="basic_unlock_detailed"):
+            st.session_state.show_premium_prompt = True
+            go_to_page("Guided Questions")
+    with u2:
+        if st.button("Run Age Optimizer", use_container_width=True, key="basic_age_optimizer"):
+            go_to_page("Retirement Age Optimizer")
+    with u3:
+        if st.button("Save This Blueprint", use_container_width=True, key="basic_save_blueprint"):
+            go_to_page("Saved Scenarios")
+
+    st.caption("Basic Blueprint is educational and simplified. It is not financial, tax, legal, insurance, or investment advice.")
+
+
+
 if active_page == PAGE_NAMES[6]:
     if st.session_state.get("dashboard_focus"):
         focus_label = st.session_state.get("dashboard_focus")
@@ -7430,10 +7559,14 @@ if active_page == PAGE_NAMES[6]:
             st.rerun()
 
     if not can_run:
-        st.markdown('<div class="rb-saas-title">Blueprint Dashboard</div><div class="rb-saas-sub">Complete your required inputs to unlock projections and recommendations.</div>', unsafe_allow_html=True)
-        st.info("Complete required inputs first.")
-        if st.button("Go to Start My Blueprint", key="dashboard_go_start", use_container_width=True):
-            go_to_page("Guided Questions")
+        if st.session_state.get("quick_blueprint_saved"):
+            st.markdown('<div class="rb-saas-title">Basic Blueprint Dashboard</div><div class="rb-saas-sub">Your simplified retirement snapshot based on Quick Blueprint inputs.</div>', unsafe_allow_html=True)
+            render_basic_blueprint_dashboard()
+        else:
+            st.markdown('<div class="rb-saas-title">Blueprint Dashboard</div><div class="rb-saas-sub">Start with Quick Blueprint to unlock your starter retirement snapshot.</div>', unsafe_allow_html=True)
+            st.info("Start with Quick Blueprint first.")
+            if st.button("Go to Start My Blueprint", key="dashboard_go_start", use_container_width=True):
+                go_to_page("Guided Questions")
     else:
         ending = df["End Total"].iloc[-1]
         depleted = df["Unmet Need"].sum() > 0 or ending <= 0 or df["Age"].iloc[-1] < st.session_state.end_age
