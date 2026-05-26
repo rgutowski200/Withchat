@@ -1575,35 +1575,78 @@ def render_confidence_meters(df):
 
 
 
-def build_two_bucket_strategy(df=None):
+def build_two_bucket_strategy(df=None, view_mode="retirement", return_context=False):
     """
-    Build a simple, consumer-friendly 2-bucket retirement framework:
-    - Bucket 1: Safety money for near-term spending.
-    - Bucket 2: Long-term investment money for growth and refilling Bucket 1.
+    Build a simple, consumer-friendly 2-bucket retirement framework.
+
+    Default view is at the selected retirement age, because that is the
+    clearest user question: "When I retire, how much goes in each bucket?"
+
+    - Bucket 1: the selected number of years of retirement expenses.
+    - Bucket 2: everything else.
     """
-    total_assets = (
+    current_assets = (
         float(st.session_state.get("traditional", 0) or 0)
         + float(st.session_state.get("roth", 0) or 0)
         + float(st.session_state.get("taxable", 0) or 0)
         + float(st.session_state.get("cash", 0) or 0)
     )
 
-    annual_need = annual_household_spending() + float(st.session_state.get("healthcare", 0) or 0)
-    if df is not None and not df.empty and "Income Gap" in df.columns:
-        retired_rows = df[df["Household Retired"] == True]
-        if not retired_rows.empty:
-            annual_need = max(float(retired_rows["Income Gap"].head(5).mean()), annual_need * 0.5)
-
     b1_years = float(st.session_state.get("bucket1_years", 3) or 3)
+    retire_age = int(st.session_state.get("retire_age", st.session_state.get("current_age", 0)) or 0)
 
-    bucket1_target = min(total_assets, max(0, annual_need * b1_years))
+    context = {
+        "view_label": "Today",
+        "age": int(st.session_state.get("current_age", 0) or 0),
+        "total_assets": current_assets,
+        "annual_expenses": annual_household_spending() + float(st.session_state.get("healthcare", 0) or 0),
+        "bucket1_years": b1_years,
+        "explanation": "Based on the retirement savings entered today."
+    }
+
+    # For the main app view, show the suggested bucket setup at retirement,
+    # not the current account allocation. This avoids confusing users.
+    if view_mode == "retirement" and df is not None and not df.empty and "Age" in df.columns:
+        retirement_rows = df[df["Age"] >= retire_age]
+        if not retirement_rows.empty:
+            retirement_row = retirement_rows.iloc[0]
+
+            projected_assets_at_retirement = float(
+                retirement_row.get("Start Total", retirement_row.get("End Total", current_assets)) or 0
+            )
+
+            # Use total retirement expenses, not just the portfolio withdrawal gap.
+            # This matches the plain-English idea: Bucket 1 holds X years of expenses.
+            annual_expenses_at_retirement = float(retirement_row.get("Total Spending", 0) or 0)
+            if annual_expenses_at_retirement <= 0:
+                annual_expenses_at_retirement = (
+                    annual_spending_for_age(retire_age)
+                    + float(st.session_state.get("healthcare", 0) or 0)
+                    + float(st.session_state.get("spouse_healthcare", 0) or 0)
+                )
+
+            context = {
+                "view_label": "At Retirement",
+                "age": retire_age,
+                "total_assets": projected_assets_at_retirement,
+                "annual_expenses": annual_expenses_at_retirement,
+                "bucket1_years": b1_years,
+                "explanation": "Based on the projected portfolio and estimated first-year expenses at the selected retirement age."
+            }
+
+    total_assets = max(float(context["total_assets"] or 0), 0)
+    annual_expenses = max(float(context["annual_expenses"] or 0), 0)
+
+    # Core rule: Bucket 1 should equal only the selected number of years of expenses.
+    # Everything else goes to Bucket 2.
+    bucket1_target = min(total_assets, max(0, annual_expenses * b1_years))
     bucket2_target = max(total_assets - bucket1_target, 0)
 
-    return pd.DataFrame([
+    strategy_df = pd.DataFrame([
         {
             "Bucket": "Bucket 1",
             "Plain-English Name": "Safety Bucket",
-            "Purpose": "Money for the next few years of retirement spending",
+            "Purpose": f"{b1_years:g} years of estimated retirement expenses",
             "Suggested Amount": bucket1_target,
             "Target Years": b1_years,
             "Example Holdings": "Cash, money market, CDs, short-term bonds",
@@ -1612,13 +1655,17 @@ def build_two_bucket_strategy(df=None):
         {
             "Bucket": "Bucket 2",
             "Plain-English Name": "Growth Bucket",
-            "Purpose": "Long-term money designed to grow and refill Bucket 1 over time",
+            "Purpose": "Everything else, invested for longer-term growth and future refills",
             "Suggested Amount": bucket2_target,
             "Target Years": "Long term",
             "Example Holdings": "Diversified stock/bond portfolio based on risk tolerance",
             "Risk Level": "Moderate to higher"
         },
     ])
+
+    if return_context:
+        return strategy_df, context
+    return strategy_df
 
 
 # Backward-compatible alias so older report code still works after the simplification.
@@ -1632,26 +1679,58 @@ def render_two_bucket_strategy(df=None):
         """
         The 2-bucket system keeps retirement simple:
 
-        **Bucket 1 = Safety money.** This is the money you can use during the next few years, especially if the market is down.
+        **Bucket 1 = Safety money.** At retirement, this should hold only the number of years of expenses the user chooses, such as 3 years.
 
-        **Bucket 2 = Growth money.** This is the rest of the portfolio, invested for longer-term growth and used to refill Bucket 1 over time.
+        **Bucket 2 = Growth money.** This is everything else, invested for longer-term growth and used to refill Bucket 1 over time.
         """
     )
 
-    strat = build_two_bucket_strategy(df)
+    strat, context = build_two_bucket_strategy(df, view_mode="retirement", return_context=True)
+
+    st.markdown("#### Suggested setup at retirement")
+    st.caption(
+        f"These amounts are based on the projected portfolio at age {int(context['age'])}, "
+        "not simply the money entered today."
+    )
+
+    b1_amount = float(strat.loc[strat["Bucket"] == "Bucket 1", "Suggested Amount"].iloc[0])
+    b2_amount = float(strat.loc[strat["Bucket"] == "Bucket 2", "Suggested Amount"].iloc[0])
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Retirement Age Used", int(context["age"]))
+    m1.caption("Selected retirement age")
+    m2.metric("Projected Portfolio", money(context["total_assets"]))
+    m2.caption("Estimated balance at retirement")
+    m3.metric("Annual Expenses Used", money(context["annual_expenses"]))
+    m3.caption("Estimated first-year retirement expenses")
+    m4.metric("Bucket 1 Target", f"{float(context['bucket1_years']):g} years")
+    m4.caption("User-selected safety years")
+
+    st.info(
+        f"At retirement, Bucket 1 is set to **{money(b1_amount)}**, which equals about "
+        f"**{float(context['bucket1_years']):g} years of estimated expenses**. "
+        f"The remaining **{money(b2_amount)}** goes into Bucket 2 for longer-term growth."
+    )
+
     cards = ''
     for i, row in strat.iterrows():
-        cards += f"""<div class="rb-bucket-card"><div class="rb-bucket-num">{i+1}</div><div class="rb-bucket-title">{row['Bucket']}: {row['Plain-English Name']}</div><div class="rb-bucket-amount">{money(row['Suggested Amount'])}</div><div class="rb-bucket-copy"><b>Purpose:</b> {row['Purpose']}<br/><b>Target:</b> {row['Target Years']} years<br/><b>Examples:</b> {row['Example Holdings']}<br/><b>Risk:</b> {row['Risk Level']}</div></div>"""
+        target_years = row['Target Years']
+        target_text = f"{target_years:g} years" if isinstance(target_years, (int, float)) else str(target_years)
+        cards += f"""<div class="rb-bucket-card"><div class="rb-bucket-num">{i+1}</div><div class="rb-bucket-title">{row['Bucket']}: {row['Plain-English Name']}</div><div class="rb-bucket-amount">{money(row['Suggested Amount'])}</div><div class="rb-bucket-copy"><b>Purpose:</b> {row['Purpose']}<br/><b>Target:</b> {target_text}<br/><b>Examples:</b> {row['Example Holdings']}<br/><b>Risk:</b> {row['Risk Level']}</div></div>"""
     st.markdown(f'<div class="rb-bucket-grid">{cards}</div>', unsafe_allow_html=True)
 
     show = strat.copy()
     show["Suggested Amount"] = show["Suggested Amount"].map(money)
+    show["Target Years"] = show["Target Years"].map(lambda x: f"{x:g}" if isinstance(x, (int, float)) else x)
     st.dataframe(show, use_container_width=True, hide_index=True)
 
     st.info(
-        "Simple version: keep a few years of safer spending money in Bucket 1, and let Bucket 2 stay invested for long-term growth."
+        "Simple version: Bucket 1 holds only the chosen number of years of expenses. Bucket 2 holds the rest."
     )
-    st.caption("This is an educational allocation framework. It does not replace investment, tax, or advisor guidance. Phase 1 displays suggested bucket targets without reclassifying tax accounts.")
+    st.warning(
+        "Educational purposes only. This bucket framework is not financial, tax, investment, or legal advice and does not replace guidance from a qualified professional."
+    )
+    st.caption("Phase 1 displays suggested bucket targets without reclassifying tax accounts or guaranteeing investment results.")
 
 
 # Backward-compatible alias so old calls render the new simplified experience.
@@ -1661,14 +1740,19 @@ def render_three_bucket_strategy(df=None):
 
 
 def _bucket_strategy_first_need(df=None):
-    """Estimate the first-year retirement cash need for the bucket comparison model."""
+    """Estimate the first-year retirement expense need for the bucket comparison model."""
     fallback = annual_household_spending() + float(st.session_state.get("healthcare", 0) or 0)
-    if df is not None and not df.empty and "Portfolio Withdrawal" in df.columns:
+    if df is not None and not df.empty:
         retired = df[df.get("Household Retired", False) == True] if "Household Retired" in df.columns else df
         if not retired.empty:
-            val = float(retired["Portfolio Withdrawal"].replace([np.inf, -np.inf], np.nan).dropna().head(3).mean() or 0)
-            if val > 0:
-                return val
+            if "Total Spending" in retired.columns:
+                val = float(retired["Total Spending"].replace([np.inf, -np.inf], np.nan).dropna().head(1).mean() or 0)
+                if val > 0:
+                    return val
+            if "Portfolio Withdrawal" in retired.columns:
+                val = float(retired["Portfolio Withdrawal"].replace([np.inf, -np.inf], np.nan).dropna().head(1).mean() or 0)
+                if val > 0:
+                    return val
     return max(fallback, 1.0)
 
 
@@ -1700,7 +1784,9 @@ def simulate_bucket_strategy(strategy="2 Bucket", df=None, stress=False):
         b2 = total_assets
         target_b1 = 0.0
     else:
-        target_b1 = min(total_assets, max(float(st.session_state.get("cash", 0) or 0), first_need * b1_years))
+        # Keep Bucket 1 limited to the user's selected safety years.
+        # Do not automatically overfill Bucket 1 because the user happens to have more cash today.
+        target_b1 = min(total_assets, max(0.0, first_need * b1_years))
         b1 = target_b1
         b2 = max(total_assets - b1, 0.0)
 
