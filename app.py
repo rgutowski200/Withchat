@@ -6692,6 +6692,79 @@ if active_page == PAGE_NAMES[1]:
         "This page collects the core numbers for your retirement blueprint: ages, savings, contributions, Social Security, expected returns, inflation, Roth conversions, and premium 2-bucket strategy. These inputs drive the Blueprint Dashboard, Blueprint Score, Action Plan, and Projection."
     )
 
+    st.subheader("Quick Blueprint")
+    st.caption("Simple starter version for free trial users. Enter the basics first, then use the detailed section below when you want a more precise plan.")
+
+    with st.expander("Open Quick Blueprint starter", expanded=True):
+        with st.form("quick_blueprint_form"):
+            q1, q2, q3 = st.columns(3)
+            quick_current_age = q1.number_input("Current age", 0, 100, st.session_state.current_age, help=FIELD_HELP["current_age"])
+            quick_retire_age = q2.number_input("Target retirement age", 0, 100, st.session_state.retire_age, help=FIELD_HELP["retire_age"])
+            quick_end_age = q3.number_input("Plan through age", 0, 110, st.session_state.end_age, help=FIELD_HELP["end_age"])
+
+            q1, q2, q3 = st.columns(3)
+            quick_total_savings = q1.number_input(
+                "Total retirement savings",
+                min_value=0,
+                value=int(float(st.session_state.traditional or 0) + float(st.session_state.roth or 0) + float(st.session_state.taxable or 0) + float(st.session_state.cash or 0)),
+                step=10000,
+                help="A simple total of retirement savings across 401k, IRA, Roth, taxable accounts, and cash."
+            )
+            quick_monthly_spending = q2.number_input(
+                "Monthly retirement spending",
+                min_value=0,
+                value=int(float(st.session_state.get("monthly_spending", 0) or 0)),
+                step=500,
+                help="A simple estimate of how much you expect to spend each month in retirement."
+            )
+            quick_annual_contribution = q3.number_input(
+                "Annual savings until retirement",
+                min_value=0,
+                value=int(st.session_state.annual_contribution),
+                step=5000,
+                help=FIELD_HELP["annual_contribution"]
+            )
+
+            q1, q2, q3 = st.columns(3)
+            quick_ss_age = q1.number_input("Social Security start age", 62, 70, st.session_state.user_ss_age, help=FIELD_HELP["user_ss_age"])
+            quick_ss = q2.number_input("Annual Social Security", min_value=0, value=st.session_state.user_ss, step=1000, help=FIELD_HELP["user_ss"])
+            quick_growth_return = q3.slider("Expected average return", 0.0, 15.0, st.session_state.growth_return * 100, help=FIELD_HELP["growth_return"]) / 100
+
+            quick_save = st.form_submit_button("Save Quick Blueprint", type="primary", use_container_width=True)
+
+        if quick_save:
+            quick_traditional = int(quick_total_savings * 0.80)
+            quick_roth = int(quick_total_savings * 0.20)
+
+            for k, v in {
+                "current_age": quick_current_age,
+                "retire_age": quick_retire_age,
+                "end_age": quick_end_age,
+                "traditional": quick_traditional,
+                "roth": quick_roth,
+                "taxable": 0,
+                "cash": 0,
+                "annual_contribution": quick_annual_contribution,
+                "user_ss_age": quick_ss_age,
+                "user_ss": quick_ss,
+                "growth_return": quick_growth_return,
+                "safe_return": 0.045,
+                "inflation": 0.03,
+                "bucket1_years": 3.0,
+            }.items():
+                st.session_state[k] = v
+
+            st.session_state.monthly_spending = quick_monthly_spending
+            if "monthly_expenses" in st.session_state:
+                st.session_state.monthly_expenses = quick_monthly_spending
+            if "annual_spending" in st.session_state:
+                st.session_state.annual_spending = quick_monthly_spending * 12
+
+            st.success("Quick Blueprint saved. Review the Dashboard or continue with Detailed Blueprint for more precise planning.")
+
+    st.subheader("Detailed Blueprint")
+    st.caption("Use this section when you want the full planning model: account types, tax settings, home equity, Roth conversions, and bucket strategy.")
+
     with st.form("guided_form"):
         st.subheader("Timeline")
         c1, c2, c3 = st.columns(3)
@@ -6811,7 +6884,7 @@ if active_page == PAGE_NAMES[1]:
 
         st.info(f"Estimated home equity: {money(max(home_value - mortgage_balance, 0))}")
 
-        save = st.form_submit_button("Save main answers")
+        save = st.form_submit_button("Save main answers", type="primary", use_container_width=True)
 
     if save:
         for k, v in {
