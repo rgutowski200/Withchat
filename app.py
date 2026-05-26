@@ -10014,15 +10014,14 @@ if active_page == "Plans & Pricing":
           <div class="rb-premium-badge">Recommended</div>
         </div>
         """, unsafe_allow_html=True)
-        st.markdown("**Unlocks:**")
-        st.write("- Detailed spending plan")
-        st.write("- Account-level savings")
-        st.write("- 2-bucket strategy")
-        st.write("- Scenario comparisons")
-        st.write("- Tax-aware withdrawal preview")
-        st.write("- Roth conversion explorer")
+        st.markdown("**Top Premium Unlocks:**")
+        st.write("- Detailed Blueprint inputs")
+        st.write("- Retirement Age Optimizer")
+        st.write("- Scenario Comparison")
+        st.write("- 2-Bucket Strategy")
         st.write("- Full Blueprint Report")
-        st.metric("Price", "$9–$19/mo")
+        st.metric("Monthly", "$14.99/mo")
+        st.caption("Annual option: $99/year")
         if st.button("Upgrade to Detailed Blueprint", type="primary", use_container_width=True, key="plans_upgrade_detailed"):
             st.session_state.show_premium_prompt = True
             st.info("Payment connection comes next. For now, this button marks the intended upgrade path.")
@@ -10044,10 +10043,27 @@ if active_page == "Plans & Pricing":
         st.write("- Spouse conversations")
         st.write("- Advisor review meetings")
         st.write("- Exportable report")
-        st.metric("Price", "$19–$49")
+        st.metric("Price", "$39")
         if st.button("Get One-Time Report", use_container_width=True, key="plans_onetime_report"):
             st.session_state.show_premium_prompt = True
             st.info("One-time report checkout can be connected in the monetization phase.")
+
+    st.subheader("Everything Premium Includes")
+    premium_features = pd.DataFrame([
+        ["Detailed Blueprint", "More accurate inputs and projections"],
+        ["Detailed Spending Plan", "Better estimate of real retirement expenses"],
+        ["Account-Level Planning", "Traditional / Roth / taxable / cash breakdown"],
+        ["Retirement Age Optimizer", "See earliest, recommended, and safest retirement ages"],
+        ["Scenario Comparison", "Compare retire at 58 vs. 60 vs. 62 and other choices"],
+        ["2-Bucket Strategy", "Separate safety money from long-term growth money"],
+        ["Tax-Aware Withdrawal Plan", "Understand which accounts may be better to draw from"],
+        ["Roth Conversion Explorer", "Test possible Roth conversion strategies"],
+        ["Best Places to Retire", "Compare retirement locations"],
+        ["Full Blueprint Report", "Export/share a polished retirement summary"],
+        ["Blueprint Coach", "Ask plain-English questions about the plan"],
+        ["Saved Blueprint Comparisons", "Save and compare multiple plans"],
+    ], columns=["Premium Feature", "What It Helps With"])
+    st.dataframe(premium_features, use_container_width=True, hide_index=True)
 
     st.subheader("Simple feature comparison")
     comparison = pd.DataFrame([
@@ -10064,7 +10080,7 @@ if active_page == "Plans & Pricing":
     ], columns=["Feature", "Basic Free", "Detailed Premium", "One-Time Report"])
     st.dataframe(comparison, use_container_width=True, hide_index=True)
 
-    st.warning("Pricing is a planning placeholder. This app is educational only and does not provide financial, tax, legal, insurance, or investment advice.")
+    st.warning("Pricing can still be adjusted before launch. This app is educational only and does not provide financial, tax, legal, insurance, or investment advice.")
 
 
 
