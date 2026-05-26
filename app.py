@@ -6801,31 +6801,35 @@ if active_page == PAGE_NAMES[1]:
             if "annual_spending" in st.session_state:
                 st.session_state.annual_spending = quick_monthly_spending * 12
 
-            st.success("Quick Blueprint saved. Your starter retirement snapshot is ready.")
+            st.session_state.quick_blueprint_saved = True
+            st.success("Quick Blueprint saved. Your Basic Blueprint is ready.")
 
-            st.markdown("""
-            <div class="rb-next-box">
-              <div class="rb-next-heading">Your next step</div>
-              <div class="rb-muted">Review your dashboard to see whether your target retirement age looks realistic, how much money may be left, and what needs attention.</div>
-            </div>
-            """, unsafe_allow_html=True)
+    if st.session_state.get("quick_blueprint_saved"):
+        st.markdown("""
+        <div class="rb-next-box">
+          <div class="rb-next-heading">Basic Blueprint ready</div>
+          <div class="rb-muted">
+            Your starter blueprint uses the basics you entered: age, target retirement age, savings,
+            monthly retirement spending, Social Security, annual savings, and expected return.
+            Next, review the dashboard to see your first retirement snapshot.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-            n1, n2, n3 = st.columns(3)
-            with n1:
-                if st.button("View My Blueprint Dashboard", type="primary", use_container_width=True, key="quick_next_dashboard"):
-                    st.session_state.active_page = "Dashboard"
-                    st.rerun()
-            with n2:
-                if st.button("Add Spending Details", use_container_width=True, key="quick_next_spending"):
-                    st.session_state.active_page = "Budget Builder"
-                    st.rerun()
-            with n3:
-                if st.button("Unlock Detailed Blueprint", use_container_width=True, key="quick_next_unlock"):
-                    st.session_state.show_premium_prompt = True
-                    st.rerun()
+        b1, b2 = st.columns(2)
+        with b1:
+            if st.button("View My Basic Blueprint", type="primary", use_container_width=True, key="quick_next_dashboard"):
+                st.session_state.active_page = "Dashboard"
+                st.rerun()
+        with b2:
+            if st.button("Unlock Detailed Blueprint", use_container_width=True, key="quick_next_unlock"):
+                st.session_state.show_premium_prompt = True
+                st.rerun()
+
+        st.caption("Detailed spending, account-level planning, tax settings, Roth conversions, home equity, and bucket strategy are part of Detailed Blueprint.")
 
     if st.session_state.get("show_premium_prompt"):
-        st.info("Detailed Blueprint is a Premium feature. Free trial users can continue with Quick Blueprint, then unlock Premium for account-level planning, tax settings, Roth conversions, home equity, and bucket strategy.")
+        st.info("Detailed Blueprint is a Premium feature. Free trial users can continue with Quick Blueprint, then unlock Premium for account-level planning, tax settings, Roth conversions, home equity, detailed spending, and bucket strategy.")
 
     st.subheader("Detailed Blueprint")
     st.caption("Premium planning section. Use this when you want the full planning model: account types, tax settings, home equity, Roth conversions, and bucket strategy.")
@@ -6838,7 +6842,7 @@ if active_page == PAGE_NAMES[1]:
           <div class="rb-insight-kicker">Premium Feature</div>
           <div class="rb-insight-title">Unlock Detailed Blueprint</div>
           <div class="rb-insight-copy">
-            Detailed Blueprint adds account-level savings, tax settings, home equity, Roth conversions,
+            Detailed Blueprint adds detailed spending, account-level savings, tax settings, home equity, Roth conversions,
             household planning, and bucket strategy. Quick Blueprint remains available for the free trial.
           </div>
         </div>
