@@ -306,6 +306,24 @@ textarea:-ms-input-placeholder {
     opacity: 0 !important;
 }
 
+
+/* Stronger cleanup for Streamlit form placeholder/helper text */
+[data-baseweb="input"] input::placeholder,
+[data-baseweb="textarea"] textarea::placeholder,
+.stNumberInput input::placeholder,
+.stTextInput input::placeholder,
+.stTextArea textarea::placeholder,
+input[placeholder="Press Enter to submit form"]::placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
+}
+[data-baseweb="input"] input::-webkit-input-placeholder,
+.stNumberInput input::-webkit-input-placeholder,
+.stTextInput input::-webkit-input-placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -6786,161 +6804,176 @@ if active_page == PAGE_NAMES[1]:
             st.success("Quick Blueprint saved. Review the Dashboard or continue with Detailed Blueprint for more precise planning.")
 
     st.subheader("Detailed Blueprint")
-    st.caption("Use this section when you want the full planning model: account types, tax settings, home equity, Roth conversions, and bucket strategy.")
+    st.caption("Premium planning section. Use this when you want the full planning model: account types, tax settings, home equity, Roth conversions, and bucket strategy.")
 
-    with st.form("guided_form"):
-        st.subheader("Timeline")
-        c1, c2, c3 = st.columns(3)
-        current_age = c1.number_input("How old are you today?", 0, 100, st.session_state.current_age, help=FIELD_HELP["current_age"])
-        retire_age = c2.number_input("What age do you want to retire?", 0, 100, st.session_state.retire_age, help=FIELD_HELP["retire_age"])
-        end_age = c3.number_input("What age should the plan last until?", 0, 110, st.session_state.end_age, help=FIELD_HELP["end_age"])
+    is_premium_user = bool(st.session_state.get("is_premium_user", False))
 
-        st.subheader("Savings")
-        c1, c2, c3, c4 = st.columns(4)
-        traditional = c1.number_input("Traditional 401k/IRA total", min_value=0, value=st.session_state.traditional, step=10000, help=FIELD_HELP["traditional"])
-        roth = c2.number_input("Roth total", min_value=0, value=st.session_state.roth, step=10000, help=FIELD_HELP["roth"])
-        taxable = c3.number_input("Taxable brokerage", min_value=0, value=st.session_state.taxable, step=10000, help=FIELD_HELP["taxable"])
-        cash = c4.number_input("Bucket 1 / cash / safe money", min_value=0, value=st.session_state.cash, step=10000, help=FIELD_HELP["cash"])
-
-        st.subheader("Contributions, healthcare, Social Security")
-        c1, c2, c3, c4 = st.columns(4)
-        annual_contribution = c1.number_input("Annual contributions until retirement", min_value=0, value=st.session_state.annual_contribution, step=5000, help=FIELD_HELP["annual_contribution"])
-        healthcare = c2.number_input("Your annual healthcare in retirement", min_value=0, value=st.session_state.healthcare, step=1000, help=FIELD_HELP["healthcare"])
-        user_ss_age = c3.number_input("Your Social Security start age", 62, 70, st.session_state.user_ss_age, help=FIELD_HELP["user_ss_age"])
-        user_ss = c4.number_input("Your annual Social Security", min_value=0, value=st.session_state.user_ss, step=1000, help=FIELD_HELP["user_ss"])
-
-        st.subheader("Household")
-        has_spouse = st.checkbox(
-            "Include spouse or partner in this blueprint?",
-            value=st.session_state.has_spouse,
-            help="Turn this on if the retirement plan should include a spouse or partner. Leave it off for an individual plan."
-        )
-
-        if has_spouse:
-            st.info("Spouse / partner fields are included in this blueprint.")
+    if not is_premium_user:
+        st.markdown("""
+        <div class="rb-insight-card">
+          <div class="rb-insight-kicker">Premium Feature</div>
+          <div class="rb-insight-title">Unlock Detailed Blueprint</div>
+          <div class="rb-insight-copy">
+            Detailed Blueprint adds account-level savings, tax settings, home equity, Roth conversions,
+            household planning, and bucket strategy. Quick Blueprint remains available for the free trial.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.info("Free trial users can use Quick Blueprint above. Detailed Blueprint is reserved for Premium users.")
+    else:
+        with st.form("guided_form"):
+            st.subheader("Timeline")
             c1, c2, c3 = st.columns(3)
-            spouse_age = c1.number_input("Spouse current age", min_value=0, max_value=110, value=st.session_state.spouse_age, help=FIELD_HELP["spouse_age"])
-            spouse_retire_age = c2.number_input("Spouse retirement age", min_value=0, max_value=110, value=st.session_state.spouse_retire_age, help=FIELD_HELP["spouse_retire_age"])
-            spouse_plan_age = c3.number_input("Spouse plan-through age", min_value=0, max_value=120, value=st.session_state.spouse_plan_age, help=FIELD_HELP["spouse_plan_age"])
+            current_age = c1.number_input("How old are you today?", 0, 100, st.session_state.current_age, help=FIELD_HELP["current_age"])
+            retire_age = c2.number_input("What age do you want to retire?", 0, 100, st.session_state.retire_age, help=FIELD_HELP["retire_age"])
+            end_age = c3.number_input("What age should the plan last until?", 0, 110, st.session_state.end_age, help=FIELD_HELP["end_age"])
 
+            st.subheader("Savings")
             c1, c2, c3, c4 = st.columns(4)
-            spouse_annual_contribution = c1.number_input("Spouse annual contributions", min_value=0, value=st.session_state.spouse_annual_contribution, step=5000, help=FIELD_HELP["spouse_annual_contribution"])
-            spouse_healthcare = c2.number_input("Spouse annual healthcare", min_value=0, value=st.session_state.spouse_healthcare, step=1000, help=FIELD_HELP["spouse_healthcare"])
-            spouse_ss_age = c3.number_input("Spouse Social Security age", 62, 70, st.session_state.spouse_ss_age, help=FIELD_HELP["spouse_ss_age"])
-            spouse_ss = c4.number_input("Spouse annual Social Security", min_value=0, value=st.session_state.spouse_ss, step=1000, help=FIELD_HELP["spouse_ss"])
+            traditional = c1.number_input("Traditional 401k/IRA total", min_value=0, value=st.session_state.traditional, step=10000, help=FIELD_HELP["traditional"])
+            roth = c2.number_input("Roth total", min_value=0, value=st.session_state.roth, step=10000, help=FIELD_HELP["roth"])
+            taxable = c3.number_input("Taxable brokerage", min_value=0, value=st.session_state.taxable, step=10000, help=FIELD_HELP["taxable"])
+            cash = c4.number_input("Bucket 1 / cash / safe money", min_value=0, value=st.session_state.cash, step=10000, help=FIELD_HELP["cash"])
 
-            survivor_ss_strategy = st.selectbox(
-                "Survivor Social Security strategy",
-                ["Higher benefit continues", "User benefit only"],
-                index=0 if st.session_state.survivor_ss_strategy == "Higher benefit continues" else 1,
-                help="Usually, the surviving spouse keeps the higher Social Security benefit and loses the smaller one."
+            st.subheader("Contributions, healthcare, Social Security")
+            c1, c2, c3, c4 = st.columns(4)
+            annual_contribution = c1.number_input("Annual contributions until retirement", min_value=0, value=st.session_state.annual_contribution, step=5000, help=FIELD_HELP["annual_contribution"])
+            healthcare = c2.number_input("Your annual healthcare in retirement", min_value=0, value=st.session_state.healthcare, step=1000, help=FIELD_HELP["healthcare"])
+            user_ss_age = c3.number_input("Your Social Security start age", 62, 70, st.session_state.user_ss_age, help=FIELD_HELP["user_ss_age"])
+            user_ss = c4.number_input("Your annual Social Security", min_value=0, value=st.session_state.user_ss, step=1000, help=FIELD_HELP["user_ss"])
+
+            st.subheader("Household")
+            has_spouse = st.checkbox(
+                "Include spouse or partner in this blueprint?",
+                value=st.session_state.has_spouse,
+                help="Turn this on if the retirement plan should include a spouse or partner. Leave it off for an individual plan."
             )
-        else:
-            spouse_age = 0
-            spouse_retire_age = 0
-            spouse_plan_age = 90
-            spouse_annual_contribution = 0
-            spouse_healthcare = 0
-            spouse_ss_age = 62
-            spouse_ss = 0
-            survivor_ss_strategy = "Higher benefit continues"
-            st.caption("Individual plan selected. Spouse / partner fields are hidden and will not affect the projection.")
 
-        st.subheader("Assumptions")
-        c1, c2, c3 = st.columns(3)
-        growth_return = c1.slider("Growth return", 0.0, 15.0, st.session_state.growth_return * 100, help=FIELD_HELP["growth_return"]) / 100
-        safe_return = c2.slider("Bucket 1 safe return", 0.0, 10.0, st.session_state.safe_return * 100, help=FIELD_HELP["safe_return"]) / 100
-        inflation = c3.slider("Inflation", 0.0, 10.0, st.session_state.inflation * 100, help=FIELD_HELP["inflation"]) / 100
+            if has_spouse:
+                st.info("Spouse / partner fields are included in this blueprint.")
+                c1, c2, c3 = st.columns(3)
+                spouse_age = c1.number_input("Spouse current age", min_value=0, max_value=110, value=st.session_state.spouse_age, help=FIELD_HELP["spouse_age"])
+                spouse_retire_age = c2.number_input("Spouse retirement age", min_value=0, max_value=110, value=st.session_state.spouse_retire_age, help=FIELD_HELP["spouse_retire_age"])
+                spouse_plan_age = c3.number_input("Spouse plan-through age", min_value=0, max_value=120, value=st.session_state.spouse_plan_age, help=FIELD_HELP["spouse_plan_age"])
 
-        st.subheader("Strategy")
-        c1, c2 = st.columns(2)
-        annual_conversion = c1.number_input("Annual Roth conversion to test", min_value=0, value=int(st.session_state.annual_conversion), step=5000, help=FIELD_HELP["annual_conversion"])
-        bucket1_years = c2.number_input("Bucket 1 safety years of spending", min_value=0.0, max_value=10.0, value=float(st.session_state.bucket1_years), step=0.5, help="How many years of near-term retirement spending to keep in the safer Safety Bucket.")
-        bucket2_years = float(st.session_state.get("bucket2_years", 5.0))
-        c2.caption("Bucket 2 is the remaining long-term Growth Bucket. No extra bucket setup needed.")
+                c1, c2, c3, c4 = st.columns(4)
+                spouse_annual_contribution = c1.number_input("Spouse annual contributions", min_value=0, value=st.session_state.spouse_annual_contribution, step=5000, help=FIELD_HELP["spouse_annual_contribution"])
+                spouse_healthcare = c2.number_input("Spouse annual healthcare", min_value=0, value=st.session_state.spouse_healthcare, step=1000, help=FIELD_HELP["spouse_healthcare"])
+                spouse_ss_age = c3.number_input("Spouse Social Security age", 62, 70, st.session_state.spouse_ss_age, help=FIELD_HELP["spouse_ss_age"])
+                spouse_ss = c4.number_input("Spouse annual Social Security", min_value=0, value=st.session_state.spouse_ss, step=1000, help=FIELD_HELP["spouse_ss"])
 
-        st.subheader("Federal Tax Estimate")
-        st.caption("Phase 2: estimates federal ordinary income tax using IRS brackets, filing status, standard deduction, traditional withdrawals, Roth conversions, and taxable Social Security.")
-        t1, t2 = st.columns(2)
-        tax_year_options = sorted(TAX_TABLES.keys())
-        tax_year = t1.selectbox(
-            "Tax year",
-            tax_year_options,
-            index=tax_year_options.index(get_tax_year()) if get_tax_year() in tax_year_options else len(tax_year_options) - 1,
-            help=FIELD_HELP["tax_year"],
-        )
-        filing_keys = list(FILING_STATUS_OPTIONS.keys())
-        filing_status_label = t2.selectbox(
-            "Federal filing status",
-            [FILING_STATUS_OPTIONS[k] for k in filing_keys],
-            index=filing_keys.index(get_filing_status()) if get_filing_status() in filing_keys else 1,
-            help=FIELD_HELP["filing_status"],
-        )
-        filing_status = filing_keys[[FILING_STATUS_OPTIONS[k] for k in filing_keys].index(filing_status_label)]
-        tax_settings_preview = get_tax_settings(tax_year, filing_status)
-        st.info(f"Using {tax_year} federal brackets, {tax_settings_preview['label']}, and a standard deduction of {money(tax_settings_preview['standard_deduction'])}. Taxable Social Security is now estimated using provisional income thresholds. State taxes come in a later phase.")
+                survivor_ss_strategy = st.selectbox(
+                    "Survivor Social Security strategy",
+                    ["Higher benefit continues", "User benefit only"],
+                    index=0 if st.session_state.survivor_ss_strategy == "Higher benefit continues" else 1,
+                    help="Usually, the surviving spouse keeps the higher Social Security benefit and loses the smaller one."
+                )
+            else:
+                spouse_age = 0
+                spouse_retire_age = 0
+                spouse_plan_age = 90
+                spouse_annual_contribution = 0
+                spouse_healthcare = 0
+                spouse_ss_age = 62
+                spouse_ss = 0
+                survivor_ss_strategy = "Higher benefit continues"
+                st.caption("Individual plan selected. Spouse / partner fields are hidden and will not affect the projection.")
 
-        if st.session_state.enable_spending_change and int(st.session_state.spending_change_age or 0) > 0:
-            st.subheader("Planned Spending Change")
-            s1, s2 = st.columns(2)
-            s1.metric("Spending Change Age", int(st.session_state.spending_change_age))
-            s2.metric("New Monthly Spending", money(st.session_state.spending_change_monthly))
-            st.info("The projection uses this new spending amount starting at the selected age, then continues applying inflation.")
+            st.subheader("Assumptions")
+            c1, c2, c3 = st.columns(3)
+            growth_return = c1.slider("Growth return", 0.0, 15.0, st.session_state.growth_return * 100, help=FIELD_HELP["growth_return"]) / 100
+            safe_return = c2.slider("Bucket 1 safe return", 0.0, 10.0, st.session_state.safe_return * 100, help=FIELD_HELP["safe_return"]) / 100
+            inflation = c3.slider("Inflation", 0.0, 10.0, st.session_state.inflation * 100, help=FIELD_HELP["inflation"]) / 100
 
-        st.subheader("Home & Housing Strategy")
-        st.caption("Optional, but useful. Your home can affect retirement flexibility, mortgage cash flow, downsizing options, taxes, and relocation decisions.")
+            st.subheader("Strategy")
+            c1, c2 = st.columns(2)
+            annual_conversion = c1.number_input("Annual Roth conversion to test", min_value=0, value=int(st.session_state.annual_conversion), step=5000, help=FIELD_HELP["annual_conversion"])
+            bucket1_years = c2.number_input("Bucket 1 safety years of spending", min_value=0.0, max_value=10.0, value=float(st.session_state.bucket1_years), step=0.5, help="How many years of near-term retirement spending to keep in the safer Safety Bucket.")
+            bucket2_years = float(st.session_state.get("bucket2_years", 5.0))
+            c2.caption("Bucket 2 is the remaining long-term Growth Bucket. No extra bucket setup needed.")
 
-        c1, c2, c3 = st.columns(3)
-        home_value = c1.number_input("Current home value", min_value=0, value=int(st.session_state.home_value), step=10000, help="Estimated current market value of your primary home.")
-        mortgage_balance = c2.number_input("Remaining mortgage balance", min_value=0, value=int(st.session_state.mortgage_balance), step=5000, help="How much you still owe on the home.")
-        monthly_mortgage = c3.number_input("Monthly mortgage payment", min_value=0, value=int(st.session_state.monthly_mortgage), step=100, help="Principal and interest payment. If taxes and insurance are escrowed, you can include the full payment here.")
+            st.subheader("Federal Tax Estimate")
+            st.caption("Phase 2: estimates federal ordinary income tax using IRS brackets, filing status, standard deduction, traditional withdrawals, Roth conversions, and taxable Social Security.")
+            t1, t2 = st.columns(2)
+            tax_year_options = sorted(TAX_TABLES.keys())
+            tax_year = t1.selectbox(
+                "Tax year",
+                tax_year_options,
+                index=tax_year_options.index(get_tax_year()) if get_tax_year() in tax_year_options else len(tax_year_options) - 1,
+                help=FIELD_HELP["tax_year"],
+            )
+            filing_keys = list(FILING_STATUS_OPTIONS.keys())
+            filing_status_label = t2.selectbox(
+                "Federal filing status",
+                [FILING_STATUS_OPTIONS[k] for k in filing_keys],
+                index=filing_keys.index(get_filing_status()) if get_filing_status() in filing_keys else 1,
+                help=FIELD_HELP["filing_status"],
+            )
+            filing_status = filing_keys[[FILING_STATUS_OPTIONS[k] for k in filing_keys].index(filing_status_label)]
+            tax_settings_preview = get_tax_settings(tax_year, filing_status)
+            st.info(f"Using {tax_year} federal brackets, {tax_settings_preview['label']}, and a standard deduction of {money(tax_settings_preview['standard_deduction'])}. Taxable Social Security is now estimated using provisional income thresholds. State taxes come in a later phase.")
 
-        c1, c2, c3 = st.columns(3)
-        annual_property_taxes_home = c1.number_input("Annual property taxes", min_value=0, value=int(st.session_state.annual_property_taxes_home), step=500, help="Estimated yearly property tax bill for the home.")
-        mortgage_payoff_age = c2.number_input("Mortgage payoff age", min_value=0, max_value=110, value=int(st.session_state.mortgage_payoff_age), step=1, help="Age when the mortgage is expected to be paid off. Use 0 if unknown.")
-        retirement_housing_plan = c3.selectbox(
-            "Retirement housing plan",
-            ["Stay in Current Home", "Downsize", "Relocate", "Snowbird", "Unsure"],
-            index=["Stay in Current Home", "Downsize", "Relocate", "Snowbird", "Unsure"].index(st.session_state.retirement_housing_plan) if st.session_state.retirement_housing_plan in ["Stay in Current Home", "Downsize", "Relocate", "Snowbird", "Unsure"] else 4,
-            help="How you expect housing to change in retirement."
-        )
+            if st.session_state.enable_spending_change and int(st.session_state.spending_change_age or 0) > 0:
+                st.subheader("Planned Spending Change")
+                s1, s2 = st.columns(2)
+                s1.metric("Spending Change Age", int(st.session_state.spending_change_age))
+                s2.metric("New Monthly Spending", money(st.session_state.spending_change_monthly))
+                st.info("The projection uses this new spending amount starting at the selected age, then continues applying inflation.")
 
-        st.info(f"Estimated home equity: {money(max(home_value - mortgage_balance, 0))}")
+            st.subheader("Home & Housing Strategy")
+            st.caption("Optional, but useful. Your home can affect retirement flexibility, mortgage cash flow, downsizing options, taxes, and relocation decisions.")
 
-        save = st.form_submit_button("Save main answers", type="primary", use_container_width=True)
+            c1, c2, c3 = st.columns(3)
+            home_value = c1.number_input("Current home value", min_value=0, value=int(st.session_state.home_value), step=10000, help="Estimated current market value of your primary home.")
+            mortgage_balance = c2.number_input("Remaining mortgage balance", min_value=0, value=int(st.session_state.mortgage_balance), step=5000, help="How much you still owe on the home.")
+            monthly_mortgage = c3.number_input("Monthly mortgage payment", min_value=0, value=int(st.session_state.monthly_mortgage), step=100, help="Principal and interest payment. If taxes and insurance are escrowed, you can include the full payment here.")
 
-    if save:
-        for k, v in {
-            "current_age": current_age, "retire_age": retire_age, "end_age": end_age,
-            "traditional": traditional, "roth": roth, "taxable": taxable, "cash": cash,
-            "annual_contribution": annual_contribution, "healthcare": healthcare,
-            "user_ss_age": user_ss_age, "user_ss": user_ss,
-            "has_spouse": has_spouse,
-            "spouse_age": spouse_age,
-            "spouse_retire_age": spouse_retire_age,
-            "spouse_plan_age": spouse_plan_age,
-            "spouse_annual_contribution": spouse_annual_contribution,
-            "spouse_healthcare": spouse_healthcare,
-            "spouse_ss_age": spouse_ss_age,
-            "spouse_ss": spouse_ss,
-            "survivor_ss_strategy": survivor_ss_strategy,
-            "growth_return": growth_return, "safe_return": safe_return, "inflation": inflation,
-            "annual_conversion": annual_conversion, "bucket1_years": bucket1_years, "bucket2_years": bucket2_years,
-            "tax_year": tax_year, "filing_status": filing_status,
-            "home_value": home_value,
-            "mortgage_balance": mortgage_balance,
-            "monthly_mortgage": monthly_mortgage,
-            "annual_property_taxes_home": annual_property_taxes_home,
-            "mortgage_payoff_age": mortgage_payoff_age,
-            "retirement_housing_plan": retirement_housing_plan,
-        }.items():
-            st.session_state[k] = v
-        st.success("Main answers saved.")
+            c1, c2, c3 = st.columns(3)
+            annual_property_taxes_home = c1.number_input("Annual property taxes", min_value=0, value=int(st.session_state.annual_property_taxes_home), step=500, help="Estimated yearly property tax bill for the home.")
+            mortgage_payoff_age = c2.number_input("Mortgage payoff age", min_value=0, max_value=110, value=int(st.session_state.mortgage_payoff_age), step=1, help="Age when the mortgage is expected to be paid off. Use 0 if unknown.")
+            retirement_housing_plan = c3.selectbox(
+                "Retirement housing plan",
+                ["Stay in Current Home", "Downsize", "Relocate", "Snowbird", "Unsure"],
+                index=["Stay in Current Home", "Downsize", "Relocate", "Snowbird", "Unsure"].index(st.session_state.retirement_housing_plan) if st.session_state.retirement_housing_plan in ["Stay in Current Home", "Downsize", "Relocate", "Snowbird", "Unsure"] else 4,
+                help="How you expect housing to change in retirement."
+            )
 
-    render_premium_insight("Premium bucket strategy", df if can_run else None, "bucket")
-    render_three_bucket_strategy(df if can_run else None)
-    st.subheader("Compare 1 Bucket vs 2 Bucket")
-    render_bucket_strategy_comparison_panel(df if can_run else None)
+            st.info(f"Estimated home equity: {money(max(home_value - mortgage_balance, 0))}")
+
+            save = st.form_submit_button("Save main answers", type="primary", use_container_width=True)
+
+        if save:
+            for k, v in {
+                "current_age": current_age, "retire_age": retire_age, "end_age": end_age,
+                "traditional": traditional, "roth": roth, "taxable": taxable, "cash": cash,
+                "annual_contribution": annual_contribution, "healthcare": healthcare,
+                "user_ss_age": user_ss_age, "user_ss": user_ss,
+                "has_spouse": has_spouse,
+                "spouse_age": spouse_age,
+                "spouse_retire_age": spouse_retire_age,
+                "spouse_plan_age": spouse_plan_age,
+                "spouse_annual_contribution": spouse_annual_contribution,
+                "spouse_healthcare": spouse_healthcare,
+                "spouse_ss_age": spouse_ss_age,
+                "spouse_ss": spouse_ss,
+                "survivor_ss_strategy": survivor_ss_strategy,
+                "growth_return": growth_return, "safe_return": safe_return, "inflation": inflation,
+                "annual_conversion": annual_conversion, "bucket1_years": bucket1_years, "bucket2_years": bucket2_years,
+                "tax_year": tax_year, "filing_status": filing_status,
+                "home_value": home_value,
+                "mortgage_balance": mortgage_balance,
+                "monthly_mortgage": monthly_mortgage,
+                "annual_property_taxes_home": annual_property_taxes_home,
+                "mortgage_payoff_age": mortgage_payoff_age,
+                "retirement_housing_plan": retirement_housing_plan,
+            }.items():
+                st.session_state[k] = v
+            st.success("Main answers saved.")
+
+        render_premium_insight("Premium bucket strategy", df if can_run else None, "bucket")
+        render_three_bucket_strategy(df if can_run else None)
+        st.subheader("Compare 1 Bucket vs 2 Bucket")
+        render_bucket_strategy_comparison_panel(df if can_run else None)
 
 if active_page == PAGE_NAMES[2]:
     render_page_shell("Spending Plan", "Estimate your retirement lifestyle costs using either a quick monthly number or a more detailed category-by-category budget.", "💳")
