@@ -1093,7 +1093,7 @@ with hero_left:
         <div class="rb-logo">↗</div>
         <div>
           <div class="rb-hero-title">Retirement Blueprint 101</div>
-          <p class="rb-hero-subtitle">Your guided plan to retire with confidence. Built for people 45+ who want to know if they can retire in the next 2–10 years.</p>
+          <p class="rb-hero-subtitle">See when you can retire, how long your money may last, and what to improve before you make the leap.</p>
         </div>
       </div>
     </div>
