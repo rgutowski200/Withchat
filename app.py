@@ -2005,9 +2005,13 @@ def render_scenario_comparison_panel():
     )
 
     st.markdown("#### Simple comparison")
+    money_left_col = f"Projected Money Left at {planning_age}"
+    comp[money_left_col] = comp["Ending Portfolio"].map(lambda x: "Runs out" if float(x or 0) <= 0 else money(float(x)))
+
     simple_show = comp[[
         "Retirement Age",
         "Blueprint Score",
+        money_left_col,
         "Score Change",
         "Simple Status",
         "Plain-English Takeaway",
@@ -2021,6 +2025,10 @@ def render_scenario_comparison_panel():
         "Plain-English Takeaway": "What it means",
     })
     st.dataframe(simple_show, use_container_width=True, hide_index=True)
+    st.caption(
+        f"Projected Money Left at {planning_age} means the estimated portfolio balance remaining at the end of the plan. "
+        "It uses the same numbers from the projection: savings, contributions, retirement spending, income, taxes, and investment return assumptions."
+    )
 
     with st.expander("Show advanced numbers", expanded=False):
         advanced = comp[[
