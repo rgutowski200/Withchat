@@ -25,266 +25,6 @@ from reportlab.platypus import (
 st.set_page_config(page_title="Retirement Blueprint 101", layout="wide")
 
 
-st.markdown("""
-<style>
-.rb-roadmap {
-    background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
-    border: 1px solid #E2E8F0;
-    border-radius: 22px;
-    padding: 22px 22px 20px 22px;
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
-    margin-bottom: 18px;
-}
-.rb-roadmap-title {
-    font-size: 1.55rem;
-    font-weight: 800;
-    color: #0F172A;
-    margin-bottom: 8px;
-}
-.rb-roadmap-sub {
-    color: #64748B;
-    font-size: 0.98rem;
-    margin-bottom: 16px;
-}
-.rb-roadmap-grid {
-    display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 10px;
-    align-items: start;
-}
-.rb-step {
-    text-align: center;
-    position: relative;
-    padding-top: 4px;
-}
-.rb-step-num {
-    width: 42px;
-    height: 42px;
-    border-radius: 999px;
-    margin: 0 auto 10px auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 800;
-    font-size: 1rem;
-    background: #3B82F6;
-    box-shadow: 0 10px 22px rgba(59, 130, 246, 0.18);
-}
-.rb-step.done .rb-step-num { background: #16A34A; box-shadow: 0 10px 22px rgba(22, 163, 74, 0.18); }
-.rb-step-title {
-    color: #0F172A;
-    font-weight: 700;
-    font-size: 0.98rem;
-    line-height: 1.25;
-    margin-bottom: 4px;
-}
-.rb-step-copy {
-    color: #64748B;
-    font-size: 0.88rem;
-    line-height: 1.35;
-}
-.rb-step-line {
-    height: 3px;
-    background: linear-gradient(90deg, #22C55E 0%, #3B82F6 100%);
-    border-radius: 999px;
-    margin: 0 0 16px 0;
-}
-.rb-modern-card {
-    border: 1px solid #E2E8F0;
-    border-radius: 22px;
-    background: #FFFFFF;
-    padding: 20px;
-    min-height: 180px;
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
-}
-.rb-modern-card h4 {
-    margin: 0;
-    color: #0F172A;
-    font-size: 1rem;
-    font-weight: 800;
-}
-.rb-modern-muted {
-    color: #64748B;
-    font-size: 0.95rem;
-}
-.rb-modern-value {
-    font-size: 2rem;
-    font-weight: 800;
-    color: #0F172A;
-    margin: 14px 0 4px 0;
-}
-.rb-modern-value.green { color: #16A34A; }
-.rb-pill {
-    display: inline-block;
-    padding: 6px 12px;
-    border-radius: 999px;
-    background: #E8F5EC;
-    color: #15803D;
-    font-size: 0.85rem;
-    font-weight: 700;
-    margin-top: 4px;
-}
-.rb-next-step {
-    border: 1px solid #D9F0E0;
-    border-radius: 22px;
-    background: linear-gradient(180deg, #F7FCF8 0%, #EEF9F1 100%);
-    padding: 22px;
-    min-height: 260px;
-}
-.rb-next-step-title {
-    color: #166534;
-    font-size: 1.45rem;
-    font-weight: 800;
-    margin-bottom: 8px;
-}
-.rb-section-title {
-    color: #0F172A;
-    font-size: 1.35rem;
-    font-weight: 800;
-    margin-top: 8px;
-    margin-bottom: 10px;
-}
-.rb-premium-card-compact {
-    border: 1px solid #E2E8F0;
-    border-radius: 18px;
-    background: #FFFFFF;
-    padding: 16px;
-    min-height: 150px;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
-}
-.rb-premium-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 999px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #F1F5F9;
-    font-size: 18px;
-    margin-bottom: 10px;
-}
-.rb-premium-title {
-    color: #0F172A;
-    font-size: 0.98rem;
-    font-weight: 800;
-    line-height: 1.25;
-    margin-bottom: 6px;
-}
-.rb-premium-copy {
-    color: #64748B;
-    font-size: 0.9rem;
-    line-height: 1.4;
-    margin-bottom: 8px;
-}
-.rb-premium-badge {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 999px;
-    background: #EEF2FF;
-    color: #1D4ED8;
-    font-size: 0.76rem;
-    font-weight: 700;
-}
-@media (max-width: 1100px) {
-    .rb-roadmap-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-@media (max-width: 700px) {
-    .rb-roadmap-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-</style>
-""", unsafe_allow_html=True)
-
-
-
-st.markdown("""
-<style>
-/* =========================
-   Modern SaaS button system
-   ========================= */
-div.stButton > button {
-    width: 100%;
-    min-height: 54px;
-    border-radius: 16px;
-    border: 1px solid rgba(59, 130, 246, 0.12);
-    background: linear-gradient(180deg, #3B82F6 0%, #2563EB 100%);
-    color: #ffffff;
-    font-size: 1rem;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    padding: 0.85rem 1.1rem;
-    box-shadow:
-        0 12px 24px rgba(37, 99, 235, 0.18),
-        inset 0 1px 0 rgba(255, 255, 255, 0.16);
-    transition:
-        transform 0.18s ease,
-        box-shadow 0.18s ease,
-        filter 0.18s ease,
-        background 0.18s ease;
-}
-
-div.stButton > button:hover {
-    transform: translateY(-1px);
-    filter: brightness(1.02);
-    box-shadow:
-        0 16px 28px rgba(37, 99, 235, 0.22),
-        inset 0 1px 0 rgba(255, 255, 255, 0.18);
-}
-
-div.stButton > button:active {
-    transform: translateY(0px);
-    box-shadow:
-        0 8px 18px rgba(37, 99, 235, 0.18),
-        inset 0 1px 0 rgba(255, 255, 255, 0.12);
-}
-
-div.stButton > button:focus {
-    outline: none !important;
-    box-shadow:
-        0 0 0 4px rgba(59, 130, 246, 0.16),
-        0 16px 28px rgba(37, 99, 235, 0.20);
-}
-
-/* Secondary buttons */
-div.stButton > button[kind="secondary"] {
-    background: #ffffff;
-    color: #0F172A;
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    box-shadow:
-        0 8px 18px rgba(15, 23, 42, 0.06),
-        inset 0 1px 0 rgba(255, 255, 255, 0.7);
-}
-
-div.stButton > button[kind="secondary"]:hover {
-    background: #F8FAFC;
-    color: #0F172A;
-    border-color: rgba(148, 163, 184, 0.45);
-    box-shadow:
-        0 12px 24px rgba(15, 23, 42, 0.08),
-        inset 0 1px 0 rgba(255, 255, 255, 0.85);
-}
-
-div.stButton > button[kind="secondary"]:focus {
-    box-shadow:
-        0 0 0 4px rgba(148, 163, 184, 0.14),
-        0 12px 24px rgba(15, 23, 42, 0.08);
-}
-
-/* Slightly cleaner spacing for stacked button rows */
-div.stButton {
-    margin-top: 0.15rem;
-    margin-bottom: 0.15rem;
-}
-
-/* Optional: help nav / section buttons feel more SaaS */
-button p {
-    font-weight: 700;
-}
-</style>
-""", unsafe_allow_html=True)
-
-
-
 # -----------------------------
 # Visual polish / design system
 # -----------------------------
@@ -1765,62 +1505,94 @@ def premium_badge(text="Premium Preview"):
     st.markdown(f'<span class="rb-premium-badge">✨ {text}</span>', unsafe_allow_html=True)
 
 
-
 def render_premium_lock_cards():
-    st.markdown("### Premium Retirement Tools")
-    st.caption("Start with the main retirement planning tools below, then explore more advanced tools when you’re ready.")
-
     st.markdown("""
     <div class="rb-lock-grid">
-      <div class="rb-premium-card-compact"><div class="rb-premium-icon">🎯</div><div class="rb-premium-title">Smart Retirement Age Optimizer</div><div class="rb-premium-copy">Find the retirement age that gives the best balance of retiring sooner, safety, and long-term cushion.</div><div class="rb-premium-badge">Premium</div></div>
-      <div class="rb-premium-card-compact"><div class="rb-premium-icon">🪣</div><div class="rb-premium-title">2-Bucket Strategy</div><div class="rb-premium-copy">Split retirement money into safer spending money and long-term growth money.</div><div class="rb-premium-badge">Premium</div></div>
-      <div class="rb-premium-card-compact"><div class="rb-premium-icon">🔁</div><div class="rb-premium-title">Scenario Comparison</div><div class="rb-premium-copy">Compare retirement ages, spending changes, and Social Security timing side by side.</div><div class="rb-premium-badge">Premium</div></div>
-      <div class="rb-premium-card-compact"><div class="rb-premium-icon">💸</div><div class="rb-premium-title">Tax-Aware Withdrawal Plan</div><div class="rb-premium-copy">See which accounts may make sense to draw from first: taxable, traditional, or Roth.</div><div class="rb-premium-badge">Premium</div></div>
-      <div class="rb-premium-card-compact"><div class="rb-premium-icon">📄</div><div class="rb-premium-title">Full Blueprint Report</div><div class="rb-premium-copy">Export a polished report with executive summary, risks, action plan, taxes, and location insights.</div><div class="rb-premium-badge">Premium</div></div>
-      <div class="rb-premium-card-compact"><div class="rb-premium-icon">🤖</div><div class="rb-premium-title">Blueprint Coach</div><div class="rb-premium-copy">Ask plain-English questions about your retirement blueprint and get educational guidance.</div><div class="rb-premium-badge">Premium</div></div>
+      <div class="rb-lock-card">
+        <div class="rb-lock-icon">🎯</div>
+        <div class="rb-lock-title">Smart Retirement Age Optimizer</div>
+        <div class="rb-lock-copy">Find the retirement age that gives the best balance of retiring sooner, safety, and long-term cushion.</div>
+      </div>
+      <div class="rb-lock-card">
+        <div class="rb-lock-icon">🪣</div>
+        <div class="rb-lock-title">2-Bucket Strategy</div>
+        <div class="rb-lock-copy">Split retirement money into safer spending money and long-term growth money.</div>
+      </div>
+      <div class="rb-lock-card">
+        <div class="rb-lock-icon">🔁</div>
+        <div class="rb-lock-title">Scenario Comparison</div>
+        <div class="rb-lock-copy">Compare retirement ages, spending changes, and Social Security timing side by side.</div>
+      </div>
+      <div class="rb-lock-card">
+        <div class="rb-lock-icon">💸</div>
+        <div class="rb-lock-title">Tax-Aware Withdrawal Plan</div>
+        <div class="rb-lock-copy">See which accounts may make sense to draw from first: taxable, traditional, or Roth.</div>
+      </div>
+      <div class="rb-lock-card">
+        <div class="rb-lock-icon">🔄</div>
+        <div class="rb-lock-title">Roth Conversion Explorer</div>
+        <div class="rb-lock-copy">Estimate whether Roth conversions may help lower future taxes and reduce RMD pressure.</div>
+      </div>
+      <div class="rb-lock-card">
+        <div class="rb-lock-icon">📄</div>
+        <div class="rb-lock-title">Full Blueprint Report</div>
+        <div class="rb-lock-copy">Export a polished report with executive summary, risks, action plan, taxes, and location insights.</div>
+      </div>
+      <div class="rb-lock-card">
+        <div class="rb-lock-icon">🤖</div>
+        <div class="rb-lock-title">Blueprint Coach</div>
+        <div class="rb-lock-copy">Ask plain-English questions about your retirement blueprint and get educational guidance.</div>
+      </div>
+      <div class="rb-lock-card">
+        <div class="rb-lock-icon">📍</div>
+        <div class="rb-lock-title">Best Places to Retire</div>
+        <div class="rb-lock-copy">Compare retirement locations using taxes, cost of living, healthcare, climate, and lifestyle fit.</div>
+      </div>
+      <div class="rb-lock-card">
+        <div class="rb-lock-icon">📈</div>
+        <div class="rb-lock-title">Projection Table</div>
+        <div class="rb-lock-copy">Review the year-by-year math behind balances, income, withdrawals, taxes, and projected money left.</div>
+      </div>
     </div>
     """, unsafe_allow_html=True)
 
-    a1, a2, a3 = st.columns(3)
-    with a1:
-        if st.button("Open Age Optimizer", key="premium_main_age", use_container_width=True):
+    st.caption("Open a premium tool:")
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+        if st.button("Open Age Optimizer", use_container_width=True, key="premium_open_age_optimizer"):
             go_to_page("Retirement Age Optimizer")
-        if st.button("Open Tax-Aware Plan", key="premium_main_tax", use_container_width=True):
+
+        if st.button("Open Tax-Aware Plan", use_container_width=True, key="premium_open_tax_plan"):
             st.session_state.projection_focus = "Tax-Aware Withdrawal Plan"
             go_to_page("Projection Table")
-    with a2:
-        if st.button("Open 2-Bucket Strategy", key="premium_main_bucket", use_container_width=True):
-            st.session_state.dashboard_focus = "2-Bucket Strategy"
-            go_to_page("Dashboard")
-        if st.button("Open Blueprint Report", key="premium_main_report", use_container_width=True):
-            go_to_page("PDF Report")
-    with a3:
-        if st.button("Open Scenario Comparison", key="premium_main_scenario", use_container_width=True):
-            st.session_state.dashboard_focus = "Scenario Comparison"
-            go_to_page("Dashboard")
-        if st.button("Open Blueprint Coach", key="premium_main_coach", use_container_width=True):
+
+        if st.button("Open Blueprint Coach", use_container_width=True, key="premium_open_blueprint_coach"):
             go_to_page("AI Retirement Coach")
 
-    with st.expander("More Premium Tools", expanded=False):
-        st.markdown("""
-        <div class="rb-lock-grid">
-          <div class="rb-premium-card-compact"><div class="rb-premium-icon">🔄</div><div class="rb-premium-title">Roth Conversion Explorer</div><div class="rb-premium-copy">Estimate whether Roth conversions may help lower future taxes and reduce RMD pressure.</div><div class="rb-premium-badge">Premium</div></div>
-          <div class="rb-premium-card-compact"><div class="rb-premium-icon">📍</div><div class="rb-premium-title">Best Places to Retire</div><div class="rb-premium-copy">Compare retirement locations using taxes, cost of living, healthcare, climate, and lifestyle fit.</div><div class="rb-premium-badge">Premium</div></div>
-          <div class="rb-premium-card-compact"><div class="rb-premium-icon">📈</div><div class="rb-premium-title">Projection Table</div><div class="rb-premium-copy">Review the year-by-year math behind balances, income, withdrawals, taxes, and projected money left.</div><div class="rb-premium-badge">Premium</div></div>
-        </div>
-        """, unsafe_allow_html=True)
-        b1, b2, b3 = st.columns(3)
-        with b1:
-            if st.button("Open Roth Conversion Explorer", key="premium_more_roth", use_container_width=True):
-                st.session_state.dashboard_focus = "Roth Conversion Explorer"
-                go_to_page("Dashboard")
-        with b2:
-            if st.button("Open Best Places to Retire", key="premium_more_places", use_container_width=True):
-                go_to_page("Best Places to Retire")
-        with b3:
-            if st.button("Open Projection Table", key="premium_more_projection", use_container_width=True):
-                st.session_state.projection_focus = "Projection Table"
-                go_to_page("Projection Table")
+    with c2:
+        if st.button("Open 2-Bucket Strategy", use_container_width=True, key="premium_open_bucket_strategy"):
+            st.session_state.dashboard_focus = "2-Bucket Strategy"
+            go_to_page("Dashboard")
+
+        if st.button("Open Roth Conversion Explorer", use_container_width=True, key="premium_open_roth_explorer"):
+            st.session_state.dashboard_focus = "Roth Conversion Explorer"
+            go_to_page("Dashboard")
+
+        if st.button("Open Best Places to Retire", use_container_width=True, key="premium_open_best_places"):
+            go_to_page("Best Places to Retire")
+
+    with c3:
+        if st.button("Open Scenario Comparison", use_container_width=True, key="premium_open_scenario_comparison"):
+            st.session_state.dashboard_focus = "Scenario Comparison"
+            go_to_page("Dashboard")
+
+        if st.button("Open Blueprint Report", use_container_width=True, key="premium_open_blueprint_report"):
+            go_to_page("PDF Report")
+
+        if st.button("Open Projection Table", use_container_width=True, key="premium_open_projection_table"):
+            st.session_state.projection_focus = "Projection Table"
+            go_to_page("Projection Table")
 
 def build_blueprint_insight(df=None, page="general"):
     if df is None or getattr(df, "empty", True):
@@ -6034,135 +5806,6 @@ except Exception as _projection_error:
     can_run = False
 
 
-
-def render_dashboard_roadmap():
-    st.markdown("""
-    <div class="rb-roadmap">
-      <div class="rb-roadmap-title">Your Roadmap to a Confident Retirement</div>
-      <div class="rb-roadmap-sub">A simple path from entering your numbers to building a full retirement plan.</div>
-      <div class="rb-step-line"></div>
-      <div class="rb-roadmap-grid">
-        <div class="rb-step done">
-          <div class="rb-step-num">1</div>
-          <div class="rb-step-title">Enter Your Numbers</div>
-          <div class="rb-step-copy">Start your blueprint</div>
-        </div>
-        <div class="rb-step done">
-          <div class="rb-step-num">2</div>
-          <div class="rb-step-title">Get Your Score</div>
-          <div class="rb-step-copy">See where you stand</div>
-        </div>
-        <div class="rb-step">
-          <div class="rb-step-num">3</div>
-          <div class="rb-step-title">See When You Can Retire</div>
-          <div class="rb-step-copy">Find your best retirement age</div>
-        </div>
-        <div class="rb-step">
-          <div class="rb-step-num">4</div>
-          <div class="rb-step-title">Compare Better Options</div>
-          <div class="rb-step-copy">Explore scenarios and strategies</div>
-        </div>
-        <div class="rb-step">
-          <div class="rb-step-num">5</div>
-          <div class="rb-step-title">Take Action</div>
-          <div class="rb-step-copy">Build your action plan</div>
-        </div>
-        <div class="rb-step">
-          <div class="rb-step-num">6</div>
-          <div class="rb-step-title">Create Your Plan</div>
-          <div class="rb-step-copy">Get your full blueprint report</div>
-        </div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-def _dashboard_primary_next_step(df, rtv_score):
-    try:
-        rows = build_action_plan_rows(df, rtv_score)
-        if rows and len(rows) > 1:
-            top = rows[1]
-            return {
-                "action": top[0],
-                "why": top[1],
-                "impact": top[2],
-                "new_score": top[3]
-            }
-    except Exception:
-        pass
-    return {
-        "action": "Review your Action Plan",
-        "why": "Use the action plan to see the highest-impact ways to strengthen your retirement readiness.",
-        "impact": "+0",
-        "new_score": str(int(rtv_score)) if rtv_score is not None else "0",
-    }
-
-def render_dashboard_combo_overview(df, rtv_score, rtv_label):
-    planning_age = int(st.session_state.get("end_age", 90) or 90)
-    ending = float(df["End Total"].iloc[-1] or 0)
-    income_cov = float(df["Income Coverage Ratio"].mean() or 0)
-    chosen_age = int(st.session_state.get("retire_age", 0) or 0)
-    next_step = _dashboard_primary_next_step(df, rtv_score)
-
-    st.markdown('<div class="rb-section-title">At-a-glance plan snapshot</div>', unsafe_allow_html=True)
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.markdown(f"""
-        <div class="rb-modern-card">
-          <h4>Blueprint Score</h4>
-          <div class="rb-modern-value">{int(rtv_score)}/100</div>
-          <div class="rb-pill">{rtv_label}</div>
-          <div style="height:10px"></div>
-          <div class="rb-modern-muted">Your overall retirement readiness based on the current inputs.</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with c2:
-        st.markdown(f"""
-        <div class="rb-modern-card">
-          <h4>Recommended Retirement Age</h4>
-          <div class="rb-modern-value">{chosen_age}</div>
-          <div class="rb-pill">Current plan setting</div>
-          <div style="height:10px"></div>
-          <div class="rb-modern-muted">Use Age Optimizer to compare earlier and later retirement ages side by side.</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with c3:
-        st.markdown(f"""
-        <div class="rb-modern-card">
-          <h4>Money Left at {planning_age}</h4>
-          <div class="rb-modern-value green">{money(ending)}</div>
-          <div class="rb-pill">Projected</div>
-          <div style="height:10px"></div>
-          <div class="rb-modern-muted">Estimated portfolio balance remaining at the end of the plan.</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with c4:
-        st.markdown(f"""
-        <div class="rb-modern-card">
-          <h4>Income Coverage</h4>
-          <div class="rb-modern-value">{pct(income_cov)}</div>
-          <div class="rb-pill">On track</div>
-          <div style="height:10px"></div>
-          <div class="rb-modern-muted">Percent of retirement spending covered by non-portfolio income.</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    left, right = st.columns([1, 1.65])
-    with left:
-        st.markdown(f"""
-        <div class="rb-next-step">
-          <div class="rb-next-step-title">Next Best Step</div>
-          <div style="color:#0F172A;font-size:1.05rem;font-weight:700;margin-bottom:8px;">{next_step['action']}</div>
-          <div class="rb-modern-muted" style="margin-bottom:14px;">{next_step['why']}</div>
-          <div class="rb-pill">Estimated Blueprint impact: {next_step['impact']}</div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("See Action Plan", key="dashboard_combo_action_plan", use_container_width=True):
-            go_to_page("Action Plan")
-    with right:
-        st.markdown('<div class="rb-modern-card"><h4>Projected Portfolio Value</h4><div class="rb-modern-muted" style="margin-top:4px;">See how the current plan may evolve over time.</div></div>', unsafe_allow_html=True)
-        st.pyplot(plot_portfolio_area_chart(df), use_container_width=True)
-
-
 if active_page == PAGE_NAMES[0]:
     st.markdown("""
     <div class="rb-page-title">Blueprint Dashboard</div>
@@ -6808,10 +6451,6 @@ if active_page == PAGE_NAMES[6]:
         ending = df["End Total"].iloc[-1]
         depleted = df["Unmet Need"].sum() > 0 or ending <= 0 or df["Age"].iloc[-1] < st.session_state.end_age
         rtv_score, rtv_label, rtv_reasons = calculate_rtv_score(df)
-
-        render_dashboard_roadmap()
-        render_dashboard_combo_overview(df, rtv_score, rtv_label)
-        render_premium_lock_cards()
 
 
         summary_dashboard = {
