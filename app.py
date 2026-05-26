@@ -1650,7 +1650,8 @@ def build_two_bucket_strategy(df=None, view_mode="retirement", return_context=Fa
             "Suggested Amount": bucket1_target,
             "Target Years": b1_years,
             "Example Holdings": "Cash, money market, CDs, short-term bonds",
-            "Risk Level": "Lower"
+            "Risk Level": "Lower",
+            "Assumed Return": float(st.session_state.get("safe_return", 0.045) or 0.045)
         },
         {
             "Bucket": "Bucket 2",
@@ -1659,7 +1660,8 @@ def build_two_bucket_strategy(df=None, view_mode="retirement", return_context=Fa
             "Suggested Amount": bucket2_target,
             "Target Years": "Long term",
             "Example Holdings": "Diversified stock/bond portfolio based on risk tolerance",
-            "Risk Level": "Moderate to higher"
+            "Risk Level": "Moderate to higher",
+            "Assumed Return": float(st.session_state.get("growth_return", 0.07) or 0.07)
         },
     ])
 
@@ -1716,12 +1718,14 @@ def render_two_bucket_strategy(df=None):
     for i, row in strat.iterrows():
         target_years = row['Target Years']
         target_text = f"{target_years:g} years" if isinstance(target_years, (int, float)) else str(target_years)
-        cards += f"""<div class="rb-bucket-card"><div class="rb-bucket-num">{i+1}</div><div class="rb-bucket-title">{row['Bucket']}: {row['Plain-English Name']}</div><div class="rb-bucket-amount">{money(row['Suggested Amount'])}</div><div class="rb-bucket-copy"><b>Purpose:</b> {row['Purpose']}<br/><b>Target:</b> {target_text}<br/><b>Examples:</b> {row['Example Holdings']}<br/><b>Risk:</b> {row['Risk Level']}</div></div>"""
+        cards += f"""<div class="rb-bucket-card"><div class="rb-bucket-num">{i+1}</div><div class="rb-bucket-title">{row['Bucket']}: {row['Plain-English Name']}</div><div class="rb-bucket-amount">{money(row['Suggested Amount'])}</div><div class="rb-bucket-copy"><b>Purpose:</b> {row['Purpose']}<br/><b>Target:</b> {target_text}<br/><b>Assumed return:</b> {pct(row['Assumed Return'])}<br/><b>Examples:</b> {row['Example Holdings']}<br/><b>Risk:</b> {row['Risk Level']}</div></div>"""
     st.markdown(f'<div class="rb-bucket-grid">{cards}</div>', unsafe_allow_html=True)
 
     show = strat.copy()
     show["Suggested Amount"] = show["Suggested Amount"].map(money)
     show["Target Years"] = show["Target Years"].map(lambda x: f"{x:g}" if isinstance(x, (int, float)) else x)
+    if "Assumed Return" in show.columns:
+        show["Assumed Return"] = show["Assumed Return"].map(pct)
     st.dataframe(show, use_container_width=True, hide_index=True)
 
     st.info(
@@ -1887,6 +1891,9 @@ def simulate_bucket_strategy(strategy="2 Bucket", df=None, stress=False):
             "Depletion Age": depleted_age if depleted_age is not None else "Not depleted",
             "Years Funded": len(out),
             "Stress Test": "Bad first 3 retired years" if stress else "Normal returns",
+            "Safety Bucket Return": safe_return if strategy == "2 Bucket" else None,
+            "Growth Bucket Return": growth_return,
+            "Bucket 1 Years": b1_years if strategy == "2 Bucket" else 0,
         }
     return out, summary
 
@@ -1925,8 +1932,8 @@ def render_bucket_strategy_comparison_panel(df=None):
         """
         Compare a simple **1-bucket** portfolio against the easier-to-understand **2-bucket** system.
 
-        - **1 Bucket:** all retirement money is treated as one pool.
-        - **2 Bucket:** Bucket 1 covers near-term spending; Bucket 2 stays invested for long-term growth.
+        - **1 Bucket:** all retirement money is treated as one pool and uses the growth return assumption.
+        - **2 Bucket:** Bucket 1 holds the selected years of safer spending money and uses the Bucket 1 safe return. Bucket 2 holds the rest and uses the growth return.
         """
     )
 
@@ -1943,28 +1950,100 @@ def render_bucket_strategy_comparison_panel(df=None):
         st.info("Not enough projection data to compare bucket strategies yet.")
         return
 
-    c1, c2 = st.columns(2)
-    for col, strategy in zip([c1, c2], ["1 Bucket", "2 Bucket"]):
-        row = summary_df[summary_df["Strategy"] == strategy].iloc[0]
-        delta = float(row.get("Ending Change vs 1 Bucket", 0) or 0)
-        col.metric(strategy, money(row["Ending Portfolio"]), f"{money(delta)} vs 1 Bucket")
-        col.caption(row["Plain-English Meaning"])
+    one = summary_df[summary_df["Strategy"] == "1 Bucket"].iloc[0]
+    two = summary_df[summary_df["Strategy"] == "2 Bucket"].iloc[0]
+    delta = float(two.get("Ending Change vs 1 Bucket", 0) or 0)
+    abs_delta = abs(delta)
+    growth_return = float(st.session_state.get("growth_return", 0.07) or 0.07)
+    safe_return = float(st.session_state.get("safe_return", 0.045) or 0.045)
+    bucket1_years = float(st.session_state.get("bucket1_years", 3) or 3)
 
-    show = summary_df.copy()
-    for money_col in ["Ending Portfolio", "Lowest Portfolio", "Total Withdrawals", "Total Refills", "Shortfall", "Ending Change vs 1 Bucket", "Shortfall Change vs 1 Bucket"]:
-        if money_col in show.columns:
-            show[money_col] = show[money_col].map(money)
-    if "Max Withdrawal Rate" in show.columns:
-        show["Max Withdrawal Rate"] = show["Max Withdrawal Rate"].map(pct)
-    st.dataframe(show, use_container_width=True, hide_index=True)
+    st.markdown("#### What this comparison means")
+    st.info(
+        "These numbers show the **projected money left at the end of the plan** for each strategy. "
+        "A higher ending balance is not automatically 'better' for every person. The tradeoff is usually: "
+        "more growth potential with 1 Bucket versus more near-term safety with 2 Buckets."
+    )
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.metric("1 Bucket: projected money left", money(one["Ending Portfolio"]))
+        st.caption(f"All money uses the growth return assumption: {pct(growth_return)}.")
+    with c2:
+        st.metric("2 Bucket: projected money left", money(two["Ending Portfolio"]))
+        if delta < 0:
+            st.caption(f"Tradeoff: {money(abs_delta)} lower projected ending balance, with Bucket 1 safety money.")
+        elif delta > 0:
+            st.caption(f"Projected ending balance is {money(abs_delta)} higher than 1 Bucket in this test.")
+        else:
+            st.caption("Projected ending balance is the same as 1 Bucket in this test.")
+
+    r1, r2, r3 = st.columns(3)
+    r1.metric("Bucket 1 Safe Return", pct(safe_return))
+    r1.caption("Used for Safety Bucket money")
+    r2.metric("Bucket 2 Growth Return", pct(growth_return))
+    r2.caption("Used for Growth Bucket money")
+    r3.metric("Bucket 1 Size", f"{bucket1_years:g} years")
+    r3.caption("Years of expenses held safer")
+
+    if delta < 0:
+        st.warning(
+            f"In this scenario, the 2-bucket strategy leaves **{money(abs_delta)} less** at the end of the plan than 1 Bucket. "
+            "That does not mean it failed. It means some money was kept in the safer bucket at a lower assumed return, which can reduce growth but may make withdrawals easier to understand during rough markets."
+        )
+    elif delta > 0:
+        st.success(
+            f"In this scenario, the 2-bucket strategy leaves **{money(abs_delta)} more** at the end of the plan than 1 Bucket."
+        )
+
+    simple_rows = []
+    for _, row in summary_df.iterrows():
+        strategy = row["Strategy"]
+        ending = float(row["Ending Portfolio"] or 0)
+        shortfall = float(row.get("Shortfall", 0) or 0)
+        depletion = row.get("Depletion Age", "Not depleted")
+        if strategy == "1 Bucket":
+            return_used = f"{pct(growth_return)} on the full portfolio"
+            plain = "Simple and growth-focused, but more exposed to market drops early in retirement."
+        else:
+            return_used = f"{pct(safe_return)} on Bucket 1 / {pct(growth_return)} on Bucket 2"
+            if delta < 0:
+                plain = "More near-term safety, but lower projected ending balance in this test."
+            elif delta > 0:
+                plain = "More near-term safety and a higher projected ending balance in this test."
+            else:
+                plain = "More near-term safety with about the same projected ending balance."
+        simple_rows.append({
+            "Strategy": strategy,
+            "Projected Money Left": money(ending),
+            "Return Assumptions Used": return_used,
+            "Runs Out?": "No" if shortfall <= 0 and depletion == "Not depleted" else f"Yes / age {depletion}",
+            "Plain-English Meaning": plain,
+        })
+
+    st.markdown("#### Simple comparison")
+    st.dataframe(pd.DataFrame(simple_rows), use_container_width=True, hide_index=True)
+
+    with st.expander("Show advanced numbers", expanded=False):
+        st.caption("Advanced numbers are useful for deeper analysis, but the simple comparison above is the user-friendly summary.")
+        show = summary_df.copy()
+        for money_col in ["Ending Portfolio", "Lowest Portfolio", "Total Withdrawals", "Total Refills", "Shortfall", "Ending Change vs 1 Bucket", "Shortfall Change vs 1 Bucket"]:
+            if money_col in show.columns:
+                show[money_col] = show[money_col].map(money)
+        if "Max Withdrawal Rate" in show.columns:
+            show["Max Withdrawal Rate"] = show["Max Withdrawal Rate"].map(pct)
+        for rate_col in ["Safety Bucket Return", "Growth Bucket Return"]:
+            if rate_col in show.columns:
+                show[rate_col] = show[rate_col].map(lambda x: "N/A" if pd.isna(x) else pct(x))
+        st.dataframe(show, use_container_width=True, hide_index=True)
 
     if not paths_df.empty:
         fig, ax = plt.subplots(figsize=(9, 4.5))
         for strategy, group in paths_df.groupby("Strategy"):
             ax.plot(group["Age"], group["End Total"], label=strategy, linewidth=2)
-        ax.set_title("Projected Portfolio: 1 Bucket vs 2 Bucket")
+        ax.set_title("Projected Money Left Over Time: 1 Bucket vs 2 Bucket")
         ax.set_xlabel("Age")
-        ax.set_ylabel("Portfolio Value")
+        ax.set_ylabel("Projected Money Left")
         ax.legend()
         ax.grid(True, alpha=0.25)
         st.pyplot(fig, use_container_width=True)
@@ -1976,7 +2055,10 @@ def render_bucket_strategy_comparison_panel(df=None):
     else:
         st.info(f"Highest ending balance: **{best_ending['Strategy']}**. Lowest shortfall/risk pressure: **{lowest_shortfall['Strategy']}**. This is the tradeoff: more growth potential versus more downside protection.")
 
-    st.caption("Bucket comparison is educational and simplified. It does not reclassify every tax account or guarantee investment results. The main projection remains the source of truth for tax-aware withdrawals.")
+    st.warning(
+        "Educational purposes only. This comparison is a simplified planning illustration, not financial, tax, investment, or legal advice. It does not guarantee results or replace guidance from a qualified professional."
+    )
+    st.caption("The main projection remains the source of truth for tax-aware withdrawals. This bucket comparison is a strategy overlay using the return assumptions shown above.")
 
 
 
