@@ -1770,7 +1770,7 @@ def render_auth_form():
 user = auth_box()
 
 # Header / hero area
-hero_left, hero_right = st.columns([5, 1.05], vertical_alignment="center")
+hero_left = st.container()
 
 with hero_left:
     st.markdown("""
@@ -1785,31 +1785,11 @@ with hero_left:
     </div>
     """, unsafe_allow_html=True)
 
-with hero_right:
-    if user:
-        st.markdown(
-            f"""
-            <div class="rb-account-mini">
-              <div class="rb-account-mini-label">Signed in</div>
-              <div class="rb-account-mini-email">{user.email}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        if st.button("Logout", use_container_width=True, key="hero_logout_button"):
-            supabase.auth.sign_out()
-            st.session_state.user = None
-            st.session_state.show_auth_form = False
-            st.rerun()
-    else:
-        if st.button("Sign In", use_container_width=True, key="hero_signin_button"):
-            st.session_state.show_auth_form = True
-            st.rerun()
-
-
-# Show the sign-in form whenever the top-right Sign In button is clicked.
+# Top-right sign-in button removed for a cleaner full-width header.
+# Sign-in can still be shown from the dashboard/Saved Blueprints flow when needed.
 if not user and st.session_state.get("show_auth_form"):
     render_auth_form()
+
 
 
 def money(x):
@@ -8559,6 +8539,12 @@ div[data-testid="stDataFrame"] {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+
+/* Full-width hero after removing top-right sign-in button */
+.rb-hero {
+    width: 100% !important;
 }
 
 </style>
