@@ -1785,27 +1785,11 @@ with hero_left:
     </div>
     """, unsafe_allow_html=True)
 
-with hero_right:
-    if user:
-        st.markdown(
-            f"""
-            <div class="rb-account-chip" style="margin-bottom: 8px;">Signed in<small>{user.email}</small></div>
-            """,
-            unsafe_allow_html=True,
-        )
-        if st.button("Logout", use_container_width=True, key="hero_logout_button"):
-            supabase.auth.sign_out()
-            st.session_state.user = None
-            st.session_state.show_auth_form = False
-            st.rerun()
-    else:
-        if st.button("Not signed in — Sign in to save your blueprints", use_container_width=True, key="hero_signin_button"):
-            st.session_state.show_auth_form = True
-            st.rerun()
-
-# Show the sign-in form directly below the hero whenever the top-right button is clicked.
-if not user and st.session_state.get("show_auth_form"):
-    render_auth_form()
+# Account controls removed from the upper-right hero area for a cleaner layout.
+# Users can still use the planner. Sign-in/create-account can be surfaced later
+# from Saved Blueprints or the final monetization flow.
+if not user:
+    st.session_state.show_auth_form = False
 
 
 def money(x):
