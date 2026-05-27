@@ -6987,7 +6987,7 @@ if active_page == PAGE_NAMES[0]:
           <div class="rb-panel-title"><span>✅</span><span>Next Best Step</span></div>
           <div class="rb-next-box">
             <div class="rb-next-heading">Start with your blueprint inputs</div>
-            <div class="rb-muted">Begin with the core numbers. Once those are saved, the dashboard, projections, and premium tools become much more useful.</div>
+            <div class="rb-muted">Begin with the core numbers, then review your inputs before reading the dashboard.</div>
           </div>
           <div class="rb-tips">
             <div class="rb-tips-title">💡 Helpful Tips</div>
@@ -7516,8 +7516,8 @@ if active_page == PAGE_NAMES[3]:
         if st.button("Back: Spending Plan", use_container_width=True, key="back_from_income_to_budget"):
             go_to_page("Budget Builder")
     with next_cols[1]:
-        if st.button("Next: Retirement Dashboard", type="primary", use_container_width=True, key="next_from_income_to_dashboard"):
-            go_to_page("Retirement Dashboard")
+        if st.button("Next: Review Inputs", type="primary", use_container_width=True, key="next_from_income_to_review"):
+            go_to_page("Review Inputs")
 
 
 if active_page == PAGE_NAMES[4]:
@@ -7528,6 +7528,7 @@ if active_page == PAGE_NAMES[4]:
 
 if active_page == PAGE_NAMES[5]:
     render_page_shell("Review Inputs", "See a clean summary of your current inputs before running deeper analysis or sharing the results.", "📝")
+    render_guided_progress(4)
     page_help(
         "Review Answers",
         "This page summarizes your saved inputs before running the plan. Use it to catch missing or incorrect assumptions before trusting the results."
@@ -7875,10 +7876,16 @@ def render_basic_blueprint_dashboard():
 
     st.caption("Basic Blueprint is educational and simplified. It is not financial, tax, legal, insurance, or investment advice.")
 
-
-
+    st.divider()
+    nav_cols = st.columns([1, 1])
+    with nav_cols[0]:
+        if st.button("Back: Income Plan", use_container_width=True, key="review_inputs_back_income"):
+            go_to_page("Income Builder")
+    with nav_cols[1]:
+        if st.button("Next: Retirement Dashboard", type="primary", use_container_width=True, key="review_inputs_to_retirement_dashboard"):
+            go_to_page("Retirement Dashboard")
 if active_page == PAGE_NAMES[6]:
-    render_guided_progress(4)
+    render_guided_progress(5)
     if st.session_state.get("dashboard_focus"):
         focus_label = st.session_state.get("dashboard_focus")
         st.info(f"Opened from Premium Retirement Tools: **{focus_label}**. Use the premium tool buttons below or open advanced dashboard details.")
@@ -9386,6 +9393,17 @@ div[data-testid="stDataFrame"] {
 /* Premium tools placed directly under Retirement Dashboard explanation */
 .rb-dashboard-premium-spacer {
     height: 16px;
+}
+
+
+/* Six-step retirement blueprint path */
+.rb-progress-grid, .rb-step-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+}
+@media (max-width: 900px) {
+    .rb-progress-grid, .rb-step-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
 }
 
 </style>
