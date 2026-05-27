@@ -1785,12 +1785,29 @@ with hero_left:
     </div>
     """, unsafe_allow_html=True)
 
-# Account controls removed from the upper-right hero area for a cleaner layout.
-# The dashboard Sign In / Create Account button below still opens the auth form.
-pass
+with hero_right:
+    if user:
+        st.markdown(
+            f"""
+            <div class="rb-account-mini">
+              <div class="rb-account-mini-label">Signed in</div>
+              <div class="rb-account-mini-email">{user.email}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        if st.button("Logout", use_container_width=True, key="hero_logout_button"):
+            supabase.auth.sign_out()
+            st.session_state.user = None
+            st.session_state.show_auth_form = False
+            st.rerun()
+    else:
+        if st.button("Sign In", use_container_width=True, key="hero_signin_button"):
+            st.session_state.show_auth_form = True
+            st.rerun()
 
 
-# Show the sign-in form whenever any Sign In / Create Account button is clicked.
+# Show the sign-in form whenever the top-right Sign In button is clicked.
 if not user and st.session_state.get("show_auth_form"):
     render_auth_form()
 
@@ -8517,6 +8534,31 @@ div[data-testid="stDataFrame"] {
 .rb-card,
 .rb-kpi-card {
     min-width: 0 !important;
+}
+
+
+/* Compact top-right sign-in area */
+.rb-account-mini {
+    border: 1px solid #E2E8F0;
+    border-radius: 16px;
+    background: #FFFFFF;
+    padding: 10px 12px;
+    box-shadow: 0 8px 20px rgba(15,23,42,.05);
+    margin-bottom: 8px;
+    text-align: center;
+}
+.rb-account-mini-label {
+    color: #0F172A;
+    font-weight: 900;
+    font-size: .82rem;
+}
+.rb-account-mini-email {
+    color: #2563EB;
+    font-weight: 750;
+    font-size: .72rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 </style>
