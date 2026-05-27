@@ -4172,14 +4172,31 @@ def safe_int(value, default=0):
 
 
 
-def format_saved_datetime(value):
+def get_display_timezone():
+    # Streamlit Cloud usually stores created_at in UTC. Browser timezone requires
+    # a JS component, so for now we default to Eastern Time for the current target/testing group.
+    # Later we can replace this with automatic browser timezone detection.
+    return st.session_state.get("display_timezone", "America/Detroit")
+
+def format_saved_datetime(value, timezone_name=None):
     try:
         if not value:
             return ""
+        tz_name = timezone_name or get_display_timezone()
         dt = pd.to_datetime(value)
-        return dt.strftime("%b %d, %Y • %I:%M %p")
+
+        # If timestamp has no timezone, treat it as UTC because Supabase/Streamlit saved times are usually UTC.
+        if getattr(dt, "tzinfo", None) is None:
+            dt = dt.tz_localize("UTC")
+
+        dt = dt.tz_convert(tz_name)
+        return dt.strftime("%b %d, %Y • %-I:%M %p")
     except Exception:
-        return str(value)
+        try:
+            dt = pd.to_datetime(value)
+            return dt.strftime("%b %d, %Y • %I:%M %p")
+        except Exception:
+            return str(value)
 
 
 def compact_money_label(x):
@@ -9778,14 +9795,13 @@ div[data-testid="stDataFrame"] {
                 recommendations = generate_recommendations_for_summary(summary)
                 saved_display_time = format_saved_datetime(scenario.get("created_at", ""))
 
-                expander_label = f"{scenario['scenario_name']}  •  {summary['label']}"
+                expander_label = f"{scenario['scenario_name']}  •  Saved {saved_display_time}  •  {summary['label']}"
                 with st.expander(expander_label, expanded=(idx == 0)):
                     st.markdown(
                         f"""
                         <div class="scenario-card-header">
                             <div class="scenario-title-wrap">
-                                <span class="scenario-title">{scenario['scenario_name']}</span>\n                                <span class="scenario-date">Saved {saved_display_time}</span>
-                                <span class="{summary['badge']}">{summary['label']}</span>
+                                <span class="scenario-title">{scenario['scenario_name']}</span>\n                                <span class="{summary['badge']}">{summary['label']}</span>
                                 {"<span class='badge-current'>Current</span>" if idx == 0 else ""}
                                 {f"<span class='badge-work'>{selected_text}</span>" if selected_text else ""}
                             
