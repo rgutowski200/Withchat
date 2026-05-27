@@ -6915,32 +6915,6 @@ if active_page == PAGE_NAMES[0]:
         </div>
         """, unsafe_allow_html=True)
 
-        st.markdown(f"""
-        <div class="rb-dashboard-explain">
-          <div class="rb-explain-kicker">Retirement Dashboard Explanation</div>
-          <div class="rb-explain-title">Why these numbers look this way</div>
-          <div class="rb-explain-copy">
-            {dashboard_reason_html}
-          </div>
-          <div class="rb-explain-next">
-            <div class="rb-explain-next-title">What to look at next</div>
-            <ul>{dashboard_ideas_html}</ul>
-          </div>
-          <div class="rb-explain-note">
-            <b>Important:</b> The age shown is your <b>current target age being tested</b>, not a recommendation that you should retire at that age.
-            The Action Plan is the next step to see what changes may improve the score.
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        next_cols_explain = st.columns([1, 1])
-        with next_cols_explain[0]:
-            if st.button("Next: See Ideas to Improve My Score", type="primary", use_container_width=True, key="dashboard_explanation_to_action"):
-                go_to_page("Recommendations")
-        with next_cols_explain[1]:
-            if st.button("Save This Baseline First", use_container_width=True, key="dashboard_explanation_to_saved"):
-                go_to_page("Saved Scenarios")
-
         st.markdown("""
         <div class="rb-save-callout">
           <div>
@@ -8075,6 +8049,101 @@ if active_page == PAGE_NAMES[6]:
     with next_cols[1]:
         if st.button("Review Projection", use_container_width=True, key="next_from_dashboard_to_projection"):
             go_to_page("Projection Table")
+
+        retirement_dashboard_reason_bits = []
+        retirement_dashboard_idea_bits = []
+
+        dashboard_score_val = rtv_score if "rtv_score" in locals() else 0
+        dashboard_end_total = float(df["End Total"].iloc[-1] or 0) if "End Total" in df.columns else 0
+        dashboard_unmet_need = float(df["Unmet Need"].sum() or 0) if "Unmet Need" in df.columns else 0
+
+        dashboard_target_age = int(st.session_state.get("retire_age", 0) or 0)
+        dashboard_ss_age = int(st.session_state.get("ss_start_age", 62) or 62)
+        dashboard_plan_age = int(st.session_state.get("end_age", 90) or 90)
+        dashboard_ss_gap = max(0, dashboard_ss_age - dashboard_target_age) if dashboard_target_age else 0
+        dashboard_healthcare_gap = max(0, min(65, dashboard_plan_age) - dashboard_target_age) if dashboard_target_age else 0
+
+        dashboard_avg_gap = float(df["Portfolio Need"].mean() if "Portfolio Need" in df.columns else 0)
+        if dashboard_avg_gap <= 0 and "Total Spending" in df.columns and "Total Non-Portfolio Income" in df.columns:
+            dashboard_avg_gap = float((df["Total Spending"] - df["Total Non-Portfolio Income"]).clip(lower=0).mean())
+        dashboard_monthly_gap = max(dashboard_avg_gap, 0) / 12
+
+        if dashboard_score_val < 60:
+            retirement_dashboard_reason_bits.append(f"<b>Blueprint Score:</b> Your score is <b>{dashboard_score_val}/100</b>. This plan needs work before it looks retirement-ready.")
+            retirement_dashboard_idea_bits.extend(["Try a later retirement age.", "Try lowering monthly spending.", "Add income sources if available."])
+        elif dashboard_score_val < 80:
+            retirement_dashboard_reason_bits.append(f"<b>Blueprint Score:</b> Your score is <b>{dashboard_score_val}/100</b>. This plan may be possible, but the cushion is thin.")
+            retirement_dashboard_idea_bits.extend(["Build more cushion before retirement.", "Stress test bad market years.", "Compare Social Security timing."])
+        else:
+            retirement_dashboard_reason_bits.append(f"<b>Blueprint Score:</b> Your score is <b>{dashboard_score_val}/100</b>. This plan looks stronger under the current assumptions, but it should still be stress-tested.")
+            retirement_dashboard_idea_bits.extend(["Save this version as your baseline.", "Run stress tests to see how it handles bad years.", "Compare one or two alternate retirement ages."])
+
+        if dashboard_ss_gap > 0:
+            retirement_dashboard_reason_bits.append(f"<b>Social Security gap:</b> There are about <b>{dashboard_ss_gap} year(s)</b> between the tested retirement age and when Social Security starts. During that gap, savings may need to carry more of the spending.")
+            retirement_dashboard_idea_bits.append("Use the Action Plan to test whether delaying retirement or changing Social Security timing improves the score.")
+        else:
+            retirement_dashboard_reason_bits.append("<b>Social Security timing:</b> Social Security appears to start at or before the tested retirement age, which can reduce pressure on savings.")
+
+        if dashboard_healthcare_gap > 0:
+            retirement_dashboard_reason_bits.append(f"<b>Healthcare bridge:</b> There are about <b>{dashboard_healthcare_gap} year(s)</b> before Medicare age 65. Healthcare costs during this bridge period can reduce the plan cushion.")
+            retirement_dashboard_idea_bits.append("Check whether healthcare costs before Medicare are realistic.")
+        else:
+            retirement_dashboard_reason_bits.append("<b>Healthcare bridge:</b> The plan does not show a major pre-Medicare healthcare bridge based on the current ages.")
+
+        if dashboard_monthly_gap > 0:
+            retirement_dashboard_reason_bits.append(f"<b>Monthly gap from savings:</b> After estimated income is counted, about <b>{compact_money(dashboard_monthly_gap)}</b> per month still needs to come from savings.")
+            if dashboard_monthly_gap >= 8000:
+                retirement_dashboard_idea_bits.append("The savings gap is large, so spending, income, and retirement age are the biggest levers.")
+            elif dashboard_monthly_gap >= 3000:
+                retirement_dashboard_idea_bits.append("The savings gap is manageable to test, but still deserves attention.")
+        else:
+            retirement_dashboard_reason_bits.append("<b>Monthly gap from savings:</b> Estimated income appears to cover the monthly spending need in the early years.")
+
+        if dashboard_end_total <= 0 or dashboard_unmet_need > 0:
+            retirement_dashboard_reason_bits.append("<b>Money left:</b> The projection shows a shortfall or portfolio depletion. The biggest levers are usually retiring later, reducing spending, increasing income, or saving more before retirement.")
+            retirement_dashboard_idea_bits.append("Go to the Action Plan to see which lever may add the most points.")
+        else:
+            retirement_dashboard_reason_bits.append(f"<b>Money left:</b> The projection estimates about <b>{compact_money(dashboard_end_total)}</b> left at the end of the plan. This is a cushion estimate, not a guarantee.")
+            if dashboard_end_total < 250000:
+                retirement_dashboard_idea_bits.append("The ending cushion is thin, so stress testing matters.")
+            else:
+                retirement_dashboard_idea_bits.append("The ending balance is a cushion estimate. Use stress tests before relying on it.")
+
+        cleaned_dashboard_ideas = []
+        seen_dashboard_ideas = set()
+        for idea in retirement_dashboard_idea_bits:
+            if idea not in seen_dashboard_ideas:
+                cleaned_dashboard_ideas.append(idea)
+                seen_dashboard_ideas.add(idea)
+
+        retirement_dashboard_reason_html = "<br/><br/>".join(retirement_dashboard_reason_bits)
+        retirement_dashboard_ideas_html = "".join([f"<li>{idea}</li>" for idea in cleaned_dashboard_ideas[:5]])
+
+        st.markdown(f"""
+        <div class="rb-dashboard-explain">
+          <div class="rb-explain-kicker">Retirement Dashboard Explanation</div>
+          <div class="rb-explain-title">Why these numbers look this way</div>
+          <div class="rb-explain-copy">
+            {retirement_dashboard_reason_html}
+          </div>
+          <div class="rb-explain-next">
+            <div class="rb-explain-next-title">What to look at next</div>
+            <ul>{retirement_dashboard_ideas_html}</ul>
+          </div>
+          <div class="rb-explain-note">
+            <b>Important:</b> The age shown is your <b>current target age being tested</b>, not a recommendation that you should retire at that age.
+            The Action Plan is the next step to see what changes may improve the score.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        dashboard_explain_cols = st.columns([1, 1])
+        with dashboard_explain_cols[0]:
+            if st.button("Next: See Ideas to Improve My Score", type="primary", use_container_width=True, key="retirement_dashboard_to_action_plan"):
+                go_to_page("Recommendations")
+        with dashboard_explain_cols[1]:
+            if st.button("Save This Baseline First", use_container_width=True, key="retirement_dashboard_to_saved_blueprints"):
+                go_to_page("Saved Scenarios")
 
 
 if active_page == PAGE_NAMES[7]:
