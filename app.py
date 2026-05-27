@@ -4171,6 +4171,17 @@ def safe_int(value, default=0):
         return default
 
 
+
+def format_saved_datetime(value):
+    try:
+        if not value:
+            return ""
+        dt = pd.to_datetime(value)
+        return dt.strftime("%b %d, %Y • %I:%M %p")
+    except Exception:
+        return str(value)
+
+
 def compact_money_label(x):
     try:
         x = float(x)
@@ -8735,8 +8746,15 @@ if active_page == PAGE_NAMES[9]:
     }
 
     .scenario-date {
-        color: #4b5563;
-        font-size: 0.92rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: #F1F5F9;
+        color: #475569;
+        font-size: 0.82rem;
+        font-weight: 750;
         white-space: nowrap;
     }
 
@@ -9758,6 +9776,7 @@ div[data-testid="stDataFrame"] {
                 is_selected = sid in st.session_state.compare_scenarios
                 selected_text = "Selected" if is_selected else ""
                 recommendations = generate_recommendations_for_summary(summary)
+                saved_display_time = format_saved_datetime(scenario.get("created_at", ""))
 
                 expander_label = f"{scenario['scenario_name']}  •  {summary['label']}"
                 with st.expander(expander_label, expanded=(idx == 0)):
@@ -9765,7 +9784,7 @@ div[data-testid="stDataFrame"] {
                         f"""
                         <div class="scenario-card-header">
                             <div class="scenario-title-wrap">
-                                <span class="scenario-title">{scenario['scenario_name']}</span>
+                                <span class="scenario-title">{scenario['scenario_name']}</span>\n                                <span class="scenario-date">Saved {saved_display_time}</span>
                                 <span class="{summary['badge']}">{summary['label']}</span>
                                 {"<span class='badge-current'>Current</span>" if idx == 0 else ""}
                                 {f"<span class='badge-work'>{selected_text}</span>" if selected_text else ""}
@@ -9775,7 +9794,6 @@ div[data-testid="stDataFrame"] {
                         """,
                         unsafe_allow_html=True
                     )
-                    st.caption(f"Saved on: {scenario.get('created_at', '')}")
 
                     m1, m2, m3, m4, m5, m6 = st.columns([1, 1, 1.15, 1.15, 1.15, 0.95])
                     m1.metric("🗓️ Retire Age", summary["retire_age"])
