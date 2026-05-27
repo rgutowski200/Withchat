@@ -8058,6 +8058,8 @@ if active_page == PAGE_NAMES[6]:
 
 
 
+
+
         with st.expander("Advanced Dashboard Details", expanded=False):
             summary_dashboard = {
                 "traditional": float(st.session_state.traditional),
@@ -9273,6 +9275,90 @@ div[data-testid="stDataFrame"] {
 }
 .rb-explain-next-title {
     color: #075985 !important;
+    font-weight: 950 !important;
+    margin-bottom: 6px !important;
+}
+.rb-explain-next ul {
+    margin: 8px 0 0 20px !important;
+    padding: 0 !important;
+    color: #475569 !important;
+}
+.rb-explain-next li {
+    margin-bottom: 6px !important;
+    line-height: 1.4 !important;
+}
+.rb-explain-note {
+    margin-top: 16px !important;
+    color: #475569 !important;
+    font-size: .95rem !important;
+    line-height: 1.45 !important;
+}
+.rb-explain-note b {
+    color: #0f172a !important;
+    font-weight: 950 !important;
+}
+
+
+/* Equal-size Retirement Dashboard KPI cards */
+.rb-card-grid {
+    align-items: stretch !important;
+}
+.rb-card-grid .rb-card {
+    height: 100% !important;
+    min-height: 250px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+}
+.rb-card-grid .rb-card .rb-card-note {
+    margin-top: auto !important;
+}
+
+/* Light theme-matching explanation box under the cards */
+.rb-dashboard-explain-top {
+    margin-top: 18px !important;
+    margin-bottom: 24px !important;
+    width: 100% !important;
+}
+.rb-dashboard-explain {
+    border: 1px solid #C7D2FE !important;
+    border-radius: 22px !important;
+    background: linear-gradient(135deg, #F8FAFC 0%, #EEF6FF 48%, #ECFEFF 100%) !important;
+    padding: 22px 24px !important;
+    box-shadow: 0 12px 30px rgba(37,99,235,.07) !important;
+}
+.rb-explain-kicker {
+    color: #2563EB !important;
+    font-size: .78rem !important;
+    font-weight: 950 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .08em !important;
+    margin-bottom: 8px !important;
+}
+.rb-explain-title {
+    color: #0F172A !important;
+    font-size: 1.25rem !important;
+    font-weight: 950 !important;
+    margin-bottom: 12px !important;
+}
+.rb-explain-copy {
+    color: #64748B !important;
+    font-size: 1rem !important;
+    line-height: 1.55 !important;
+}
+.rb-explain-copy b {
+    color: #334155 !important;
+    font-weight: 950 !important;
+}
+.rb-explain-next {
+    margin-top: 18px !important;
+    border: 1px solid #BFDBFE !important;
+    background: rgba(239,246,255,.82) !important;
+    border-radius: 16px !important;
+    padding: 14px 16px !important;
+}
+.rb-explain-next-title {
+    color: #1D4ED8 !important;
     font-weight: 950 !important;
     margin-bottom: 6px !important;
 }
