@@ -6724,12 +6724,6 @@ def render_guided_progress(current_step: int):
 
 
 if active_page == PAGE_NAMES[0]:
-    st.markdown("""
-    <div class="rb-page-title">Home</div>
-    <div class="rb-accent-line"></div>
-    <div class="rb-muted">Start here, then move through the planner to build your retirement blueprint.</div>
-    """, unsafe_allow_html=True)
-
     render_guided_progress(1)
     missing_items_home = required_missing()
 
@@ -9112,6 +9106,54 @@ div[data-testid="stDataFrame"] {
     color: #0F172A;
     font-weight: 950;
     font-size: 1.35rem;
+}
+
+
+/* Polished status message card */
+.rb-status-card {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    border-radius: 20px;
+    padding: 18px 20px;
+    margin: 18px 0 22px 0;
+    box-shadow: 0 10px 26px rgba(15,23,42,.06);
+}
+.rb-status-card.ready {
+    border: 1px solid #BFDBFE;
+    background: linear-gradient(135deg, #EFF6FF 0%, #F8FAFC 55%, #ECFEFF 100%);
+}
+.rb-status-card.needs {
+    border: 1px solid #FDE68A;
+    background: linear-gradient(135deg, #FFFBEB 0%, #FFFFFF 65%);
+}
+.rb-status-icon {
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 950;
+    color: #FFFFFF;
+    background: #2563EB;
+    box-shadow: 0 8px 16px rgba(37,99,235,.18);
+}
+.rb-status-card.needs .rb-status-icon {
+    background: #F59E0B;
+    box-shadow: 0 8px 16px rgba(245,158,11,.18);
+}
+.rb-status-title {
+    color: #0F172A;
+    font-weight: 950;
+    font-size: 1.02rem;
+    margin-bottom: 4px;
+}
+.rb-status-copy {
+    color: #64748B;
+    font-size: .95rem;
+    line-height: 1.45;
 }
 
 </style>
