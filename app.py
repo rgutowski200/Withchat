@@ -7627,6 +7627,28 @@ def render_dashboard_close_to_mock(df, rtv_score, rtv_label, rtv_reasons):
         avg_gap = float((df["Total Spending"] - df["Total Non-Portfolio Income"]).clip(lower=0).mean())
     monthly_gap = money(max(avg_gap, 0) / 12)
 
+    # Money-left card explanation: show the age when money is projected to run out.
+    runout_age = None
+    try:
+        if "End Total" in df.columns:
+            runout_rows = df[df["End Total"] <= 0]
+            if not runout_rows.empty:
+                if "Age" in df.columns:
+                    runout_age = int(runout_rows["Age"].iloc[0])
+                else:
+                    runout_age = planning_age
+    except Exception:
+        runout_age = None
+
+    if runout_age is not None:
+        money_left_pill = f"Runs out at {runout_age}"
+        money_left_note = f"Projection reaches $0 around age {runout_age}."
+        money_left_class = "rb-kpi-value"
+    else:
+        money_left_pill = "Projected"
+        money_left_note = "Estimated balance at the end of the plan."
+        money_left_class = "rb-kpi-value green"
+
     # Header
     st.markdown(f"""
     <div class="rb-saas-hero">
@@ -7674,9 +7696,9 @@ def render_dashboard_close_to_mock(df, rtv_score, rtv_label, rtv_reasons):
         st.markdown(f"""
         <div class="rb-kpi-card-v2">
           <div class="rb-kpi-label">Money Left at {planning_age}</div>
-          <div class="rb-kpi-value green">{money(ending)}</div>
-          <div class="rb-kpi-pill">Projected</div>
-          <div class="rb-kpi-note">Estimated balance at the end of the plan.</div>
+          <div class="{money_left_class}">{money(ending)}</div>
+          <div class="rb-kpi-pill">{money_left_pill}</div>
+          <div class="rb-kpi-note">{money_left_note}</div>
         </div>
         """, unsafe_allow_html=True)
     with c4:
@@ -9440,6 +9462,12 @@ div[data-testid="stDataFrame"] {
     .rb-progress-grid, .rb-step-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     }
+}
+
+
+/* Money-left card runout note */
+.rb-kpi-card-v2 .rb-kpi-pill {
+    white-space: nowrap;
 }
 
 </style>
