@@ -7882,297 +7882,217 @@ if active_page == PAGE_NAMES[6]:
             st.pyplot(plot_withdrawal_rate_chart(df), use_container_width=True)
 
 if active_page == PAGE_NAMES[7]:
-    render_page_shell("Action Plan", "Get action-oriented ideas to improve readiness, reduce pressure, and strengthen the odds that your retirement blueprint succeeds.", "💡")
+    render_page_shell("Action Plan", "Plain-English next steps to help improve your retirement blueprint.", "💡")
+    render_guided_progress(5)
     page_help(
         "Recommendations",
-        "This page tests ways to improve your Blueprint Score, such as retiring later, spending less, contributing more, or changing Social Security timing. It also tests whether you may be able to spend more and still keep a strong score."
+        "This page explains what your retirement numbers mean in plain English and gives you practical ideas to improve the plan."
     )
-    st.caption("Practical ways to improve your Blueprint Score and understand whether you can safely spend more.")
 
-    st.caption("Tax estimates now include taxable Social Security when provisional income exceeds IRS thresholds. Roth and cash withdrawals are modeled as tax-free; taxable brokerage is still simplified until the capital-gains phase.")
     if not can_run:
-        st.info("Complete required inputs first.")
+        st.markdown("""
+        <div class="rb-insight-card">
+          <div class="rb-insight-kicker">Action Plan</div>
+          <div class="rb-insight-title">Complete your blueprint first</div>
+          <div class="rb-insight-copy">
+            Add your core numbers, spending plan, and income sources first. Then this page will explain
+            what looks strong, what needs attention, and what to try next.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Go to Start My Blueprint", type="primary", use_container_width=True, key="action_go_start"):
+            go_to_page("Guided Questions")
     else:
         depleted = df["Unmet Need"].sum() > 0 or df["End Total"].iloc[-1] <= 0 or df["Age"].iloc[-1] < st.session_state.end_age
-        max_wr = df["Withdrawal Rate"].max()
-        avg_wr = df["Withdrawal Rate"].mean()
+        max_wr = float(df["Withdrawal Rate"].max() or 0)
+        avg_wr = float(df["Withdrawal Rate"].mean() or 0)
         rtv_score, rtv_label, rtv_reasons = calculate_rtv_score(df)
-        ending_portfolio = df["End Total"].iloc[-1]
-        avg_income_coverage = df["Income Coverage Ratio"].mean()
+        ending_portfolio = float(df["End Total"].iloc[-1] or 0)
+        avg_income_coverage = float(df["Income Coverage Ratio"].mean() or 0)
+        end_age_val = int(st.session_state.get("end_age", 90) or 90)
+        retire_age_val = int(st.session_state.get("retire_age", 0) or 0)
 
-        st.subheader("Your Retirement Timing Viability")
+        avg_gap = 0.0
+        if "Portfolio Need" in df.columns:
+            avg_gap = float(df["Portfolio Need"].mean() or 0)
+        elif "Total Spending" in df.columns and "Total Non-Portfolio Income" in df.columns:
+            avg_gap = float((df["Total Spending"] - df["Total Non-Portfolio Income"]).clip(lower=0).mean())
+        monthly_gap = max(avg_gap, 0) / 12
 
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Blueprint Score", f"{rtv_score}/100", rtv_label)
-        c2.metric("Ending Portfolio", money(ending_portfolio))
-        c3.metric("Max Withdrawal Rate", pct(max_wr))
-        c4.metric("Income Coverage", pct(avg_income_coverage))
-
-        st.progress(rtv_score / 100)
-
-        if rtv_score >= 90:
-            st.success("Your plan looks very strong under these assumptions.")
-        elif rtv_score >= 80:
-            st.success("Your plan looks strong, but there may still be optimization opportunities.")
-        elif rtv_score >= 70:
-            st.warning("Your plan appears likely viable, but improvements could increase confidence.")
-        elif rtv_score >= 60:
-            st.warning("Your plan may work, but it needs optimization.")
+        if depleted or rtv_score < 60:
+            simple_result = "Needs Work"
+            simple_result_note = "Your current plan may run short unless something changes."
+            result_color = "#FEF2F2"
+        elif rtv_score < 80:
+            simple_result = "Close, But Review"
+            simple_result_note = "Your plan may work, but it needs a stronger cushion."
+            result_color = "#FFFBEB"
         else:
-            st.error("Your current plan appears high risk under these assumptions.")
+            simple_result = "Looks Good"
+            simple_result_note = "Your current plan appears realistic under these assumptions."
+            result_color = "#F0FDF4"
 
-        if rtv_reasons:
-            with st.expander("Why this score?"):
-                for reason in rtv_reasons:
-                    st.write(f"- {reason}")
+        if max_wr > 0.07:
+            pressure_title = "Withdrawal pressure"
+            pressure_plain = "Your savings may need to cover too much spending each year."
+            first_focus = "Lower spending, retire later, or add income."
+        elif avg_income_coverage < 0.30:
+            pressure_title = "Income gap"
+            pressure_plain = "A lot of retirement spending depends on your portfolio."
+            first_focus = "Review Social Security timing, pension, part-time income, or other income."
+        elif ending_portfolio < 250000:
+            pressure_title = "Low ending cushion"
+            pressure_plain = "The plan may survive, but there may not be much margin for surprises."
+            first_focus = "Build more cushion before increasing spending."
+        else:
+            pressure_title = "Plan cushion"
+            pressure_plain = "Your plan has a reasonable cushion based on the current projection."
+            first_focus = "Stress test the plan and compare a few options."
 
-        render_premium_insight("Highest-value planning lever", df, "general")
-        render_scenario_comparison_panel()
+        st.markdown(f"""
+        <div class="rb-insight-card">
+          <div class="rb-insight-kicker">Plain-English Summary</div>
+          <div class="rb-insight-title">Here’s what your retirement blueprint is telling you</div>
+          <div class="rb-insight-copy">
+            Your plan status is <b>{simple_result}</b>. {simple_result_note}
+            The biggest thing to watch right now is <b>{pressure_title.lower()}</b>: {pressure_plain}
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        st.divider()
+        st.markdown(f"""
+        <div class="rb-card-grid">
+          <div class="rb-card">
+            <div class="rb-card-top"><div class="rb-card-label">Blueprint Score</div><div class="rb-icon">☆</div></div>
+            <div class="rb-card-value">{rtv_score}/100</div>
+            <div class="rb-card-note">{rtv_label}. This is your overall readiness signal.</div>
+          </div>
+          <div class="rb-card">
+            <div class="rb-card-top"><div class="rb-card-label">Can I Retire at {retire_age_val}?</div><div class="rb-icon">✓</div></div>
+            <div class="rb-card-value">{simple_result}</div>
+            <div class="rb-card-note">{simple_result_note}</div>
+          </div>
+          <div class="rb-card">
+            <div class="rb-card-top"><div class="rb-card-label">Money Left at {end_age_val}</div><div class="rb-icon">$</div></div>
+            <div class="rb-card-value">{compact_money(ending_portfolio)}</div>
+            <div class="rb-card-note">Estimated money remaining at the end of the plan.</div>
+          </div>
+          <div class="rb-card">
+            <div class="rb-card-top"><div class="rb-card-label">Monthly Gap From Savings</div><div class="rb-icon">↗</div></div>
+            <div class="rb-card-value">{money(monthly_gap)}</div>
+            <div class="rb-card-note">Estimated monthly amount that needs to come from savings.</div>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        st.subheader("How to Improve Your Blueprint Score")
+        st.markdown(f"""
+        <div class="rb-next-box">
+          <div class="rb-next-heading">What this means</div>
+          <div class="rb-muted">
+            Think of this page like a retirement coach. It is not just showing numbers.
+            It is telling you where the plan is strongest, where it is weakest, and what to test next.
+            Right now, your first focus should be: <b>{first_focus}</b>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         actions = build_rtv_improvement_recommendations(df, rtv_score)
-        positive_actions = [a for a in actions if a["Blueprint Impact"] > 0]
+        positive_actions = [a for a in actions if a.get("Blueprint Impact", 0) > 0]
+
+        st.subheader("Your Next Best Step")
 
         if positive_actions:
             best = positive_actions[0]
-            st.success(
-                f"Highest-impact action: **{best['Action']}** could move your Blueprint Score from "
-                f"**{rtv_score} to {best['New Blueprint Score']}**."
-            )
+            best_action = best["Action"]
+            best_impact = best["Blueprint Impact"]
+            new_score = best["New Blueprint Score"]
 
-            action_df = pd.DataFrame(positive_actions[:8])
-            action_df["Blueprint Impact"] = action_df["Blueprint Impact"].map(lambda x: f"+{x}" if x > 0 else str(x))
-            action_df["Ending Portfolio"] = action_df["Ending Portfolio"].map(money)
-            action_df["Max Withdrawal Rate"] = action_df["Max Withdrawal Rate"].map(pct)
-            action_df["Income Coverage"] = action_df["Income Coverage"].map(pct)
-            action_df["Unmet Need"] = action_df["Unmet Need"].map(money)
-
-            st.dataframe(action_df, use_container_width=True, hide_index=True)
+            st.markdown(f"""
+            <div class="rb-insight-card">
+              <div class="rb-insight-kicker">Highest-Impact Action</div>
+              <div class="rb-insight-title">{best_action}</div>
+              <div class="rb-insight-copy">
+                This tested change could improve your Blueprint Score by about <b>+{best_impact}</b>,
+                moving it from <b>{rtv_score}</b> to about <b>{new_score}</b>.
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
         else:
-            st.info("Your current score is already strong or the tested changes did not materially improve your Blueprint Score.")
+            st.markdown("""
+            <div class="rb-insight-card">
+              <div class="rb-insight-kicker">Highest-Impact Action</div>
+              <div class="rb-insight-title">Your plan is already testing well</div>
+              <div class="rb-insight-copy">
+                The common improvement tests did not materially improve your score. Use stress tests,
+                scenario comparisons, and the report to confirm the plan still feels comfortable.
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
 
-        st.markdown("### Plain-English Recommendations")
+        st.subheader("Top Things to Try")
 
+        try_rows = []
         if max_wr > 0.07:
-            st.write("- **Reduce withdrawal pressure:** Try lowering spending, delaying retirement, or adding income before retirement.")
-        elif max_wr > 0.05:
-            st.write("- **Watch early withdrawals:** Your plan may benefit from a larger Bucket 1 or slightly lower early-retirement spending.")
+            try_rows.append(["Lower spending", "Reduces how much has to come out of savings each year.", "Try lowering spending by $500–$1,000/month."])
+            try_rows.append(["Retire later", "Gives savings more time to grow and reduces years of withdrawals.", "Test retiring 1–2 years later."])
+        elif avg_income_coverage < 0.30:
+            try_rows.append(["Add reliable income", "Less spending has to come from savings.", "Add pension, part-time work, rental income, or other income."])
+            try_rows.append(["Review Social Security timing", "Delaying Social Security can increase guaranteed income.", "Compare age 62, full retirement age, and 70."])
+        elif ending_portfolio < 250000:
+            try_rows.append(["Protect your cushion", "A smaller ending balance leaves less room for surprises.", "Avoid increasing spending until the plan is stronger."])
+            try_rows.append(["Build Bucket 1", "Safer money can help cover spending during market drops.", "Target a few years of near-term spending."])
         else:
-            st.write("- **Withdrawal pressure looks reasonable:** Your current spending level appears manageable in the projection.")
+            try_rows.append(["Stress test the plan", "A good plan should still survive some bad years.", "Run the confidence and stress tests."])
+            try_rows.append(["Compare better options", "Small timing changes can improve confidence.", "Test retirement ages and Social Security timing."])
 
-        if avg_income_coverage < 0.30:
-            st.write("- **Increase reliable income:** Consider Social Security timing, part-time income, pension options, or guaranteed income strategies.")
-        elif avg_income_coverage < 0.60:
-            st.write("- **Income coverage is moderate:** Your portfolio still matters, but outside income is helping.")
-        else:
-            st.write("- **Income coverage is strong:** Outside income is carrying a meaningful part of the plan.")
+        try_df = pd.DataFrame(try_rows, columns=["Thing to Try", "Why It Helps", "Simple Next Step"])
+        st.dataframe(try_df, use_container_width=True, hide_index=True)
 
-        if ending_portfolio > float(st.session_state.traditional + st.session_state.roth + st.session_state.taxable + st.session_state.cash):
-            st.write("- **You may have room for more spending:** Your ending balance is higher than your starting balance.")
-        elif ending_portfolio > 500000:
-            st.write("- **You have a healthy ending cushion:** The plan survives with meaningful assets remaining.")
-        else:
-            st.write("- **Protect the cushion:** Your ending balance is not huge, so avoid aggressive spending increases.")
+        st.subheader("Plain-English Explanation of the Numbers")
 
-        if st.session_state.end_age > 90:
-            st.write("- **Long planning horizon:** Planning past age 90 is conservative. Reducing the planning age can raise your Blueprint Score, but it also lowers longevity protection.")
-        elif st.session_state.end_age < 90:
-            st.write("- **Shorter planning horizon:** This can improve the score, but make sure it matches your longevity assumptions.")
+        explain_df = pd.DataFrame([
+            ["Blueprint Score", f"{rtv_score}/100", "A simple readiness score. Higher means the plan has more cushion."],
+            ["Money Left at End", compact_money(ending_portfolio), "Estimated money remaining at the final planning age."],
+            ["Monthly Gap From Savings", money(monthly_gap), "The part of monthly spending not covered by Social Security, pension, or other income."],
+            ["Withdrawal Pressure", pct(max_wr), "How hard your spending is pulling from your savings. Lower is usually safer."],
+            ["Income Coverage", pct(avg_income_coverage), "How much of your spending is covered by income instead of savings."],
+        ], columns=["Item", "Your Result", "What It Means"])
+        st.dataframe(explain_df, use_container_width=True, hide_index=True)
 
-        st.divider()
+        with st.expander("Show advanced numbers"):
+            st.caption("These are helpful for deeper analysis, but the plain-English summary above is the main takeaway.")
+            advanced_df = pd.DataFrame([{
+                "Blueprint Score": f"{rtv_score}/100",
+                "Label": rtv_label,
+                "Ending Portfolio": money(ending_portfolio),
+                "Max Withdrawal Rate": pct(max_wr),
+                "Average Withdrawal Rate": pct(avg_wr),
+                "Average Income Coverage": pct(avg_income_coverage),
+                "Unmet Need": money(df["Unmet Need"].sum()),
+            }])
+            st.dataframe(advanced_df, use_container_width=True, hide_index=True)
 
-        st.subheader("Can You Spend More?")
+            if rtv_reasons:
+                st.markdown("**Why this score?**")
+                for reason in rtv_reasons:
+                    st.write(f"- {reason}")
 
-        spend_more_rows = build_spend_more_tests(rtv_score)
+        st.subheader("Premium Planning Tools")
+        st.caption("Use these tools when you want to go from a general answer to a more precise retirement strategy.")
 
-        if spend_more_rows:
-            spend_df = pd.DataFrame(spend_more_rows)
-            safe_spend = spend_df[spend_df["New Blueprint Score"] >= 80]
+        tool_cols = st.columns(3)
+        with tool_cols[0]:
+            if st.button("Compare Retirement Ages", use_container_width=True, key="action_age_optimizer"):
+                go_to_page("Retirement Age Optimizer")
+        with tool_cols[1]:
+            if st.button("Review Projection Table", use_container_width=True, key="action_projection"):
+                go_to_page("Projection Table")
+        with tool_cols[2]:
+            if st.button("Create Blueprint Report", use_container_width=True, key="action_report"):
+                go_to_page("PDF Report")
 
-            if not safe_spend.empty:
-                best_spend = safe_spend.iloc[-1]
-                st.success(
-                    f"You may be able to spend more. Tested increase: **{best_spend['Scenario']}** "
-                    f"still leaves your Blueprint Score at **{int(best_spend['New Blueprint Score'])}**."
-                )
-            else:
-                st.warning("The tested spending increases lower your Blueprint Score below the strong range. Increase spending carefully.")
+        st.caption("Educational planning tool only. Not financial, tax, legal, insurance, or investment advice.")
 
-            spend_df["New Monthly Spending"] = spend_df["New Monthly Spending"].map(money)
-            spend_df["Blueprint Impact"] = spend_df["Blueprint Impact"].map(lambda x: f"{x:+}")
-            spend_df["Ending Portfolio"] = spend_df["Ending Portfolio"].map(money)
-            spend_df["Max Withdrawal Rate"] = spend_df["Max Withdrawal Rate"].map(pct)
-
-            st.dataframe(spend_df, use_container_width=True, hide_index=True)
-
-        st.divider()
-
-        st.subheader("Spending Target Finder")
-        st.write(
-            "This tool estimates what monthly spending level may help the plan reach a target Blueprint Score. "
-            "It can also show whether the plan may support more spending."
-        )
-
-        target_rtv_score = st.slider(
-            "Target Blueprint Score",
-            min_value=60,
-            max_value=95,
-            value=80,
-            step=5,
-            help="Higher targets are more conservative. 80 is a reasonable starting point for a likely viable plan."
-        )
-
-        if st.button("Find Suggested Monthly Spending"):
-            try:
-                spending_result = find_monthly_spending_for_target_score(target_rtv_score)
-
-                if spending_result is None:
-                    st.warning("Add household spending and complete the required inputs before using the Spending Target Finder.")
-                elif spending_result["suggested_monthly"] is None:
-                    st.error("The plan could not reach the target Blueprint Score by reducing spending alone. Try a later retirement age, more contributions, more income, or lower healthcare/housing costs.")
-                else:
-                    current_monthly = spending_result["current_monthly"]
-                    suggested_monthly = spending_result["suggested_monthly"]
-                    monthly_difference = spending_result["monthly_difference"]
-
-                    c1, c2, c3, c4 = st.columns(4)
-                    c1.metric("Current Monthly Spending", money(current_monthly))
-                    c2.metric("Suggested Monthly Spending", money(suggested_monthly))
-                    c3.metric("Monthly Difference", money(monthly_difference))
-                    c4.metric("Estimated Blueprint Score", f"{spending_result['suggested_score']}/100", spending_result["suggested_label"])
-
-                    if spending_result["mode"] == "lower":
-                        st.warning(
-                            f"To target an RTV score of {target_rtv_score}+, consider lowering spending by about "
-                            f"{money(abs(monthly_difference))} per month."
-                        )
-                    else:
-                        if suggested_monthly > current_monthly * 1.02:
-                            st.success(
-                                f"Your plan may support about {money(monthly_difference)} more spending per month "
-                                f"while still targeting an RTV score of {target_rtv_score}+."
-                            )
-                        else:
-                            st.info(
-                                f"Your current spending is close to the estimated sustainable level for an RTV score of {target_rtv_score}+."
-                            )
-
-                    st.caption(
-                        "This is an educational estimate. It uses the app's Blueprint Score model and current assumptions, not financial advice."
-                    )
-
-            except Exception as e:
-                st.error(f"Spending Target Finder could not run: {e}")
-
-        st.divider()
-
-        st.subheader("Spending Change Recommendations")
-        if st.session_state.enable_spending_change and int(st.session_state.spending_change_age or 0) > 0:
-            old_monthly = annual_household_spending() / 12
-            new_monthly = float(st.session_state.spending_change_monthly or 0)
-            change_age = int(st.session_state.spending_change_age or 0)
-
-            if new_monthly < old_monthly:
-                st.success(f"Your plan models lower spending starting at age {change_age}. This can improve long-term sustainability and reduce portfolio withdrawals.")
-            elif new_monthly > old_monthly:
-                st.warning(f"Your plan models higher spending starting at age {change_age}. Make sure the stress tests and Monte Carlo results still remain healthy.")
-            else:
-                st.info("Your later spending amount is the same as your current spending estimate.")
-        else:
-            st.info("Consider adding a later-life spending change if you expect spending to drop after travel, mortgage payoff, or other early-retirement expenses decline.")
-
-        st.divider()
-
-        st.subheader("Home & Housing Recommendations")
-        equity = home_equity()
-        payoff_age = int(st.session_state.mortgage_payoff_age or 0)
-        retire_age_val = int(st.session_state.retire_age or 0)
-        monthly_mort = float(st.session_state.monthly_mortgage or 0)
-        annual_prop_tax = float(st.session_state.annual_property_taxes_home or 0)
-
-        if equity >= 500000:
-            st.success("High housing flexibility: substantial home equity may provide options for downsizing, relocation, cash reserves, or legacy planning.")
-        elif equity >= 250000:
-            st.info("Moderate housing flexibility: home equity could become an important retirement planning lever.")
-        elif float(st.session_state.home_value or 0) > 0:
-            st.warning("Lower home equity: your home may provide less flexibility unless the mortgage is reduced or the home appreciates.")
-
-        if monthly_mort > 0 and payoff_age > retire_age_val:
-            st.warning("Mortgage continues into retirement: test whether paying it down faster, refinancing, or downsizing improves your Blueprint Score.")
-        elif monthly_mort > 0 and payoff_age > 0:
-            st.success("Mortgage payoff appears to happen before or around retirement, which may reduce retirement cash-flow pressure.")
-
-        if annual_prop_tax >= 10000:
-            st.warning("High property taxes: compare your current state/location against lower-tax retirement locations in the Best Places to Retire section.")
-        elif annual_prop_tax > 0:
-            st.info("Property taxes are included as a housing planning factor. Lower taxes may improve long-term retirement spending flexibility.")
-
-        if st.session_state.retirement_housing_plan == "Downsize":
-            st.success("Downsizing strategy: consider modeling a lower monthly budget and adding unlocked home equity to cash/taxable assets.")
-        elif st.session_state.retirement_housing_plan == "Relocate":
-            st.info("Relocation strategy: compare taxes, cost of living, healthcare access, and property taxes before choosing a retirement location.")
-        elif st.session_state.retirement_housing_plan == "Snowbird":
-            st.info("Snowbird strategy: model duplicate housing costs, travel, insurance, taxes, and whether renting first is safer than buying.")
-
-        st.divider()
-
-        st.subheader("When Should You Retire?")
-        st.caption("Portfolio at Retirement shows the balance when that retirement age begins. End of Plan Portfolio shows the amount left at the final plan age.")
-
-        possible = []
-        original = st.session_state.retire_age
-
-        for test_age in range(max(int(st.session_state.current_age), 18), min(int(st.session_state.end_age), 75) + 1):
-            st.session_state.retire_age = test_age
-            tdf = run_projection()
-
-            if not tdf.empty:
-                test_score, test_label, _ = calculate_rtv_score(tdf)
-                t_depleted = tdf["Unmet Need"].sum() > 0 or tdf["End Total"].iloc[-1] <= 0 or tdf["Age"].iloc[-1] < st.session_state.end_age
-
-                # Portfolio at Retirement = balance when retirement begins in this test scenario.
-                # End of Plan Portfolio = balance left at the final plan age.
-                retirement_row = tdf[tdf["Age"] == test_age]
-                if not retirement_row.empty:
-                    portfolio_at_retirement = retirement_row["Start Total"].iloc[0]
-                else:
-                    portfolio_at_retirement = tdf["Start Total"].iloc[0]
-
-                possible.append({
-                    "Retirement Age": test_age,
-                    "Blueprint Score": test_score,
-                    "Blueprint Label": test_label,
-                    "Portfolio at Retirement": portfolio_at_retirement,
-                    "End of Plan Portfolio": tdf["End Total"].iloc[-1],
-                    "Max Withdrawal Rate": tdf["Withdrawal Rate"].max(),
-                    "Avg Income Coverage": tdf["Income Coverage Ratio"].mean(),
-                    "Result": "Good" if (not t_depleted and test_score >= 80) else ("Possible" if not t_depleted else "Too Risky"),
-                })
-
-        st.session_state.retire_age = original
-
-        rdf = pd.DataFrame(possible)
-
-        if not rdf.empty:
-            good = rdf[rdf["Result"] == "Good"]
-            ok = rdf[rdf["Result"].isin(["Good", "Possible"])]
-
-            if not good.empty:
-                st.success(f"Recommended retirement age: **{int(good['Retirement Age'].iloc[0])}**")
-            elif not ok.empty:
-                st.warning(f"Earliest possible retirement age: **{int(ok['Retirement Age'].iloc[0])}**, but it may be aggressive.")
-            else:
-                st.error("No tested retirement age looked funded.")
-
-            show = rdf.copy()
-            show["Portfolio at Retirement"] = show["Portfolio at Retirement"].map(money)
-            show["End of Plan Portfolio"] = show["End of Plan Portfolio"].map(money)
-            show["Max Withdrawal Rate"] = show["Max Withdrawal Rate"].map(pct)
-            show["Avg Income Coverage"] = show["Avg Income Coverage"].map(pct)
-            st.dataframe(show, use_container_width=True, hide_index=True)
 
 if active_page == PAGE_NAMES[8]:
     render_page_shell("Projection", "Review the detailed annual projection behind the scenes, including balances, withdrawals, taxes, income, and ending values.", "📈")
@@ -8451,6 +8371,14 @@ div[role="radiogroup"] input {
 }
 .rb-kpi-value {
     font-size: clamp(1.65rem, 2.4vw, 2.35rem) !important;
+}
+
+
+/* Action Plan polish */
+.rb-insight-card b,
+.rb-next-box b {
+    color: #0f172a;
+    font-weight: 900;
 }
 
 </style>
