@@ -8095,52 +8095,171 @@ if active_page == PAGE_NAMES[7]:
 
 
 if active_page == PAGE_NAMES[8]:
-    render_page_shell("Projection", "Review the detailed annual projection behind the scenes, including balances, withdrawals, taxes, income, and ending values.", "📈")
+    render_page_shell("Projection", "A clean year-by-year view of how your retirement blueprint may play out.", "📈")
+    render_guided_progress(4)
+
     if st.session_state.get("projection_focus"):
         focus_label = st.session_state.get("projection_focus")
-        st.info(f"Opened from Premium Retirement Tools: **{focus_label}**. Review the projection table below for year-by-year balances, withdrawals, taxes, and Roth conversion impact.")
+        st.info(f"Opened from Premium Retirement Tools: **{focus_label}**. Review the projection below for year-by-year balances, income, withdrawals, taxes, and Roth conversion impact.")
         if st.button("Clear projection note", key="clear_projection_focus"):
             st.session_state.projection_focus = ""
             st.rerun()
+
     page_help(
         "Projection Table",
-        "This table shows the year-by-year math behind the plan. It includes balances, spending, income, withdrawals, Roth conversions, unmet needs, and withdrawal rates by age."
+        "This page shows the year-by-year math behind your plan in a cleaner format. Start with the summary cards, then open the full detailed table if you want the deeper numbers."
     )
-    st.caption("Tax estimates now include taxable Social Security when provisional income exceeds IRS thresholds. Roth and cash withdrawals are modeled as tax-free; taxable brokerage is still simplified until the capital-gains phase.")
+
     if not can_run:
-        st.info("Complete required inputs first.")
+        st.markdown("""
+        <div class="rb-insight-card">
+          <div class="rb-insight-kicker">Projection</div>
+          <div class="rb-insight-title">Complete your blueprint first</div>
+          <div class="rb-insight-copy">
+            Add your core numbers, spending plan, and income sources first. Then this page will show your
+            year-by-year balances, income, withdrawals, taxes, and projected money left.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Go to Start My Blueprint", type="primary", use_container_width=True, key="projection_go_start"):
+            go_to_page("Guided Questions")
     else:
-        render_premium_insight("Projection insight", df, "tax")
-        show = df.copy()
+        start_total = float(df["Start Total"].iloc[0] or 0)
+        ending_total = float(df["End Total"].iloc[-1] or 0)
+        end_age = int(df["Age"].iloc[-1])
+        total_withdrawals = float(df["Portfolio Need"].sum() if "Portfolio Need" in df.columns else 0)
+        total_tax = float(df["Estimated Federal Tax"].sum() if "Estimated Federal Tax" in df.columns else 0)
 
-        # Make projection table labels clearer for users.
-        # "Taxable" is the brokerage account balance, not taxable income.
-        if "Taxable" in show.columns:
-            show = show.rename(columns={"Taxable": "Taxable Brokerage Balance"})
+        st.markdown("""
+        <div class="rb-insight-card">
+          <div class="rb-insight-kicker">Projection Insight</div>
+          <div class="rb-insight-title">The table below is the math behind your blueprint</div>
+          <div class="rb-insight-copy">
+            Use this page when you want to see how your money may change each year. The summary cards show the big picture.
+            The detailed table is there if you want to inspect the year-by-year numbers.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        percent_cols = [
-            "Withdrawal Rate",
-            "Income Coverage Ratio",
-            "Guaranteed Income Coverage Ratio",
-            "Effective Federal Tax Rate",
-        ]
-        non_money_cols = [
+        st.markdown(f"""
+        <div class="rb-card-grid">
+          <div class="rb-card">
+            <div class="rb-card-top"><div class="rb-card-label">Starting Portfolio</div><div class="rb-icon">$</div></div>
+            <div class="rb-card-value">{compact_money(start_total)}</div>
+            <div class="rb-card-note">Portfolio balance at the beginning of this projection.</div>
+          </div>
+          <div class="rb-card">
+            <div class="rb-card-top"><div class="rb-card-label">Money Left at Age {end_age}</div><div class="rb-icon">✓</div></div>
+            <div class="rb-card-value">{compact_money(ending_total)}</div>
+            <div class="rb-card-note">Estimated balance at the end of the plan.</div>
+          </div>
+          <div class="rb-card">
+            <div class="rb-card-top"><div class="rb-card-label">Total Withdrawals</div><div class="rb-icon">↗</div></div>
+            <div class="rb-card-value">{compact_money(total_withdrawals)}</div>
+            <div class="rb-card-note">Estimated amount pulled from savings over the plan.</div>
+          </div>
+          <div class="rb-card">
+            <div class="rb-card-top"><div class="rb-card-label">Estimated Federal Tax</div><div class="rb-icon">$</div></div>
+            <div class="rb-card-value">{compact_money(total_tax)}</div>
+            <div class="rb-card-note">Educational estimate using current app tax assumptions.</div>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        simple_cols = [
             "Age",
-            "Spouse Age",
-            "Spouse Alive",
-            "Household Retired",
-        ] + percent_cols
+            "Start Total",
+            "End Total",
+            "Total Spending",
+            "Total Non-Portfolio Income",
+            "Portfolio Need",
+            "Estimated Federal Tax",
+            "Withdrawal Rate",
+            "Unmet Need",
+        ]
+        simple_cols = [c for c in simple_cols if c in df.columns]
+        simple = df[simple_cols].copy()
 
-        money_cols = [c for c in show.columns if c not in non_money_cols]
-        for c in money_cols:
-            show[c] = show[c].map(money)
+        rename_simple = {
+            "Start Total": "Start Balance",
+            "End Total": "End Balance",
+            "Total Spending": "Spending",
+            "Total Non-Portfolio Income": "Income",
+            "Portfolio Need": "From Savings",
+            "Estimated Federal Tax": "Federal Tax",
+            "Withdrawal Rate": "Withdrawal Rate",
+            "Unmet Need": "Shortfall",
+        }
+        simple = simple.rename(columns=rename_simple)
 
-        for c in percent_cols:
-            if c in show.columns:
-                show[c] = show[c].map(pct)
+        money_like = ["Start Balance", "End Balance", "Spending", "Income", "From Savings", "Federal Tax", "Shortfall"]
+        for col in money_like:
+            if col in simple.columns:
+                simple[col] = simple[col].map(money)
+        if "Withdrawal Rate" in simple.columns:
+            simple["Withdrawal Rate"] = simple["Withdrawal Rate"].map(pct)
 
-        st.dataframe(show, use_container_width=True)
-        st.download_button("Download Projection CSV", df.to_csv(index=False).encode("utf-8"), "retirement_projection.csv", "text/csv")
+        st.subheader("Clean projection view")
+        st.caption("Start here. This version focuses only on the numbers most people actually need to understand.")
+
+        st.dataframe(
+            simple,
+            use_container_width=True,
+            hide_index=True,
+            height=420,
+        )
+
+        st.markdown("""
+        <div class="rb-next-box">
+          <div class="rb-next-heading">How to read this table</div>
+          <div class="rb-muted">
+            <b>Start Balance</b> is what you begin the year with. <b>End Balance</b> is what may be left after growth,
+            income, spending, withdrawals, and taxes. <b>From Savings</b> is the amount your portfolio needs to cover.
+            <b>Shortfall</b> means the plan could not fully cover spending in that year.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        with st.expander("Show full detailed projection table"):
+            show = df.copy()
+
+            if "Taxable" in show.columns:
+                show = show.rename(columns={"Taxable": "Taxable Brokerage Balance"})
+
+            percent_cols = [
+                "Withdrawal Rate",
+                "Income Coverage Ratio",
+                "Guaranteed Income Coverage Ratio",
+                "Effective Federal Tax Rate",
+            ]
+            non_money_cols = [
+                "Age",
+                "Spouse Age",
+                "Spouse Alive",
+                "Household Retired",
+            ] + percent_cols
+
+            money_cols = [c for c in show.columns if c not in non_money_cols]
+            for c in money_cols:
+                show[c] = show[c].map(money)
+
+            for c in percent_cols:
+                if c in show.columns:
+                    show[c] = show[c].map(pct)
+
+            st.caption("This detailed version includes more columns for deeper analysis.")
+            st.dataframe(show, use_container_width=True, hide_index=True, height=460)
+
+        st.download_button(
+            "Download Projection CSV",
+            df.to_csv(index=False).encode("utf-8"),
+            "retirement_projection.csv",
+            "text/csv",
+            use_container_width=True,
+        )
+
+        st.caption("Tax estimates now include taxable Social Security when provisional income exceeds IRS thresholds. Roth and cash withdrawals are modeled as tax-free; taxable brokerage is still simplified until the capital-gains phase.")
+
 
 if active_page == PAGE_NAMES[9]:
     st.markdown("""
@@ -8379,6 +8498,13 @@ div[role="radiogroup"] input {
 .rb-next-box b {
     color: #0f172a;
     font-weight: 900;
+}
+
+
+/* Projection page polish */
+div[data-testid="stDataFrame"] {
+    border-radius: 16px !important;
+    overflow: hidden !important;
 }
 
 </style>
