@@ -396,6 +396,18 @@ input[placeholder="Press Enter to submit form"]::placeholder {
     .rb-progress-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+
+/* Keep radio/segmented choices side-by-side for short two-option selectors */
+div[role="radiogroup"] {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 10px !important;
+    align-items: center !important;
+}
+div[role="radiogroup"] label {
+    margin-right: 0 !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -7273,6 +7285,7 @@ if active_page == PAGE_NAMES[2]:
 
 if active_page == PAGE_NAMES[3]:
     render_page_shell("Income Plan", "Add pensions, rental income, side income, annuities, or any other cash flows that reduce pressure on your portfolio.", "💼")
+    render_guided_progress(3)
     page_help(
         "Income Builder",
         "This page captures income besides portfolio withdrawals, such as pensions, rental income, part-time work, consulting, annuities, or business income. More reliable income usually reduces portfolio withdrawal pressure."
@@ -7295,7 +7308,7 @@ if active_page == PAGE_NAMES[3]:
             c1, c2 = st.columns(2)
             simple_income_inflation = c1.checkbox("Inflation adjusted?", value=st.session_state.simple_income_inflation, help=FIELD_HELP["simple_income_inflation"])
             simple_income_reliability = c2.selectbox("Reliability", ["Guaranteed", "Variable"], index=0 if st.session_state.simple_income_reliability == "Guaranteed" else 1, help=FIELD_HELP["simple_income_reliability"])
-            save_income = st.form_submit_button("Save simple income")
+            save_income = st.form_submit_button("Save simple income", type="primary", use_container_width=True)
         if save_income:
             st.session_state.simple_income = simple_income
             st.session_state.simple_income_start = simple_income_start
