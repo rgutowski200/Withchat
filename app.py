@@ -1786,10 +1786,13 @@ with hero_left:
     """, unsafe_allow_html=True)
 
 # Account controls removed from the upper-right hero area for a cleaner layout.
-# Users can still use the planner. Sign-in/create-account can be surfaced later
-# from Saved Blueprints or the final monetization flow.
-if not user:
-    st.session_state.show_auth_form = False
+# The dashboard Sign In / Create Account button below still opens the auth form.
+pass
+
+
+# Show the sign-in form whenever any Sign In / Create Account button is clicked.
+if not user and st.session_state.get("show_auth_form"):
+    render_auth_form()
 
 
 def money(x):
