@@ -324,6 +324,78 @@ input[placeholder="Press Enter to submit form"]::placeholder {
     opacity: 0 !important;
 }
 
+
+.rb-progress-wrap {
+    border: 1px solid #E2E8F0;
+    border-radius: 18px;
+    background: #FFFFFF;
+    padding: 14px 16px;
+    margin: 12px 0 18px 0;
+    box-shadow: 0 8px 22px rgba(15,23,42,.04);
+}
+.rb-progress-title {
+    font-size: .86rem;
+    font-weight: 900;
+    color: #334155;
+    margin-bottom: 10px;
+    letter-spacing: .02em;
+}
+.rb-progress-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+}
+.rb-progress-step {
+    border: 1px solid #E2E8F0;
+    border-radius: 14px;
+    padding: 10px;
+    background: #F8FAFC;
+}
+.rb-progress-step.active {
+    border-color: #93C5FD;
+    background: #EFF6FF;
+}
+.rb-progress-step.done {
+    border-color: #BBF7D0;
+    background: #F0FDF4;
+}
+.rb-progress-num {
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    align-items: center;
+    justify-content: center;
+    background: #CBD5E1;
+    color: #0F172A;
+    font-size: .78rem;
+    font-weight: 900;
+    margin-bottom: 6px;
+}
+.rb-progress-step.active .rb-progress-num {
+    background: #2563EB;
+    color: #FFFFFF;
+}
+.rb-progress-step.done .rb-progress-num {
+    background: #16A34A;
+    color: #FFFFFF;
+}
+.rb-progress-label {
+    color: #0F172A;
+    font-weight: 850;
+    font-size: .82rem;
+    line-height: 1.2;
+}
+.rb-progress-copy {
+    color: #64748B;
+    font-size: .74rem;
+    line-height: 1.25;
+    margin-top: 3px;
+}
+@media (max-width: 900px) {
+    .rb-progress-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -6357,12 +6429,6 @@ NAV_LABELS = {
     "Help / Instructions": "Help",
 }
 
-
-# TEMPORARY TESTING OVERRIDE:
-# Unlock all premium features for every user while testing.
-# Before launch, remove this and connect is_premium_user to the paid subscription status.
-st.session_state["is_premium_user"] = True
-
 if "active_page" not in st.session_state or st.session_state.active_page not in PAGE_NAMES:
     st.session_state.active_page = "Home"
 
@@ -6575,6 +6641,34 @@ def render_dashboard_combo_overview(df, rtv_score, rtv_label):
         st.pyplot(plot_portfolio_area_chart(df), use_container_width=True)
 
 
+
+def render_guided_progress(current_step: int):
+    steps = [
+        (1, "Start Blueprint", "Enter core numbers"),
+        (2, "Spending Plan", "Estimate spending"),
+        (3, "Income Plan", "Add income sources"),
+        (4, "Dashboard", "Review results"),
+        (5, "Improve / Upgrade", "Test better options"),
+    ]
+
+    html = ['<div class="rb-progress-wrap">']
+    html.append('<div class="rb-progress-title">YOUR RETIREMENT BLUEPRINT PATH</div>')
+    html.append('<div class="rb-progress-grid">')
+
+    for num, label, copy in steps:
+        status = "done" if num < current_step else ("active" if num == current_step else "")
+        html.append(
+            f'<div class="rb-progress-step {status}">'
+            f'<div class="rb-progress-num">{num}</div>'
+            f'<div class="rb-progress-label">{label}</div>'
+            f'<div class="rb-progress-copy">{copy}</div>'
+            f'</div>'
+        )
+
+    html.append('</div></div>')
+    st.markdown("".join(html), unsafe_allow_html=True)
+
+
 if active_page == PAGE_NAMES[0]:
     st.markdown("""
     <div class="rb-page-title">Blueprint Dashboard</div>
@@ -6738,6 +6832,7 @@ if active_page == PAGE_NAMES[0]:
 
 if active_page == PAGE_NAMES[1]:
     render_page_shell("Start My Blueprint", "Set the core numbers that drive your retirement blueprint: ages, savings, contributions, Social Security, returns, and your bucket strategy.", "🧭")
+    render_guided_progress(1)
     page_help(
         "Guided Retirement Questions",
         "This page collects the core numbers for your retirement blueprint: ages, savings, contributions, Social Security, expected returns, inflation, Roth conversions, and premium 2-bucket strategy. These inputs drive the Blueprint Dashboard, Blueprint Score, Action Plan, and Projection."
@@ -7022,22 +7117,52 @@ if active_page == PAGE_NAMES[1]:
 
 if active_page == PAGE_NAMES[2]:
     render_page_shell("Spending Plan", "Estimate your retirement lifestyle costs using either a quick monthly number or a more detailed category-by-category budget.", "💳")
+    render_guided_progress(2)
     page_help(
         "Budget Builder",
         "This page estimates how much money you need each year in retirement. You can use a simple flat monthly amount or enter a detailed monthly budget. Healthcare is handled separately so the app can model it more clearly."
     )
 
-    # This radio button must stay OUTSIDE the form so the page refreshes immediately
+    st.markdown("""
+    <div class="rb-next-box">
+      <div class="rb-next-heading">Step 2: Choose your spending style</div>
+      <div class="rb-muted">
+        Pick the simple option if you know roughly what you want to spend each month.
+        Pick detailed budget if you want to build the number category by category.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # This selector must stay OUTSIDE the form so the page refreshes immediately
     # when the user switches between Flat monthly number and Detailed monthly budget.
-    budget_mode = st.radio(
-        "How do you want to enter household spending?",
-        ["Flat monthly number", "Detailed monthly budget"],
-        index=0 if st.session_state.budget_mode == "Flat monthly number" else 1,
-        key="budget_mode_selector",
-        help="Choose flat monthly spending for a quick estimate, or detailed monthly budget to enter category-by-category spending."
-    )
+    try:
+        budget_mode = st.segmented_control(
+            "How do you want to enter household spending?",
+            ["Flat monthly number", "Detailed monthly budget"],
+            selection_mode="single",
+            default=st.session_state.budget_mode,
+            key="budget_mode_selector",
+            help="Choose flat monthly spending for a quick estimate, or detailed monthly budget to enter category-by-category spending."
+        )
+    except Exception:
+        budget_mode = st.radio(
+            "How do you want to enter household spending?",
+            ["Flat monthly number", "Detailed monthly budget"],
+            index=0 if st.session_state.budget_mode == "Flat monthly number" else 1,
+            key="budget_mode_selector",
+            horizontal=True,
+            help="Choose flat monthly spending for a quick estimate, or detailed monthly budget to enter category-by-category spending."
+        )
+
+    if not budget_mode:
+        budget_mode = st.session_state.budget_mode
 
     st.session_state.budget_mode = budget_mode
+
+    if budget_mode == "Flat monthly number":
+        st.success("Simple mode selected. Enter one monthly spending number and move on.")
+    else:
+        st.info("Detailed mode selected. Enter the categories you know. Use zero for anything that does not apply.")
 
     with st.form("budget_form"):
         if budget_mode == "Flat monthly number":
@@ -7618,6 +7743,7 @@ def render_basic_blueprint_dashboard():
 
 
 if active_page == PAGE_NAMES[6]:
+    render_guided_progress(4)
     if st.session_state.get("dashboard_focus"):
         focus_label = st.session_state.get("dashboard_focus")
         st.info(f"Opened from Premium Retirement Tools: **{focus_label}**. Use the premium tool buttons below or open advanced dashboard details.")
@@ -10158,7 +10284,7 @@ if active_page == "Plans & Pricing":
     ], columns=["Feature", "Basic Free", "Detailed Premium", "One-Time Report"])
     st.dataframe(comparison, use_container_width=True, hide_index=True)
 
-    st.warning("Testing mode: premium features are temporarily unlocked for all users. Pricing can still be adjusted before launch. This app is educational only and does not provide financial, tax, legal, insurance, or investment advice.")
+    st.warning("Pricing can still be adjusted before launch. This app is educational only and does not provide financial, tax, legal, insurance, or investment advice.")
 
 
 
