@@ -6741,41 +6741,40 @@ if active_page == PAGE_NAMES[1]:
     st.caption("Simple starter version for free trial users. Enter the basics first, then use the detailed section below when you want a more precise plan.")
 
     with st.expander("Open Quick Blueprint starter", expanded=True):
-        with st.form("quick_blueprint_form"):
-            q1, q2, q3 = st.columns(3)
-            quick_current_age = q1.number_input("Current age", 0, 100, st.session_state.current_age, help=FIELD_HELP["current_age"])
-            quick_retire_age = q2.number_input("Target retirement age", 0, 100, st.session_state.retire_age, help=FIELD_HELP["retire_age"])
-            quick_end_age = q3.number_input("Plan through age", 0, 110, st.session_state.end_age, help=FIELD_HELP["end_age"])
+        q1, q2, q3 = st.columns(3)
+        quick_current_age = q1.number_input("Current age", 0, 100, st.session_state.current_age, help=FIELD_HELP["current_age"])
+        quick_retire_age = q2.number_input("Target retirement age", 0, 100, st.session_state.retire_age, help=FIELD_HELP["retire_age"])
+        quick_end_age = q3.number_input("Plan through age", 0, 110, st.session_state.end_age, help=FIELD_HELP["end_age"])
 
-            q1, q2, q3 = st.columns(3)
-            quick_total_savings = q1.number_input(
-                "Total retirement savings",
-                min_value=0,
-                value=int(float(st.session_state.traditional or 0) + float(st.session_state.roth or 0) + float(st.session_state.taxable or 0) + float(st.session_state.cash or 0)),
-                step=10000,
-                help="A simple total of retirement savings across 401k, IRA, Roth, taxable accounts, and cash."
-            )
-            quick_monthly_spending = q2.number_input(
-                "Monthly retirement spending",
-                min_value=0,
-                value=int(float(st.session_state.get("monthly_spending", 0) or 0)),
-                step=500,
-                help="A simple estimate of how much you expect to spend each month in retirement."
-            )
-            quick_annual_contribution = q3.number_input(
-                "Annual savings until retirement",
-                min_value=0,
-                value=int(st.session_state.annual_contribution),
-                step=5000,
-                help=FIELD_HELP["annual_contribution"]
-            )
+        q1, q2, q3 = st.columns(3)
+        quick_total_savings = q1.number_input(
+            "Total retirement savings",
+            min_value=0,
+            value=int(float(st.session_state.traditional or 0) + float(st.session_state.roth or 0) + float(st.session_state.taxable or 0) + float(st.session_state.cash or 0)),
+            step=10000,
+            help="A simple total of retirement savings across 401k, IRA, Roth, taxable accounts, and cash."
+        )
+        quick_monthly_spending = q2.number_input(
+            "Monthly retirement spending",
+            min_value=0,
+            value=int(float(st.session_state.get("monthly_spending", 0) or 0)),
+            step=500,
+            help="A simple estimate of how much you expect to spend each month in retirement."
+        )
+        quick_annual_contribution = q3.number_input(
+            "Annual savings until retirement",
+            min_value=0,
+            value=int(st.session_state.annual_contribution),
+            step=5000,
+            help=FIELD_HELP["annual_contribution"]
+        )
 
-            q1, q2, q3 = st.columns(3)
-            quick_ss_age = q1.number_input("Social Security start age", 62, 70, st.session_state.user_ss_age, help=FIELD_HELP["user_ss_age"])
-            quick_ss = q2.number_input("Annual Social Security", min_value=0, value=st.session_state.user_ss, step=1000, help=FIELD_HELP["user_ss"])
-            quick_growth_return = q3.slider("Expected average return", 0.0, 15.0, st.session_state.growth_return * 100, help=FIELD_HELP["growth_return"]) / 100
+        q1, q2, q3 = st.columns(3)
+        quick_ss_age = q1.number_input("Social Security start age", 62, 70, st.session_state.user_ss_age, help=FIELD_HELP["user_ss_age"])
+        quick_ss = q2.number_input("Annual Social Security", min_value=0, value=st.session_state.user_ss, step=1000, help=FIELD_HELP["user_ss"])
+        quick_growth_return = q3.slider("Expected average return", 0.0, 15.0, st.session_state.growth_return * 100, help=FIELD_HELP["growth_return"]) / 100
 
-            quick_save = st.form_submit_button("Save Quick Blueprint", type="primary", use_container_width=True)
+        quick_save = st.button("Save Quick Blueprint", type="primary", use_container_width=True, key="save_quick_blueprint_button")
 
         if quick_save:
             quick_traditional = int(quick_total_savings * 0.80)
