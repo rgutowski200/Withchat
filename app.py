@@ -8187,7 +8187,18 @@ if active_page == PAGE_NAMES[7]:
                 deduped.append(row)
                 seen.add(row[0])
 
-        try_df = pd.DataFrame(deduped[:6], columns=["Thing to Try", "Why It Helps", "Simple Next Step", "Possible Score Impact"])
+        try_df = pd.DataFrame(
+            deduped[:6],
+            columns=["Thing to Try", "Why It Helps", "Simple Next Step", "Possible Score Impact"]
+        )
+
+        try_df = try_df[[
+            "Possible Score Impact",
+            "Thing to Try",
+            "Simple Next Step",
+            "Why It Helps",
+        ]]
+
         st.dataframe(try_df, use_container_width=True, hide_index=True)
 
         st.subheader("Plain-English Explanation of the Numbers")
