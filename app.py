@@ -6688,6 +6688,7 @@ if active_page == PAGE_NAMES[0]:
     <div class="rb-muted">A quick overview of your retirement blueprint, saved plans, and next best steps.</div>
     """, unsafe_allow_html=True)
 
+    render_guided_progress(1)
     missing_items_home = required_missing()
 
     safe_df_home = pd.DataFrame()
