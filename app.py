@@ -7147,24 +7147,15 @@ if active_page == PAGE_NAMES[2]:
 
     # This selector must stay OUTSIDE the form so the page refreshes immediately
     # when the user switches between Flat monthly number and Detailed monthly budget.
-    try:
-        budget_mode = st.segmented_control(
-            "How do you want to enter household spending?",
-            ["Flat monthly number", "Detailed monthly budget"],
-            selection_mode="single",
-            default=st.session_state.budget_mode,
-            key="budget_mode_selector",
-            help="Choose flat monthly spending for a quick estimate, or detailed monthly budget to enter category-by-category spending."
-        )
-    except Exception:
-        budget_mode = st.radio(
-            "How do you want to enter household spending?",
-            ["Flat monthly number", "Detailed monthly budget"],
-            index=0 if st.session_state.budget_mode == "Flat monthly number" else 1,
-            key="budget_mode_selector",
-            horizontal=True,
-            help="Choose flat monthly spending for a quick estimate, or detailed monthly budget to enter category-by-category spending."
-        )
+    # Use radio styling so it matches the Income Plan selector instead of the red segmented tabs.
+    budget_mode = st.radio(
+        "How do you want to enter household spending?",
+        ["Flat monthly number", "Detailed monthly budget"],
+        index=0 if st.session_state.budget_mode == "Flat monthly number" else 1,
+        key="budget_mode_selector",
+        horizontal=True,
+        help="Choose flat monthly spending for a quick estimate, or detailed monthly budget to enter category-by-category spending."
+    )
 
     if not budget_mode:
         budget_mode = st.session_state.budget_mode
@@ -8379,6 +8370,43 @@ input[placeholder="Press Enter to submit form"]:focus::placeholder {
 input[placeholder="Press Enter to submit form"],
 input[placeholder="Press Enter to submit form"]:focus {
     caret-color: #0f172a !important;
+}
+
+
+/* Match Spending/Income two-option selectors to the blue pill style */
+div[role="radiogroup"] {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 0 !important;
+    width: fit-content !important;
+    padding: 8px !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 999px !important;
+    background: #F8FAFC !important;
+    box-shadow: 0 8px 22px rgba(15,23,42,.04) !important;
+}
+div[role="radiogroup"] label {
+    border-radius: 999px !important;
+    padding: 10px 18px !important;
+    margin: 0 !important;
+    min-width: 160px !important;
+    justify-content: center !important;
+}
+div[role="radiogroup"] label[data-checked="true"],
+div[role="radiogroup"] label:has(input:checked) {
+    background: linear-gradient(135deg, #2563EB, #22C7C7) !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 10px 24px rgba(37,99,235,.25) !important;
+}
+div[role="radiogroup"] label:has(input:checked) p,
+div[role="radiogroup"] label:has(input:checked) span,
+div[role="radiogroup"] label[data-checked="true"] p,
+div[role="radiogroup"] label[data-checked="true"] span {
+    color: #FFFFFF !important;
+    font-weight: 900 !important;
+}
+div[role="radiogroup"] input {
+    display: none !important;
 }
 
 </style>
