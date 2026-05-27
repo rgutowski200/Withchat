@@ -6780,30 +6780,55 @@ if active_page == PAGE_NAMES[0]:
                 st.session_state.show_auth_form = True
                 st.rerun()
 
-    st.markdown(f"""
-    <div class="rb-card-grid">
-      <div class="rb-card">
-        <div class="rb-card-top"><div class="rb-card-label">Blueprint Score</div><div class="rb-icon">☆</div></div>
-        <div class="rb-card-value">{rtv_value_home}</div>
-        <div class="rb-card-note">{rtv_note_home}</div>
-      </div>
-      <div class="rb-card">
-        <div class="rb-card-top"><div class="rb-card-label">Can I Retire at This Age?</div><div class="rb-icon">✓</div></div>
-        <div class="rb-card-value">{retire_status_home}</div>
-        <div class="rb-card-note">{retire_status_note_home}</div>
-      </div>
-      <div class="rb-card">
-        <div class="rb-card-top"><div class="rb-card-label">Money Left at Age {planning_age_home}</div><div class="rb-icon">$</div></div>
-        <div class="rb-card-value">{money_left_home}</div>
-        <div class="rb-card-note">Estimated money remaining at the end of the plan.</div>
-      </div>
-      <div class="rb-card">
-        <div class="rb-card-top"><div class="rb-card-label">Monthly Gap From Savings</div><div class="rb-icon">↗</div></div>
-        <div class="rb-card-value">{monthly_gap_home}</div>
-        <div class="rb-card-note">Estimated monthly spending that needs to come from savings.</div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
+    if safe_can_run_home:
+        st.markdown(f"""
+        <div class="rb-card-grid">
+          <div class="rb-card">
+            <div class="rb-card-top"><div class="rb-card-label">Blueprint Score</div><div class="rb-icon">☆</div></div>
+            <div class="rb-card-value">{rtv_value_home}</div>
+            <div class="rb-card-note">{rtv_note_home}</div>
+          </div>
+          <div class="rb-card">
+            <div class="rb-card-top"><div class="rb-card-label">Can I Retire at This Age?</div><div class="rb-icon">✓</div></div>
+            <div class="rb-card-value">{retire_status_home}</div>
+            <div class="rb-card-note">{retire_status_note_home}</div>
+          </div>
+          <div class="rb-card">
+            <div class="rb-card-top"><div class="rb-card-label">Money Left at Age {planning_age_home}</div><div class="rb-icon">$</div></div>
+            <div class="rb-card-value money-compact">{money_left_home}</div>
+            <div class="rb-card-note">Estimated money remaining at the end of the plan.</div>
+          </div>
+          <div class="rb-card">
+            <div class="rb-card-top"><div class="rb-card-label">Monthly Gap From Savings</div><div class="rb-icon">↗</div></div>
+            <div class="rb-card-value">{monthly_gap_home}</div>
+            <div class="rb-card-note">Estimated monthly spending that needs to come from savings.</div>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div class="rb-insight-card">
+          <div class="rb-insight-kicker">Start Here</div>
+          <div class="rb-insight-title">Ready to see where you stand?</div>
+          <div class="rb-insight-copy">
+            Start with a few basic numbers. Retirement Blueprint 101 will estimate whether your target retirement age
+            looks realistic, how long your money may last, and what to improve first.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        starter_cols = st.columns(4)
+        with starter_cols[0]:
+            st.markdown('<div class="rb-mini-step"><b>1</b><br/>Enter your age and savings</div>', unsafe_allow_html=True)
+        with starter_cols[1]:
+            st.markdown('<div class="rb-mini-step"><b>2</b><br/>Add retirement spending</div>', unsafe_allow_html=True)
+        with starter_cols[2]:
+            st.markdown('<div class="rb-mini-step"><b>3</b><br/>Add income sources</div>', unsafe_allow_html=True)
+        with starter_cols[3]:
+            st.markdown('<div class="rb-mini-step"><b>4</b><br/>Review your Blueprint</div>', unsafe_allow_html=True)
+
+        if st.button("Start My Blueprint", type="primary", use_container_width=True, key="home_empty_start_blueprint"):
+            go_to_page("Guided Questions")
 
     if not required_panel:
         st.success("Your blueprint has enough information to review the dashboard, action plan, confidence test, stress tests, and reports.")
@@ -7140,6 +7165,11 @@ if active_page == PAGE_NAMES[1]:
         st.subheader("Compare 1 Bucket vs 2 Bucket")
         render_bucket_strategy_comparison_panel(df if can_run else None)
 
+    st.divider()
+    if st.button("Next: Spending Plan", type="primary", use_container_width=True, key="next_from_guided_to_budget"):
+        go_to_page("Budget Builder")
+
+
 if active_page == PAGE_NAMES[2]:
     render_page_shell("Spending Plan", "Estimate your retirement lifestyle costs using either a quick monthly number or a more detailed category-by-category budget.", "💳")
     render_guided_progress(2)
@@ -7269,7 +7299,7 @@ if active_page == PAGE_NAMES[2]:
         for k, v in detailed_values.items():
             st.session_state[k] = v
 
-        st.success("Budget saved.")
+        st.success("Budget saved. Next, add your income sources.")
 
     monthly = (
         st.session_state.flat_monthly_spending
@@ -7285,6 +7315,15 @@ if active_page == PAGE_NAMES[2]:
         c3, c4 = st.columns(2)
         c3.metric("Spending Changes At Age", int(st.session_state.spending_change_age))
         c4.metric("New Monthly Spending", money(st.session_state.spending_change_monthly))
+
+    st.divider()
+    next_cols = st.columns([1, 1])
+    with next_cols[0]:
+        if st.button("Back: Start My Blueprint", use_container_width=True, key="back_from_budget_to_guided"):
+            go_to_page("Guided Questions")
+    with next_cols[1]:
+        if st.button("Next: Income Plan", type="primary", use_container_width=True, key="next_from_budget_to_income"):
+            go_to_page("Income Builder")
 
 
 if active_page == PAGE_NAMES[3]:
@@ -7319,7 +7358,7 @@ if active_page == PAGE_NAMES[3]:
             st.session_state.simple_income_end = simple_income_end
             st.session_state.simple_income_inflation = simple_income_inflation
             st.session_state.simple_income_reliability = simple_income_reliability
-            st.success("Simple income saved.")
+            st.success("Income saved. Next, review your Blueprint Dashboard.")
     else:
         edited = st.data_editor(
             st.session_state.income_sources_df,
@@ -7341,6 +7380,16 @@ if active_page == PAGE_NAMES[3]:
         if st.button("Save advanced income sources"):
             st.session_state.income_sources_df = edited
             st.success("Advanced income sources saved.")
+
+    st.divider()
+    next_cols = st.columns([1, 1])
+    with next_cols[0]:
+        if st.button("Back: Spending Plan", use_container_width=True, key="back_from_income_to_budget"):
+            go_to_page("Budget Builder")
+    with next_cols[1]:
+        if st.button("Next: Blueprint Dashboard", type="primary", use_container_width=True, key="next_from_income_to_dashboard"):
+            go_to_page("Dashboard")
+
 
 if active_page == PAGE_NAMES[4]:
     render_page_shell("Household Plan", "Household setup now lives inside Start My Blueprint.", "👥")
@@ -7865,6 +7914,16 @@ if active_page == PAGE_NAMES[6]:
             st.subheader("Withdrawal Rate Pressure")
             st.pyplot(plot_withdrawal_rate_chart(df), use_container_width=True)
 
+    st.divider()
+    next_cols = st.columns([1, 1])
+    with next_cols[0]:
+        if st.button("Go to Action Plan", type="primary", use_container_width=True, key="next_from_dashboard_to_action"):
+            go_to_page("Recommendations")
+    with next_cols[1]:
+        if st.button("Review Projection", use_container_width=True, key="next_from_dashboard_to_projection"):
+            go_to_page("Projection Table")
+
+
 if active_page == PAGE_NAMES[7]:
     render_page_shell("Action Plan", "Plain-English next steps to help improve your retirement blueprint.", "💡")
     render_guided_progress(5)
@@ -8076,6 +8135,15 @@ if active_page == PAGE_NAMES[7]:
                 go_to_page("PDF Report")
 
         st.caption("Educational planning tool only. Not financial, tax, legal, insurance, or investment advice.")
+
+    st.divider()
+    next_cols = st.columns([1, 1])
+    with next_cols[0]:
+        if st.button("Compare Retirement Ages", type="primary", use_container_width=True, key="next_from_action_to_age"):
+            go_to_page("Retirement Age Optimizer")
+    with next_cols[1]:
+        if st.button("Create Blueprint Report", use_container_width=True, key="next_from_action_to_report"):
+            go_to_page("PDF Report")
 
 
 if active_page == PAGE_NAMES[8]:
@@ -8545,6 +8613,30 @@ div[data-testid="stDataFrame"] {
 /* Full-width hero after removing top-right sign-in button */
 .rb-hero {
     width: 100% !important;
+}
+
+
+/* Home empty-state mini steps */
+.rb-mini-step {
+    border: 1px solid #E2E8F0;
+    border-radius: 16px;
+    background: #FFFFFF;
+    padding: 14px;
+    min-height: 84px;
+    color: #64748B;
+    box-shadow: 0 8px 22px rgba(15,23,42,.04);
+    line-height: 1.35;
+}
+.rb-mini-step b {
+    display: inline-flex;
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    align-items: center;
+    justify-content: center;
+    background: #2563EB;
+    color: #FFFFFF;
+    margin-bottom: 8px;
 }
 
 </style>
