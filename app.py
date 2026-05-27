@@ -2206,11 +2206,11 @@ def render_premium_lock_cards():
                 elif key == "bucket":
                     if st.button(button_label, key="premium_main_bucket", use_container_width=True):
                         st.session_state.dashboard_focus = "2-Bucket Strategy"
-                        go_to_page("Dashboard")
+                        go_to_page("Retirement Dashboard")
                 elif key == "scenario":
                     if st.button(button_label, key="premium_main_scenario", use_container_width=True):
                         st.session_state.dashboard_focus = "Scenario Comparison"
-                        go_to_page("Dashboard")
+                        go_to_page("Retirement Dashboard")
                 elif key == "tax":
                     if st.button(button_label, key="premium_main_tax", use_container_width=True):
                         st.session_state.projection_focus = "Tax-Aware Withdrawal Plan"
@@ -2244,7 +2244,7 @@ def render_premium_lock_cards():
                 if key == "roth":
                     if st.button(button_label, key="premium_more_roth", use_container_width=True):
                         st.session_state.dashboard_focus = "Roth Conversion Explorer"
-                        go_to_page("Dashboard")
+                        go_to_page("Retirement Dashboard")
                 elif key == "places":
                     if st.button(button_label, key="premium_more_places", use_container_width=True):
                         go_to_page("Best Places to Retire")
@@ -6396,7 +6396,7 @@ PAGE_NAMES = [
     "Income Builder",
     "Spouse Questions",
     "Review Answers",
-    "Dashboard",
+    "Retirement Dashboard",
     "Recommendations",
     "Projection Table",
     "Saved Scenarios",
@@ -6418,7 +6418,7 @@ PAGE_ICONS = {
     "Income Builder": "💼",
     "Spouse Questions": "👥",
     "Review Answers": "📝",
-    "Dashboard": "📊",
+    "Retirement Dashboard": "📊",
     "Recommendations": "💡",
     "Projection Table": "📈",
     "Saved Scenarios": "💾",
@@ -6440,7 +6440,7 @@ NAV_LABELS = {
     "Income Builder": "Income Plan",
     "Spouse Questions": "Household Plan",
     "Review Answers": "Review Inputs",
-    "Dashboard": "Blueprint Dashboard",
+    "Retirement Dashboard": "Retirement Dashboard",
     "Recommendations": "Action Plan",
     "Projection Table": "Projection",
     "Saved Scenarios": "Saved Blueprints",
@@ -6491,7 +6491,7 @@ def render_navigation():
             "Guided Questions",
             "Budget Builder",
             "Income Builder",
-            "Dashboard",
+            "Retirement Dashboard",
             "Recommendations",
             "Projection Table",
             "Saved Scenarios",
@@ -6529,7 +6529,7 @@ def render_navigation():
         """, unsafe_allow_html=True)
 
         if st.button("View Premium", key="sidebar_view_premium", use_container_width=True):
-            go_to_page("Dashboard")
+            go_to_page("Retirement Dashboard")
 
 render_navigation()
 active_page = st.session_state.active_page
@@ -6701,7 +6701,7 @@ def render_guided_progress(current_step: int):
         (1, "Start Blueprint", "Enter core numbers"),
         (2, "Spending Plan", "Estimate spending"),
         (3, "Income Plan", "Add income sources"),
-        (4, "Dashboard", "Review results"),
+        (4, "Retirement Dashboard", "Review results"),
         (5, "Improve / Upgrade", "Test better options"),
     ]
 
@@ -6725,9 +6725,9 @@ def render_guided_progress(current_step: int):
 
 if active_page == PAGE_NAMES[0]:
     st.markdown("""
-    <div class="rb-page-title">Blueprint Dashboard</div>
+    <div class="rb-page-title">Home</div>
     <div class="rb-accent-line"></div>
-    <div class="rb-muted">A quick overview of your retirement blueprint, saved plans, and next best steps.</div>
+    <div class="rb-muted">Start here, then move through the planner to build your retirement blueprint.</div>
     """, unsafe_allow_html=True)
 
     render_guided_progress(1)
@@ -6855,7 +6855,7 @@ if active_page == PAGE_NAMES[0]:
         dashboard_ideas_html = "".join([f"<li>{idea}</li>" for idea in cleaned_ideas[:5]])
 
         status_title = "Your plan is ready to review."
-        status_note = "Use the Blueprint Dashboard, Action Plan, Confidence Test, Stress Tests, and Blueprint Report for deeper analysis."
+        status_note = "Use the Retirement Dashboard, Action Plan, Confidence Test, Stress Tests, and Blueprint Report for deeper analysis."
         required_panel = ""
     else:
         rtv_value_home = "Incomplete"
@@ -6891,6 +6891,11 @@ if active_page == PAGE_NAMES[0]:
                 st.rerun()
 
     if safe_can_run_home:
+        st.markdown("""
+        <div class="rb-page-section-label">Retirement Dashboard</div>
+        <div class="rb-muted" style="margin-bottom: 12px;">Your retirement results based on the information entered so far.</div>
+        """, unsafe_allow_html=True)
+
         st.markdown(f"""
         <div class="rb-card-grid">
           <div class="rb-card">
@@ -6918,7 +6923,7 @@ if active_page == PAGE_NAMES[0]:
 
         st.markdown(f"""
         <div class="rb-dashboard-explain">
-          <div class="rb-explain-kicker">Blueprint Dashboard Explanation</div>
+          <div class="rb-explain-kicker">Retirement Dashboard Explanation</div>
           <div class="rb-explain-title">Why these numbers look this way</div>
           <div class="rb-explain-copy">
             {dashboard_reason_html}
@@ -6964,7 +6969,7 @@ if active_page == PAGE_NAMES[0]:
     else:
         st.markdown("""
         <div class="rb-insight-card">
-          <div class="rb-insight-kicker">Start Here</div>
+          <div class="rb-insight-kicker">Home</div>
           <div class="rb-insight-title">Ready to see where you stand?</div>
           <div class="rb-insight-copy">
             Start with a few basic numbers. Retirement Blueprint 101 will estimate whether your target retirement age
@@ -7041,7 +7046,7 @@ if active_page == PAGE_NAMES[1]:
     render_guided_progress(1)
     page_help(
         "Guided Retirement Questions",
-        "This page collects the core numbers for your retirement blueprint: ages, savings, contributions, Social Security, expected returns, inflation, Roth conversions, and premium 2-bucket strategy. These inputs drive the Blueprint Dashboard, Blueprint Score, Action Plan, and Projection."
+        "This page collects the core numbers for your retirement blueprint: ages, savings, contributions, Social Security, expected returns, inflation, Roth conversions, and premium 2-bucket strategy. These inputs drive the Retirement Dashboard, Blueprint Score, Action Plan, and Projection."
     )
 
     st.subheader("Quick Blueprint")
@@ -7137,7 +7142,7 @@ if active_page == PAGE_NAMES[1]:
         with b1:
             if st.button("View My Basic Blueprint", type="primary", use_container_width=True, key="quick_next_dashboard"):
                 st.session_state.quick_blueprint_saved = True
-                st.session_state.active_page = "Dashboard"
+                st.session_state.active_page = "Retirement Dashboard"
                 st.rerun()
         with b2:
             if st.button("Unlock Detailed Blueprint", use_container_width=True, key="quick_next_unlock"):
@@ -7514,7 +7519,7 @@ if active_page == PAGE_NAMES[3]:
             st.session_state.simple_income_end = simple_income_end
             st.session_state.simple_income_inflation = simple_income_inflation
             st.session_state.simple_income_reliability = simple_income_reliability
-            st.success("Income saved. Next, review your Blueprint Dashboard.")
+            st.success("Income saved. Next, review your Retirement Dashboard.")
     else:
         edited = st.data_editor(
             st.session_state.income_sources_df,
@@ -7543,8 +7548,8 @@ if active_page == PAGE_NAMES[3]:
         if st.button("Back: Spending Plan", use_container_width=True, key="back_from_income_to_budget"):
             go_to_page("Budget Builder")
     with next_cols[1]:
-        if st.button("Next: Blueprint Dashboard", type="primary", use_container_width=True, key="next_from_income_to_dashboard"):
-            go_to_page("Dashboard")
+        if st.button("Next: Retirement Dashboard", type="primary", use_container_width=True, key="next_from_income_to_dashboard"):
+            go_to_page("Retirement Dashboard")
 
 
 if active_page == PAGE_NAMES[4]:
@@ -7764,11 +7769,11 @@ def render_dashboard_close_to_mock(df, rtv_score, rtv_label, rtv_reasons):
                 elif key == "bucket":
                     if st.button(button_label, key="mock_open_bucket", use_container_width=True):
                         st.session_state.dashboard_focus = "2-Bucket Strategy"
-                        go_to_page("Dashboard")
+                        go_to_page("Retirement Dashboard")
                 elif key == "scenario":
                     if st.button(button_label, key="mock_open_scenario", use_container_width=True):
                         st.session_state.dashboard_focus = "Scenario Comparison"
-                        go_to_page("Dashboard")
+                        go_to_page("Retirement Dashboard")
                 elif key == "tax":
                     if st.button(button_label, key="mock_open_tax", use_container_width=True):
                         st.session_state.projection_focus = "Tax-Aware Withdrawal Plan"
@@ -7973,10 +7978,10 @@ if active_page == PAGE_NAMES[6]:
 
     if not can_run:
         if st.session_state.get("quick_blueprint_saved"):
-            st.markdown('<div class="rb-saas-title">Basic Blueprint Dashboard</div><div class="rb-saas-sub">Your simplified retirement snapshot based on Quick Blueprint inputs.</div>', unsafe_allow_html=True)
+            st.markdown('<div class="rb-saas-title">Basic Retirement Dashboard</div><div class="rb-saas-sub">Your simplified retirement snapshot based on Quick Blueprint inputs.</div>', unsafe_allow_html=True)
             render_basic_blueprint_dashboard()
         else:
-            st.markdown('<div class="rb-saas-title">Blueprint Dashboard</div><div class="rb-saas-sub">Start with Quick Blueprint to unlock your starter retirement snapshot.</div>', unsafe_allow_html=True)
+            st.markdown('<div class="rb-saas-title">Retirement Dashboard</div><div class="rb-saas-sub">Start with Quick Blueprint to unlock your starter retirement snapshot.</div>', unsafe_allow_html=True)
             st.info("Start with Quick Blueprint first.")
             if st.button("Go to Start My Blueprint", key="dashboard_go_start", use_container_width=True):
                 go_to_page("Guided Questions")
@@ -8967,7 +8972,7 @@ div[data-testid="stDataFrame"] {
 }
 
 
-/* Blueprint Dashboard plain-English explanation */
+/* Retirement Dashboard plain-English explanation */
 .rb-dashboard-explain {
     margin: 18px 0 14px 0;
     border: 1px solid #A7F3D0;
@@ -9001,7 +9006,7 @@ div[data-testid="stDataFrame"] {
 }
 
 
-/* Expanded Blueprint Dashboard explanation */
+/* Expanded Retirement Dashboard explanation */
 .rb-explain-next {
     margin-top: 18px;
     border: 1px solid #BAE6FD;
@@ -9097,6 +9102,16 @@ div[data-testid="stDataFrame"] {
 .rb-explain-note b {
     color: #0f172a;
     font-weight: 950;
+}
+
+
+/* Section label used when Home contains dashboard results */
+.rb-page-section-label {
+    margin-top: 18px;
+    margin-bottom: 4px;
+    color: #0F172A;
+    font-weight: 950;
+    font-size: 1.35rem;
 }
 
 </style>
@@ -10756,7 +10771,7 @@ def render_resources_page():
             ["1", "Start My Blueprint", "Enter age, retirement age, assets, Social Security, healthcare, and core assumptions."],
             ["2", "Spending Plan", "Add simple or detailed monthly spending so the projection reflects real life."],
             ["3", "Income Plan", "Add pension, part-time work, rental income, annuities, or other income sources."],
-            ["4", "Blueprint Dashboard", "Review score, ending portfolio, income coverage, withdrawal pressure, and risks."],
+            ["4", "Retirement Dashboard", "Review score, ending portfolio, income coverage, withdrawal pressure, and risks."],
             ["5", "Action Plan", "See the highest-impact moves to improve the blueprint."],
             ["6", "Projection", "Inspect year-by-year balances, withdrawals, taxes, income gaps, and ending values."],
             ["7", "Confidence / Stress Tests", "Check how the plan behaves under market uncertainty and bad-case scenarios."],
