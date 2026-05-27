@@ -6805,6 +6805,26 @@ if active_page == PAGE_NAMES[0]:
           </div>
         </div>
         """, unsafe_allow_html=True)
+
+        st.markdown("""
+        <div class="rb-save-callout">
+          <div>
+            <div class="rb-save-kicker">Baseline Blueprint</div>
+            <div class="rb-save-title">Your blueprint is ready. Save this version before testing changes.</div>
+            <div class="rb-save-copy">
+              Saving gives you a starting point before you adjust retirement age, spending, Social Security timing, or income.
+            </div>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        save_cols = st.columns([1, 1])
+        with save_cols[0]:
+            if st.button("Save This Blueprint", type="primary", use_container_width=True, key="dashboard_save_baseline_blueprint"):
+                go_to_page("Saved Scenarios")
+        with save_cols[1]:
+            if st.button("View Action Plan", use_container_width=True, key="dashboard_view_action_after_save_prompt"):
+                go_to_page("Recommendations")
     else:
         st.markdown("""
         <div class="rb-insight-card">
@@ -7917,7 +7937,7 @@ if active_page == PAGE_NAMES[6]:
     st.divider()
     next_cols = st.columns([1, 1])
     with next_cols[0]:
-        if st.button("Go to Action Plan", type="primary", use_container_width=True, key="next_from_dashboard_to_action"):
+        if st.button("Next: View Action Plan", type="primary", use_container_width=True, key="next_from_dashboard_to_action"):
             go_to_page("Recommendations")
     with next_cols[1]:
         if st.button("Review Projection", use_container_width=True, key="next_from_dashboard_to_projection"):
@@ -8637,6 +8657,37 @@ div[data-testid="stDataFrame"] {
     background: #2563EB;
     color: #FFFFFF;
     margin-bottom: 8px;
+}
+
+
+/* Dashboard save baseline callout */
+.rb-save-callout {
+    margin: 18px 0 12px 0;
+    border: 1px solid #BFDBFE;
+    border-left: 6px solid #2563EB;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #EFF6FF 0%, #F8FAFC 55%, #ECFEFF 100%);
+    padding: 18px 20px;
+    box-shadow: 0 10px 26px rgba(37,99,235,.08);
+}
+.rb-save-kicker {
+    color: #2563EB;
+    font-size: .78rem;
+    font-weight: 950;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin-bottom: 6px;
+}
+.rb-save-title {
+    color: #0F172A;
+    font-size: 1.1rem;
+    font-weight: 950;
+    margin-bottom: 6px;
+}
+.rb-save-copy {
+    color: #64748B;
+    font-size: .95rem;
+    line-height: 1.45;
 }
 
 </style>
