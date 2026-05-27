@@ -7527,12 +7527,54 @@ def render_basic_blueprint_dashboard():
     </div>
     """, unsafe_allow_html=True)
 
+    # Free-user value: give a small useful takeaway without unlocking the full optimization engine.
+    if snap["status"] == "Looks Good":
+        takeaway = "Your quick numbers suggest your target retirement age may be realistic, but the free version is still a simplified estimate."
+        idea_1 = "Stress-test the plan by asking: what happens if returns are lower than expected?"
+        idea_2 = "Check whether your spending estimate includes healthcare, taxes, travel, and home repairs."
+    elif snap["status"] == "Maybe":
+        takeaway = "Your quick numbers show the plan may work, but the cushion looks thinner and deserves a closer review."
+        idea_1 = "Try lowering estimated monthly spending or delaying retirement by 1 year."
+        idea_2 = "Review Social Security timing because delaying benefits may reduce pressure on savings."
+    elif snap["status"] == "Not Yet":
+        takeaway = "Your quick numbers suggest the current retirement age may be too aggressive without changing savings, spending, or timing."
+        idea_1 = "Try delaying retirement by 1–2 years to give savings more time to grow."
+        idea_2 = "Try reducing monthly retirement spending to lower the amount needed from savings."
+    else:
+        takeaway = "Your Basic Blueprint needs a few more starter inputs before it can give a useful retirement snapshot."
+        idea_1 = "Enter your current age, retirement age, savings, and monthly spending."
+        idea_2 = "Use reasonable estimates first. You can refine the details later."
+
+    st.markdown(f"""
+    <div class="rb-insight-card">
+      <div class="rb-insight-kicker">Basic Blueprint Takeaway</div>
+      <div class="rb-insight-title">What your quick numbers are telling you</div>
+      <div class="rb-insight-copy">{takeaway}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    t1, t2 = st.columns(2)
+    with t1:
+        st.markdown(f"""
+        <div class="rb-next-box">
+          <div class="rb-next-heading">Thing to try #1</div>
+          <div class="rb-muted">{idea_1}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with t2:
+        st.markdown(f"""
+        <div class="rb-next-box">
+          <div class="rb-next-heading">Thing to try #2</div>
+          <div class="rb-muted">{idea_2}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
     st.markdown("""
     <div class="rb-next-box">
       <div class="rb-next-heading">Want a more accurate answer?</div>
       <div class="rb-muted">
-        Your basic blueprint does not yet include account-by-account taxes, detailed spending categories,
-        Roth conversion impact, home equity, or bucket strategy.
+        Premium can calculate the impact instead of making you guess. Detailed Blueprint adds account-by-account taxes,
+        detailed spending categories, Roth conversion impact, home equity, bucket strategy, age optimization, and saved comparisons.
       </div>
     </div>
     """, unsafe_allow_html=True)
