@@ -3247,9 +3247,9 @@ def render_retirement_age_optimizer_page():
             | **Result** | **What it means** |
             |---|---|
             | **Earliest Possible** | The first tested age where the plan appears to work through the planning age |
-            | **Recommended Age** | The age with the best balance of retiring sooner, Blueprint Score, safety cushion, and risk |
+            | **Current Target Age** | The age with the best balance of retiring sooner, Blueprint Score, safety cushion, and risk |
             | **Safest Age** | The age that leaves the highest projected ending balance |
-            | **Recommended Score** | The Blueprint Score for the recommended retirement age |
+            | **Recommended Score** | The Blueprint Score for the tested retirement age |
 
             **Important:** The recommended age is not automatically the earliest age or the safest age.  
             It is the age that appears to offer the best overall balance based on the current inputs.
@@ -3328,7 +3328,7 @@ def render_retirement_age_optimizer_page():
         safest = opt["safest"]
 
         st.success(
-            f"Recommended Retirement Age: **{int(recommended['Retirement Age'])}** — "
+            f"Current Target Age: **{int(recommended['Retirement Age'])}** — "
             "best overall balance from the ages tested."
         )
 
@@ -3337,7 +3337,7 @@ def render_retirement_age_optimizer_page():
         m1.metric("Earliest Possible", int(earliest["Retirement Age"]), "First tested age that works")
         m1.caption("Useful if the user wants to retire as soon as the plan appears workable.")
 
-        m2.metric("Recommended Age", int(recommended["Retirement Age"]), "Best balance")
+        m2.metric("Current Target Age", int(recommended["Retirement Age"]), "Best balance")
         m2.caption("Balances retiring sooner with score, cushion, and risk.")
 
         m3.metric("Safest Age", int(safest["Retirement Age"]), "Highest ending balance")
@@ -6598,7 +6598,7 @@ def render_dashboard_combo_overview(df, rtv_score, rtv_label):
     with c2:
         st.markdown(f"""
         <div class="rb-modern-card">
-          <h4>Recommended Retirement Age</h4>
+          <h4>Current Target Age</h4>
           <div class="rb-modern-value">{chosen_age}</div>
           <div class="rb-pill">Current plan setting</div>
           <div style="height:10px"></div>
@@ -6744,7 +6744,44 @@ if active_page == PAGE_NAMES[0]:
         avg_gap_home = float(safe_df_home["Portfolio Need"].mean() if "Portfolio Need" in safe_df_home.columns else 0)
         if avg_gap_home <= 0 and "Total Spending" in safe_df_home.columns and "Total Non-Portfolio Income" in safe_df_home.columns:
             avg_gap_home = float((safe_df_home["Total Spending"] - safe_df_home["Total Non-Portfolio Income"]).clip(lower=0).mean())
-        monthly_gap_home = money(max(avg_gap_home, 0) / 12)
+        monthly_gap_raw_home = max(avg_gap_home, 0) / 12
+
+        target_retire_age_home = int(st.session_state.get("retire_age", 0) or 0)
+        ss_start_age_home = int(st.session_state.get("ss_start_age", 62) or 62)
+        healthcare_gap_years_home = max(0, min(65, planning_age_home) - target_retire_age_home) if target_retire_age_home else 0
+        ss_gap_years_home = max(0, ss_start_age_home - target_retire_age_home) if target_retire_age_home else 0
+        annual_spending_home = annual_household_spending() + float(st.session_state.get("healthcare", 0) or 0)
+        total_income_first_year_home = 0
+        try:
+            if "Total Non-Portfolio Income" in safe_df_home.columns:
+                total_income_first_year_home = float(safe_df_home["Total Non-Portfolio Income"].iloc[0] or 0)
+        except Exception:
+            total_income_first_year_home = 0
+
+        dashboard_reason_bits = []
+        if ss_gap_years_home > 0:
+            dashboard_reason_bits.append(f"You have about <b>{ss_gap_years_home} year(s)</b> before Social Security starts, so savings may need to carry more of the early retirement spending.")
+        else:
+            dashboard_reason_bits.append("Social Security appears to start at or before the tested retirement age, which can reduce pressure on savings.")
+
+        if healthcare_gap_years_home > 0:
+            dashboard_reason_bits.append(f"You have about <b>{healthcare_gap_years_home} year(s)</b> before Medicare age 65, so healthcare costs may be an important bridge expense.")
+        else:
+            dashboard_reason_bits.append("The plan does not show a major pre-Medicare healthcare bridge based on the current ages.")
+
+        if monthly_gap_raw_home > 0:
+            dashboard_reason_bits.append(f"The plan needs about <b>{money(monthly_gap_raw_home)}</b> per month from savings after estimated income is counted.")
+        else:
+            dashboard_reason_bits.append("Estimated income appears to cover the monthly spending need in the early years.")
+
+        if end_total_home <= 0 or unmet_need_home > 0:
+            dashboard_reason_bits.append("The projection shows a shortfall or portfolio depletion, so the plan needs a bigger change.")
+        elif rtv_score_home < 70:
+            dashboard_reason_bits.append("The plan appears possible, but the cushion is thin. Small changes may make a big difference.")
+        else:
+            dashboard_reason_bits.append("The plan has a stronger cushion under the current assumptions, but still deserves stress testing.")
+
+        dashboard_reason_html = "<br/><br/>".join(dashboard_reason_bits)
 
         status_title = "Your plan is ready to review."
         status_note = "Use the Blueprint Dashboard, Action Plan, Confidence Test, Stress Tests, and Blueprint Report for deeper analysis."
@@ -6757,6 +6794,8 @@ if active_page == PAGE_NAMES[0]:
         retire_status_home = "Not Ready"
         retire_status_note_home = "Enter your core numbers to test your retirement age."
         monthly_gap_home = "$0"
+        monthly_gap_raw_home = 0
+        dashboard_reason_html = "Complete your Start Blueprint, Spending Plan, and Income Plan first. Then this dashboard will explain what is helping or hurting the retirement estimate."
         status_title = "You are not signed in." if not user else "Your plan needs a little more information."
         status_note = "You can still use the planner, but saved blueprints require an account." if not user else "Complete the required fields below to unlock projections and recommendations."
         required_panel = ", ".join(missing_items_home) if missing_items_home else "Review Start My Blueprint and Spending Plan."
@@ -6892,6 +6931,19 @@ if active_page == PAGE_NAMES[0]:
         """, unsafe_allow_html=True)
         if st.button("Start My Blueprint", use_container_width=True, key="next_start_guided"):
             go_to_page("Guided Questions")
+
+    if safe_can_run_home:
+        st.markdown(f"""
+        <div class="rb-next-box">
+          <div class="rb-next-heading">Why these numbers look this way</div>
+          <div class="rb-muted">
+            {dashboard_reason_html}
+            <br/><br/>
+            <b>Important:</b> The age shown is your <b>current target age being tested</b>, not a recommendation that you should retire at that age.
+            Use the Age Optimizer and Action Plan to compare safer alternatives.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
     st.markdown("### Premium Retirement Tools")
     st.caption("Once the basics are entered, these tools help compare retirement ages, reduce risk, plan withdrawals, and create a fuller retirement blueprint.")
@@ -7525,7 +7577,7 @@ def render_dashboard_close_to_mock(df, rtv_score, rtv_label, rtv_reasons):
     with c2:
         st.markdown(f"""
         <div class="rb-kpi-card-v2">
-          <div class="rb-kpi-label">Recommended Retirement Age</div>
+          <div class="rb-kpi-label">Current Target Age</div>
           <div class="rb-kpi-value">{chosen_age}</div>
           <div class="rb-kpi-pill">Current target</div>
           <div class="rb-kpi-note">Shows whether your target retirement age appears realistic.</div>
@@ -8778,6 +8830,13 @@ div[data-testid="stDataFrame"] {
     color: #64748B;
     font-size: .95rem;
     line-height: 1.45;
+}
+
+
+/* Dashboard plain-English explanation polish */
+.rb-next-box b {
+    color: #0f172a;
+    font-weight: 900;
 }
 
 </style>
