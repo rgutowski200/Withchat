@@ -7492,8 +7492,6 @@ def render_dashboard_close_to_mock(df, rtv_score, rtv_label, rtv_reasons):
     st.markdown(f"""
     <div class="rb-saas-hero">
       <div>
-        <div class="rb-saas-title">Good evening 👋</div>
-        <div class="rb-saas-sub">See when you can retire, how long your money may last, and what to improve before you make the leap.</div>
       </div>
     </div>
     """, unsafe_allow_html=True)
