@@ -8060,6 +8060,11 @@ if active_page == PAGE_NAMES[7]:
         actions = build_rtv_improvement_recommendations(df, rtv_score)
         positive_actions = [a for a in actions if a.get("Blueprint Impact", 0) > 0]
 
+        if rtv_score < 60:
+            st.error(
+                "Your current blueprint is high risk. The goal now is not to fine-tune the plan — it is to test bigger changes that could improve the score."
+            )
+
         st.subheader("Your Next Best Step")
 
         if positive_actions:
@@ -8079,13 +8084,35 @@ if active_page == PAGE_NAMES[7]:
             </div>
             """, unsafe_allow_html=True)
         else:
-            st.markdown("""
+            # Fallback improvement guidance. A low score should never say the plan is testing well.
+            if rtv_score < 60:
+                fallback_title = "Your plan needs improvement before it looks retirement-ready"
+                fallback_copy = (
+                    "The score is low, so focus on the biggest levers: spending, retirement age, income, "
+                    "and savings. The app could not find a single automatic test that fixed the plan, but these are the right next moves to try."
+                )
+                fallback_impact = "Potential score impact: +10 to +35 depending on your numbers"
+            elif rtv_score < 80:
+                fallback_title = "Your plan is close, but it needs more cushion"
+                fallback_copy = (
+                    "The plan may be possible, but the cushion is thin. Try small improvements before treating this as a confident retirement date."
+                )
+                fallback_impact = "Potential score impact: +5 to +20 depending on your numbers"
+            else:
+                fallback_title = "Your plan is testing well"
+                fallback_copy = (
+                    "The common improvement tests did not materially improve your score. Use stress tests, "
+                    "scenario comparisons, and the report to confirm the plan still feels comfortable."
+                )
+                fallback_impact = "Potential score impact: smaller"
+
+            st.markdown(f"""
             <div class="rb-insight-card">
               <div class="rb-insight-kicker">Highest-Impact Action</div>
-              <div class="rb-insight-title">Your plan is already testing well</div>
+              <div class="rb-insight-title">{fallback_title}</div>
               <div class="rb-insight-copy">
-                The common improvement tests did not materially improve your score. Use stress tests,
-                scenario comparisons, and the report to confirm the plan still feels comfortable.
+                {fallback_copy}
+                <br/><br/><b>{fallback_impact}</b>
               </div>
             </div>
             """, unsafe_allow_html=True)
@@ -8093,20 +8120,74 @@ if active_page == PAGE_NAMES[7]:
         st.subheader("Top Things to Try")
 
         try_rows = []
-        if max_wr > 0.07:
-            try_rows.append(["Lower spending", "Reduces how much has to come out of savings each year.", "Try lowering spending by $500–$1,000/month."])
-            try_rows.append(["Retire later", "Gives savings more time to grow and reduces years of withdrawals.", "Test retiring 1–2 years later."])
-        elif avg_income_coverage < 0.30:
-            try_rows.append(["Add reliable income", "Less spending has to come from savings.", "Add pension, part-time work, rental income, or other income."])
-            try_rows.append(["Review Social Security timing", "Delaying Social Security can increase guaranteed income.", "Compare age 62, full retirement age, and 70."])
-        elif ending_portfolio < 250000:
-            try_rows.append(["Protect your cushion", "A smaller ending balance leaves less room for surprises.", "Avoid increasing spending until the plan is stronger."])
-            try_rows.append(["Build Bucket 1", "Safer money can help cover spending during market drops.", "Target a few years of near-term spending."])
-        else:
-            try_rows.append(["Stress test the plan", "A good plan should still survive some bad years.", "Run the confidence and stress tests."])
-            try_rows.append(["Compare better options", "Small timing changes can improve confidence.", "Test retirement ages and Social Security timing."])
 
-        try_df = pd.DataFrame(try_rows, columns=["Thing to Try", "Why It Helps", "Simple Next Step"])
+        # Always show score-improvement advice, especially when the score is low.
+        if max_wr > 0.07 or rtv_score < 60:
+            try_rows.append([
+                "Lower spending",
+                "Reduces how much has to come out of savings each year.",
+                "Try lowering spending by $500–$1,000/month.",
+                "+5 to +15"
+            ])
+            try_rows.append([
+                "Retire later",
+                "Gives savings more time to grow and reduces the number of years withdrawals are needed.",
+                "Test retiring 1–2 years later.",
+                "+10 to +25"
+            ])
+
+        if avg_income_coverage < 0.30 or rtv_score < 70:
+            try_rows.append([
+                "Add reliable income",
+                "Less of the retirement bill has to come from savings.",
+                "Add pension, part-time work, rental income, or other income.",
+                "+5 to +20"
+            ])
+            try_rows.append([
+                "Review Social Security timing",
+                "Delaying Social Security can increase guaranteed income and lower pressure on savings.",
+                "Compare age 62, full retirement age, and 70.",
+                "+3 to +15"
+            ])
+
+        if ending_portfolio < 250000 or rtv_score < 80:
+            try_rows.append([
+                "Increase savings before retirement",
+                "More starting money gives the plan a bigger cushion.",
+                "Try increasing contributions or saving extra cash before retirement.",
+                "+5 to +20"
+            ])
+            try_rows.append([
+                "Build a safer spending bucket",
+                "A cash/safe bucket can help cover spending during bad market years.",
+                "Target 1–3 years of near-term spending in safer money.",
+                "+3 to +10"
+            ])
+
+        # If the plan is already strong, keep the list focused on validation.
+        if not try_rows:
+            try_rows.append([
+                "Stress test the plan",
+                "A good plan should still survive some bad years.",
+                "Run the confidence and stress tests.",
+                "Risk reduction"
+            ])
+            try_rows.append([
+                "Compare better options",
+                "Small timing changes can improve confidence.",
+                "Test retirement ages and Social Security timing.",
+                "Optimization"
+            ])
+
+        # Remove duplicates while preserving order.
+        deduped = []
+        seen = set()
+        for row in try_rows:
+            if row[0] not in seen:
+                deduped.append(row)
+                seen.add(row[0])
+
+        try_df = pd.DataFrame(deduped[:6], columns=["Thing to Try", "Why It Helps", "Simple Next Step", "Possible Score Impact"])
         st.dataframe(try_df, use_container_width=True, hide_index=True)
 
         st.subheader("Plain-English Explanation of the Numbers")
