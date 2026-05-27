@@ -4141,6 +4141,36 @@ def build_spend_more_tests(base_score):
 
 
 
+
+def safe_get(obj, key, default=None):
+    try:
+        if isinstance(obj, dict):
+            value = obj.get(key, default)
+        else:
+            value = getattr(obj, key, default)
+        if value is None:
+            return default
+        return value
+    except Exception:
+        return default
+
+def safe_float(value, default=0.0):
+    try:
+        if value is None or value == "":
+            return default
+        return float(value)
+    except Exception:
+        return default
+
+def safe_int(value, default=0):
+    try:
+        if value is None or value == "":
+            return default
+        return int(float(value))
+    except Exception:
+        return default
+
+
 def compact_money_label(x):
     try:
         x = float(x)
@@ -6853,13 +6883,14 @@ if active_page == PAGE_NAMES[0]:
         """, unsafe_allow_html=True)
 
         st.markdown(f"""
-        <div class="rb-next-box">
-          <div class="rb-next-heading">Why these numbers look this way</div>
-          <div class="rb-muted">
+        <div class="rb-dashboard-explain">
+          <div class="rb-explain-kicker">Blueprint Dashboard Explanation</div>
+          <div class="rb-explain-title">Why these numbers look this way</div>
+          <div class="rb-explain-copy">
             {dashboard_reason_html}
             <br/><br/>
             <b>Important:</b> The age shown is your <b>current target age being tested</b>, not a recommendation that you should retire at that age.
-            Use the Action Plan next to see what can improve the score.
+            The Action Plan is the next step to see what changes may improve the score.
           </div>
         </div>
         """, unsafe_allow_html=True)
@@ -8482,6 +8513,42 @@ if active_page == PAGE_NAMES[8]:
 
 
 if active_page == PAGE_NAMES[9]:
+    def _saved_blueprint_display_rows(saved_items):
+        rows = []
+        for i, item in enumerate(saved_items or []):
+            try:
+                name = safe_get(item, "name", None) or safe_get(item, "title", None) or f"Blueprint {i + 1}"
+                created = safe_get(item, "created_at", None) or safe_get(item, "created", None) or ""
+                score = safe_get(item, "score", None)
+                if score is None:
+                    score = safe_get(item, "blueprint_score", None)
+                retire_age = safe_get(item, "retire_age", None) or safe_get(item, "retirement_age", None)
+                ending = (
+                    safe_get(item, "ending_portfolio", None)
+                    or safe_get(item, "money_left", None)
+                    or safe_get(item, "end_total", None)
+                    or safe_get(item, "ending_balance", None)
+                )
+                rows.append({
+                    "Blueprint": name,
+                    "Created": created,
+                    "Score": "Not calculated" if score is None else f"{safe_int(score)}/100",
+                    "Retirement Age": "—" if retire_age is None else safe_int(retire_age),
+                    "Money Left": "—" if ending is None else compact_money(safe_float(ending)),
+                    "Status": "Ready" if score is not None else "Needs review",
+                })
+            except Exception:
+                rows.append({
+                    "Blueprint": f"Blueprint {i + 1}",
+                    "Created": "",
+                    "Score": "Could not read",
+                    "Retirement Age": "—",
+                    "Money Left": "—",
+                    "Status": "Needs review",
+                })
+        return pd.DataFrame(rows)
+
+
     st.markdown("""
     <style>
     /* Saved Scenarios page polish */
@@ -8850,6 +8917,40 @@ div[data-testid="stDataFrame"] {
 .rb-next-box b {
     color: #0f172a;
     font-weight: 900;
+}
+
+
+/* Blueprint Dashboard plain-English explanation */
+.rb-dashboard-explain {
+    margin: 18px 0 14px 0;
+    border: 1px solid #A7F3D0;
+    border-radius: 22px;
+    background: linear-gradient(135deg, #F0FDF4 0%, #ECFEFF 100%);
+    padding: 22px 24px;
+    box-shadow: 0 12px 30px rgba(16,185,129,.08);
+}
+.rb-explain-kicker {
+    color: #2563EB;
+    font-size: .78rem;
+    font-weight: 950;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin-bottom: 8px;
+}
+.rb-explain-title {
+    color: #047857;
+    font-size: 1.25rem;
+    font-weight: 950;
+    margin-bottom: 12px;
+}
+.rb-explain-copy {
+    color: #64748B;
+    font-size: 1rem;
+    line-height: 1.55;
+}
+.rb-explain-copy b {
+    color: #334155;
+    font-weight: 950;
 }
 
 </style>
