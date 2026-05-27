@@ -6491,6 +6491,7 @@ def render_navigation():
             "Guided Questions",
             "Budget Builder",
             "Income Builder",
+            "Review Answers",
             "Retirement Dashboard",
             "Recommendations",
             "Projection Table",
@@ -7517,7 +7518,7 @@ if active_page == PAGE_NAMES[3]:
             go_to_page("Budget Builder")
     with next_cols[1]:
         if st.button("Next: Review Inputs", type="primary", use_container_width=True, key="next_from_income_to_review"):
-            go_to_page("Review Inputs")
+            go_to_page("Review Answers")
 
 
 if active_page == PAGE_NAMES[4]:
