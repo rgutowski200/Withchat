@@ -9146,14 +9146,24 @@ div[data-testid="stDataFrame"] {
 if active_page == PAGE_NAMES[10]:
     render_page_shell(
         "Places to Retire",
-        "Rank retirement locations using taxes, affordability, healthcare, lifestyle, and your personal preferences.",
+        "Find retirement locations that fit your money, lifestyle, healthcare needs, climate preferences, and tax situation.",
         "📍"
     )
-    render_premium_insight("Location planning insight", df if can_run else None, "places")
     page_help(
         "Places to Retire",
-        "Phase 1 shows a clear state-level retirement scorecard. Phase 2 personalizes the ranking using your income, spending, home value, and what matters most to you. Later phases can add city-level live data, deeper state tax rules, and saved favorite locations."
+        "This page starts with a simple state-level ranking, then lets you personalize the results using taxes, cost, healthcare, lifestyle, climate, and city-level preferences."
     )
+
+    st.markdown("""
+    <div class="rb-insight-card">
+      <div class="rb-insight-kicker">Location Planning</div>
+      <div class="rb-insight-title">Where you retire can change how long your money lasts</div>
+      <div class="rb-insight-copy">
+        Taxes, housing costs, healthcare access, insurance, climate, and lifestyle can all change your retirement picture.
+        Start with the best overall matches, then adjust the priorities to fit what matters most to you.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.warning(
         "Educational estimate only. State taxes, property taxes, insurance, healthcare access, and cost of living change over time. Verify details before making relocation or tax decisions."
@@ -9161,18 +9171,14 @@ if active_page == PAGE_NAMES[10]:
 
     places_df = get_phase1_retirement_places_data().copy()
 
-    # ─────────────────────────────────────────────────────────────
-    # Phase 1: Static state scorecard
-    # ─────────────────────────────────────────────────────────────
-    st.subheader("Phase 1: Retirement Location Scorecard")
-    st.write(
-        "Start with a simple state-level view. Each state is scored from 0–100 across taxes, cost, healthcare, lifestyle, and climate."
-    )
+    # Basic ranking controls
+    st.subheader("Best Places to Retire Snapshot")
+    st.caption("Start here. This gives a quick ranking before you personalize the results.")
 
-    c1, c2 = st.columns([1.1, 2.0])
+    c1, c2 = st.columns([1, 2])
     with c1:
         priority = st.selectbox(
-            "Quick ranking view",
+            "What do you want to optimize for?",
             [
                 "Balanced overall",
                 "Lowest taxes",
@@ -9180,76 +9186,84 @@ if active_page == PAGE_NAMES[10]:
                 "Healthcare access",
                 "Lifestyle / weather",
             ],
-            help="This changes the Phase 1 sort order. Phase 2 below uses your personal weights."
+            help="This changes the starting ranking. You can personalize the weights below."
         )
     with c2:
-        st.info(
-            "Phase 1 is the broad map. Phase 2 makes it personal by estimating state/local tax drag and applying your own priorities."
-        )
+        st.markdown("""
+        <div class="rb-next-box">
+          <div class="rb-next-heading">How to use this page</div>
+          <div class="rb-muted">
+            First, look at the best overall match. Then compare the top states and adjust the personal priorities below.
+            A high score does not mean a state is perfect. It means it may be worth a closer look.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
     ranked_df = filter_places_data(places_df, priority).reset_index(drop=True)
     ranked_df.insert(0, "Rank", ranked_df.index + 1)
     ranked_df["Fit Label"] = ranked_df["Overall Score"].map(score_badge)
 
     top = ranked_df.iloc[0]
-    st.success(
-        f"Top Phase 1 match by **{priority}**: **{top['State']}** with an overall score of **{int(top['Overall Score'])}/100**."
-    )
+    top_low_tax = filter_places_data(places_df, "Lowest taxes").reset_index(drop=True).iloc[0]
+    top_health = filter_places_data(places_df, "Healthcare access").reset_index(drop=True).iloc[0]
+    top_lifestyle = filter_places_data(places_df, "Lifestyle / weather").reset_index(drop=True).iloc[0]
 
-    st.pyplot(plot_best_states_scores(ranked_df), use_container_width=True)
+    st.markdown(f"""
+    <div class="rb-card-grid">
+      <div class="rb-card">
+        <div class="rb-card-top"><div class="rb-card-label">Best Overall Match</div><div class="rb-icon">📍</div></div>
+        <div class="rb-card-value">{top['State']}</div>
+        <div class="rb-card-note">Score: {int(top['Overall Score'])}/100 — {top['Fit Label']}</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-top"><div class="rb-card-label">Best Low-Tax Option</div><div class="rb-icon">$</div></div>
+        <div class="rb-card-value">{top_low_tax['State']}</div>
+        <div class="rb-card-note">Best starting point if taxes matter most.</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-top"><div class="rb-card-label">Best Healthcare Access</div><div class="rb-icon">✓</div></div>
+        <div class="rb-card-value">{top_health['State']}</div>
+        <div class="rb-card-note">Strong starting point for healthcare access.</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-top"><div class="rb-card-label">Best Lifestyle / Weather</div><div class="rb-icon">☀️</div></div>
+        <div class="rb-card-value">{top_lifestyle['State']}</div>
+        <div class="rb-card-note">Good fit for climate and retirement lifestyle.</div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    display_cols = [
+    st.subheader("Top state rankings")
+    st.caption("These are broad state-level rankings. Use them as a shortlist, not a final answer.")
+
+    display = ranked_df.head(10).copy()
+    display["Best For"] = display["Best Fit"]
+    display["Watch Out For"] = display["Watch Outs"]
+    state_table = display[[
         "Rank",
         "State",
         "Overall Score",
         "Fit Label",
-        "Tax Score",
-        "Cost Score",
-        "Healthcare Score",
-        "Lifestyle Score",
-        "Climate Score",
+        "Best For",
+        "Watch Out For",
         "Example Places",
-        "Best Fit",
-    ]
+    ]]
+    st.dataframe(state_table, use_container_width=True, hide_index=True, height=390)
 
-    st.dataframe(ranked_df[display_cols], use_container_width=True, hide_index=True)
+    with st.expander("What the scores mean", expanded=False):
+        explain = pd.DataFrame([
+            ["Taxes", "Affects how much retirement income you keep."],
+            ["Cost of living", "Lower costs can make the same savings last longer."],
+            ["Healthcare", "Access becomes more important as you age."],
+            ["Lifestyle", "Retirement should fit how you actually want to live."],
+            ["Climate", "Weather, snowbird plans, and seasonal comfort matter."],
+        ], columns=["Factor", "Why It Matters"])
+        st.dataframe(explain, use_container_width=True, hide_index=True)
 
-    with st.expander("Review a state in plain English", expanded=False):
-        selected_state = st.selectbox(
-            "Choose a state",
-            ranked_df["State"].tolist(),
-            key="phase1_selected_state_detail"
-        )
-        selected = ranked_df[ranked_df["State"] == selected_state].iloc[0]
-
-        m1, m2, m3, m4, m5 = st.columns(5)
-        m1.metric("Overall", f"{int(selected['Overall Score'])}/100", selected["Fit Label"])
-        m2.metric("Taxes", f"{int(selected['Tax Score'])}/100")
-        m3.metric("Cost", f"{int(selected['Cost Score'])}/100")
-        m4.metric("Healthcare", f"{int(selected['Healthcare Score'])}/100")
-        m5.metric("Lifestyle", f"{int(selected['Lifestyle Score'])}/100")
-
-        d1, d2 = st.columns(2)
-        with d1:
-            st.markdown("### Why it ranks well")
-            st.write(selected["Why It Ranks Well"])
-            st.markdown("### Example places")
-            st.write(selected["Example Places"])
-        with d2:
-            st.markdown("### Watch-outs")
-            st.write(selected["Watch Outs"])
-            st.markdown("### Best fit")
-            st.write(selected["Best Fit"])
-
+    # Personalized ranking
     st.divider()
-
-    # ─────────────────────────────────────────────────────────────
-    # Phase 2: Personalized location scoring
-    # ─────────────────────────────────────────────────────────────
-    st.subheader("Phase 2: Personalized Retirement Location Ranking")
-    st.write(
-        "Now make the scorecard fit the user. The app uses retirement income, spending, home value, and personal priorities to rank states more intelligently."
-    )
+    st.subheader("Personalize the ranking")
+    st.caption("Tell the app what matters most. This turns the broad state list into a more personal shortlist.")
 
     default_ss = float(st.session_state.user_ss or 0)
     if st.session_state.has_spouse:
@@ -9262,54 +9276,54 @@ if active_page == PAGE_NAMES[10]:
     default_other_income = float(st.session_state.simple_income or 0)
     estimated_portfolio_need = max(default_spending - default_ss - default_other_income, 0)
 
-    st.markdown("### Your location inputs")
-    i1, i2, i3 = st.columns(3)
-    ss_income = i1.number_input(
-        "Annual Social Security income",
-        min_value=0,
-        value=int(default_ss),
-        step=1000,
-        help="Estimated annual household Social Security income."
-    )
-    pretax_withdrawals = i2.number_input(
-        "Annual pre-tax withdrawals",
-        min_value=0,
-        value=int(estimated_portfolio_need),
-        step=1000,
-        help="Estimated annual withdrawals from traditional 401(k)/IRA accounts."
-    )
-    pension_other_income = i3.number_input(
-        "Annual pension / other taxable income",
-        min_value=0,
-        value=int(default_other_income),
-        step=1000,
-        help="Pension, rental income, annuity income, side income, or other taxable income."
-    )
+    with st.expander("Your money assumptions", expanded=True):
+        i1, i2, i3 = st.columns(3)
+        ss_income = i1.number_input(
+            "Annual Social Security income",
+            min_value=0,
+            value=int(default_ss),
+            step=1000,
+            help="Estimated annual household Social Security income."
+        )
+        pretax_withdrawals = i2.number_input(
+            "Annual pre-tax withdrawals",
+            min_value=0,
+            value=int(estimated_portfolio_need),
+            step=1000,
+            help="Estimated annual withdrawals from traditional 401(k)/IRA accounts."
+        )
+        pension_other_income = i3.number_input(
+            "Annual pension / other taxable income",
+            min_value=0,
+            value=int(default_other_income),
+            step=1000,
+            help="Pension, rental income, annuity income, side income, or other taxable income."
+        )
 
-    i1, i2, i3 = st.columns(3)
-    taxable_income = i1.number_input(
-        "Annual taxable brokerage income",
-        min_value=0,
-        value=0,
-        step=1000,
-        help="Estimated dividends, interest, or realized capital gains from taxable accounts."
-    )
-    annual_spending_input = i2.number_input(
-        "Annual household spending",
-        min_value=0,
-        value=int(default_spending),
-        step=1000,
-        help="Used to estimate sales tax exposure. The model assumes a portion of spending is taxable."
-    )
-    home_value = i3.number_input(
-        "Estimated home value",
-        min_value=0,
-        value=400000,
-        step=25000,
-        help="Used to estimate property tax by state."
-    )
+        i1, i2, i3 = st.columns(3)
+        taxable_income = i1.number_input(
+            "Annual taxable brokerage income",
+            min_value=0,
+            value=0,
+            step=1000,
+            help="Estimated dividends, interest, or realized capital gains from taxable accounts."
+        )
+        annual_spending_input = i2.number_input(
+            "Annual household spending",
+            min_value=0,
+            value=int(default_spending),
+            step=1000,
+            help="Used to estimate sales tax exposure. The model assumes a portion of spending is taxable."
+        )
+        home_value = i3.number_input(
+            "Estimated home value",
+            min_value=0,
+            value=400000,
+            step=25000,
+            help="Used to estimate property tax by state."
+        )
 
-    st.markdown("### What matters most?")
+    st.markdown("### What matters most to you?")
     w1, w2, w3, w4, w5 = st.columns(5)
     tax_weight = w1.slider("Taxes", 0, 10, 8)
     cost_weight = w2.slider("Cost", 0, 10, 7)
@@ -9347,8 +9361,6 @@ if active_page == PAGE_NAMES[10]:
     )
 
     total_weight = max(tax_weight + cost_weight + healthcare_weight + lifestyle_weight + climate_weight, 1)
-
-    # Convert estimated tax drag into a 0-100 score, then blend using user-selected weights.
     max_tax = max(float(personalized_df["Estimated Annual Tax"].max()), 1)
     min_tax = min(float(personalized_df["Estimated Annual Tax"].min()), max_tax)
 
@@ -9383,24 +9395,31 @@ if active_page == PAGE_NAMES[10]:
         st.warning("No states are left after your filters. Remove one or more avoided states.")
     else:
         best_personal = personalized_df.iloc[0]
-        st.success(
-            f"Best personalized match: **{best_personal['State']}** with a fit score of **{int(best_personal['Preference Fit Score'])}/100** "
-            f"and estimated annual state/local tax of **{money(best_personal['Estimated Annual Tax'])}**."
-        )
+
+        st.markdown(f"""
+        <div class="rb-insight-card">
+          <div class="rb-insight-kicker">Your Personalized Match</div>
+          <div class="rb-insight-title">{best_personal['State']} looks like your strongest state-level fit</div>
+          <div class="rb-insight-copy">
+            Fit score: <b>{int(best_personal['Preference Fit Score'])}/100</b>.
+            Estimated annual state/local tax: <b>{money(best_personal['Estimated Annual Tax'])}</b>.
+            Use this as a shortlist starter, then compare cities and real housing/insurance costs.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         k1, k2, k3, k4 = st.columns(4)
         k1.metric("Top State", best_personal["State"])
         k2.metric("Fit Score", f"{int(best_personal['Preference Fit Score'])}/100")
         k3.metric("Est. Annual Tax", money(best_personal["Estimated Annual Tax"]))
-        k4.metric("Effective State/Local Rate", pct(best_personal["Effective Tax Rate"]))
-
-        st.pyplot(plot_personalized_tax_burden(personalized_df), use_container_width=True)
+        k4.metric("Effective Rate", pct(best_personal["Effective Tax Rate"]))
 
         personal_display = personalized_df.copy()
         for col in ["Estimated Annual Tax", "Income Tax", "Property Tax", "Sales Tax"]:
             personal_display[col] = personal_display[col].map(money)
         personal_display["Effective Tax Rate"] = personal_display["Effective Tax Rate"].map(pct)
 
+        st.subheader("Personalized top states")
         st.dataframe(
             personal_display[
                 [
@@ -9408,9 +9427,6 @@ if active_page == PAGE_NAMES[10]:
                     "State",
                     "Preference Fit Score",
                     "Estimated Annual Tax",
-                    "Income Tax",
-                    "Property Tax",
-                    "Sales Tax",
                     "Effective Tax Rate",
                     "Cost Score",
                     "Healthcare Score",
@@ -9419,139 +9435,68 @@ if active_page == PAGE_NAMES[10]:
                     "Example Places",
                     "Best Fit",
                 ]
-            ],
+            ].head(12),
             use_container_width=True,
-            hide_index=True
+            hide_index=True,
+            height=430
         )
 
-        st.subheader("Compare up to 3 states")
-        compare_states = st.multiselect(
-            "Choose states to compare",
-            personalized_df["State"].tolist(),
-            default=personalized_df["State"].head(3).tolist(),
-            max_selections=3,
-            key="phase2_compare_states"
-        )
+        with st.expander("Show tax breakdown chart and deeper state comparison", expanded=False):
+            st.pyplot(plot_personalized_tax_burden(personalized_df), use_container_width=True)
 
-        if compare_states:
-            compare_df = personalized_df[personalized_df["State"].isin(compare_states)].copy()
-            compare_display = compare_df.copy()
-            for col in ["Estimated Annual Tax", "Income Tax", "Property Tax", "Sales Tax"]:
-                compare_display[col] = compare_display[col].map(money)
-            compare_display["Effective Tax Rate"] = compare_display["Effective Tax Rate"].map(pct)
-
-            st.dataframe(
-                compare_display[
-                    [
-                        "State",
-                        "Preference Fit Score",
-                        "Estimated Annual Tax",
-                        "Income Tax",
-                        "Property Tax",
-                        "Sales Tax",
-                        "Effective Tax Rate",
-                        "Cost Score",
-                        "Healthcare Score",
-                        "Lifestyle Score",
-                        "Climate Score",
-                        "Example Places",
-                        "Watch Outs",
-                    ]
-                ],
-                use_container_width=True,
-                hide_index=True
+            compare_states = st.multiselect(
+                "Choose states to compare",
+                personalized_df["State"].tolist(),
+                default=personalized_df["State"].head(3).tolist(),
+                max_selections=5,
+                key="optimized_compare_states"
             )
 
-            st.markdown("### Plain-English trade-offs")
-            for _, row in compare_df.iterrows():
-                with st.expander(f"{row['State']} trade-off summary"):
-                    st.write(f"**Fit score:** {int(row['Preference Fit Score'])}/100")
-                    st.write(f"**Best fit:** {row['Best Fit']}")
-                    st.write(f"**Example places:** {row['Example Places']}")
-                    st.write(f"**Estimated annual state/local tax:** {money(row['Estimated Annual Tax'])}")
-                    st.write(f"**Watch-outs:** {row['Watch Outs']}")
-
-        st.caption(
-            "Phase 2 uses simplified estimates for state income tax, property tax, and sales tax exposure. It does not yet model every state-specific exemption, local tax, insurance cost, or city-level cost-of-living difference."
-        )
-
-        # ─────────────────────────────────────────────────────────────
-        # Phase 3: Deeper state tax comparison
-        # ─────────────────────────────────────────────────────────────
-        st.divider()
-        st.subheader("Phase 3: State Tax Comparison")
-        st.write(
-            "Compare the estimated state/local tax drag side by side. This uses your Phase 2 income, spending, "
-            "and home-value assumptions, then breaks the estimate into income tax, property tax, and sales tax exposure."
-        )
-
-        personalized_for_compare = personalized_df.copy()
-        personalized_for_compare["Personalized Score"] = personalized_for_compare["Preference Fit Score"]
-
-        default_tax_states = personalized_for_compare["State"].head(3).tolist()
-        phase3_compare_states = st.multiselect(
-            "Choose states for deeper tax comparison",
-            personalized_for_compare["State"].tolist(),
-            default=default_tax_states,
-            max_selections=5,
-            key="phase3_deeper_tax_compare_states",
-            help="Pick up to 5 states to compare estimated tax burden and overall fit."
-        )
-
-        if phase3_compare_states:
-            phase3_compare_df = build_state_comparison_table(
-                places_df,
-                personalized_for_compare,
-                phase3_compare_states
-            )
-
-            if not phase3_compare_df.empty:
-                st.pyplot(plot_state_comparison_scores(phase3_compare_df), use_container_width=True)
-                st.pyplot(plot_state_tax_stack(phase3_compare_df), use_container_width=True)
-
-                phase3_display = phase3_compare_df.copy()
-                for col in ["Estimated Annual Tax", "Income Tax", "Property Tax", "Sales Tax"]:
-                    phase3_display[col] = phase3_display[col].map(money)
-                phase3_display["Effective Tax Rate"] = phase3_display["Effective Tax Rate"].map(pct)
-
-                st.dataframe(
-                    phase3_display[[
-                        "State",
-                        "Overall Score",
-                        "Personalized Score",
-                        "Estimated Annual Tax",
-                        "Income Tax",
-                        "Property Tax",
-                        "Sales Tax",
-                        "Effective Tax Rate",
-                        "Cost Score",
-                        "Healthcare Score",
-                        "Lifestyle Score",
-                        "Climate Score",
-                        "Example Places",
-                        "Watch Outs",
-                    ]],
-                    use_container_width=True,
-                    hide_index=True
+            if compare_states:
+                phase3_compare_df = build_state_comparison_table(
+                    places_df,
+                    personalized_df.assign(**{"Personalized Score": personalized_df["Preference Fit Score"]}),
+                    compare_states
                 )
 
-                st.markdown("### Comparison notes")
-                for note in build_compare_narrative(phase3_compare_df):
-                    st.markdown(f"- {note}")
+                if not phase3_compare_df.empty:
+                    st.pyplot(plot_state_comparison_scores(phase3_compare_df), use_container_width=True)
+                    st.pyplot(plot_state_tax_stack(phase3_compare_df), use_container_width=True)
 
-        st.caption(
-            "Phase 3 is still an educational estimate. It does not replace state-specific tax advice and does not yet model every exemption, local jurisdiction, insurance cost, or deduction."
-        )
+                    phase3_display = phase3_compare_df.copy()
+                    for col in ["Estimated Annual Tax", "Income Tax", "Property Tax", "Sales Tax"]:
+                        phase3_display[col] = phase3_display[col].map(money)
+                    phase3_display["Effective Tax Rate"] = phase3_display["Effective Tax Rate"].map(pct)
 
-        # ─────────────────────────────────────────────────────────────
-        # Phase 4: City-level retirement location engine
-        # ─────────────────────────────────────────────────────────────
+                    st.dataframe(
+                        phase3_display[[
+                            "State",
+                            "Overall Score",
+                            "Personalized Score",
+                            "Estimated Annual Tax",
+                            "Income Tax",
+                            "Property Tax",
+                            "Sales Tax",
+                            "Effective Tax Rate",
+                            "Cost Score",
+                            "Healthcare Score",
+                            "Lifestyle Score",
+                            "Climate Score",
+                            "Example Places",
+                            "Watch Outs",
+                        ]],
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+                    st.markdown("### Plain-English comparison notes")
+                    for note in build_compare_narrative(phase3_compare_df):
+                        st.markdown(f"- {note}")
+
+        # City-level retirement location engine
         st.divider()
-        st.subheader("Phase 4: City-Level Retirement Location Engine")
-        st.write(
-            "Move from states to actual places. This starter city model scores popular retirement locations by affordability, "
-            "healthcare, lifestyle, climate, and golf/recreation fit."
-        )
+        st.subheader("City-level retirement matches")
+        st.caption("State rankings are useful, but people retire in real places. This section compares starter cities and retirement areas.")
 
         city_df = get_phase3_city_places_data().copy()
 
@@ -9561,7 +9506,7 @@ if active_page == PAGE_NAMES[10]:
                 "Filter cities by state",
                 sorted(city_df["State"].unique().tolist()),
                 default=[],
-                key="phase4_city_state_filter",
+                key="optimized_city_state_filter",
                 help="Leave blank to include all starter cities."
             )
         with c2:
@@ -9575,7 +9520,7 @@ if active_page == PAGE_NAMES[10]:
                     "Coastal / warm lifestyle",
                     "Active adult community",
                 ],
-                key="phase4_city_priority"
+                key="optimized_city_priority"
             )
         with c3:
             golf_weight = st.slider(
@@ -9583,7 +9528,7 @@ if active_page == PAGE_NAMES[10]:
                 min_value=0,
                 max_value=10,
                 value=7,
-                key="phase4_golf_weight",
+                key="optimized_golf_weight",
                 help="Adds another preference factor for golf, outdoor recreation, and active lifestyle."
             )
 
@@ -9598,6 +9543,9 @@ if active_page == PAGE_NAMES[10]:
             golf_weight=golf_weight,
         )
 
+        personalized_for_compare = personalized_df.copy()
+        personalized_for_compare["Personalized Score"] = personalized_for_compare["Preference Fit Score"]
+
         location_recommendations = build_retirement_location_recommendation_engine(
             filtered_city_df,
             personalized_for_compare,
@@ -9608,21 +9556,21 @@ if active_page == PAGE_NAMES[10]:
         )
 
         if location_recommendations.empty:
-            st.warning("No city recommendations match the current filters. Widen the state filter, clear the selected state, or change the lifestyle priority. For example, Michigan may not have a Coastal / warm lifestyle or Active adult community match in the starter city database yet.")
+            st.warning("No city recommendations match the current filters. Widen the state filter or change the lifestyle priority.")
         else:
             top_place = location_recommendations.iloc[0]
-            st.success(
-                f"Top city-level match: **{top_place['Place']}, {top_place['State']}** "
-                f"with a fit score of **{int(top_place['Recommended Fit Score'])}/100**."
-            )
 
-            cp1, cp2, cp3, cp4 = st.columns(4)
-            cp1.metric("Top Place", f"{top_place['Place']}, {top_place['State']}")
-            cp2.metric("Fit Score", f"{int(top_place['Recommended Fit Score'])}/100")
-            cp3.metric("Est. State/Local Tax", money(top_place["Estimated Annual State/Local Tax"]))
-            cp4.metric("Type", top_place["Type"])
-
-            st.pyplot(plot_location_engine_scores(location_recommendations), use_container_width=True)
+            st.markdown(f"""
+            <div class="rb-insight-card">
+              <div class="rb-insight-kicker">Top City-Level Match</div>
+              <div class="rb-insight-title">{top_place['Place']}, {top_place['State']}</div>
+              <div class="rb-insight-copy">
+                Fit score: <b>{int(top_place['Recommended Fit Score'])}/100</b>.
+                Type: <b>{top_place['Type']}</b>.
+                Estimated annual state/local tax: <b>{money(top_place['Estimated Annual State/Local Tax'])}</b>.
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
 
             location_display = location_recommendations.copy()
             location_display["Estimated Annual State/Local Tax"] = location_display["Estimated Annual State/Local Tax"].map(money)
@@ -9641,14 +9589,16 @@ if active_page == PAGE_NAMES[10]:
                     "Golf / Recreation",
                     "Why It Fits",
                     "Watch Outs",
-                ]],
+                ]].head(12),
                 use_container_width=True,
-                hide_index=True
+                hide_index=True,
+                height=430
             )
 
-            st.markdown("### City recommendation notes")
-            for note in build_location_recommendation_summary(location_recommendations):
-                st.markdown(f"- {note}")
+            with st.expander("Show city chart and recommendation notes", expanded=False):
+                st.pyplot(plot_location_engine_scores(location_recommendations), use_container_width=True)
+                for note in build_location_recommendation_summary(location_recommendations):
+                    st.markdown(f"- {note}")
 
             if warm_weather_bonus:
                 snowbird_df = build_snowbird_recommendations(city_df, current_home_state="Michigan")
@@ -9659,29 +9609,24 @@ if active_page == PAGE_NAMES[10]:
                         ]].copy()
                         st.dataframe(snowbird_display, use_container_width=True, hide_index=True)
 
-        # ─────────────────────────────────────────────────────────────
-        # Phase 5: Save favorite places + include in report
-        # ─────────────────────────────────────────────────────────────
-        st.divider()
-        st.subheader("Phase 5: Saved Retirement Places")
-        st.write(
-            "Save favorite places while you compare options. Saved places stay in this session and are included in the Blueprint Report PDF."
-        )
+            # Save favorites
+            st.divider()
+            st.subheader("Save favorite retirement places")
+            st.caption("Saved places stay in this session and are included in the Blueprint Report PDF.")
 
-        if "saved_retirement_places" not in st.session_state:
-            st.session_state.saved_retirement_places = []
+            if "saved_retirement_places" not in st.session_state:
+                st.session_state.saved_retirement_places = []
 
-        if not location_recommendations.empty:
             save_options = (location_recommendations["Place"] + ", " + location_recommendations["State"]).head(12).tolist()
             place_to_save = st.selectbox(
                 "Choose a place to save",
                 save_options,
-                key="phase5_place_to_save"
+                key="optimized_place_to_save"
             )
 
             s1, s2 = st.columns([1, 1])
             with s1:
-                if st.button("Save Selected Place", use_container_width=True, key="phase5_save_place_btn"):
+                if st.button("Save Selected Place", type="primary", use_container_width=True, key="optimized_save_place_btn"):
                     place_name, state_name = place_to_save.split(", ", 1)
                     row = location_recommendations[
                         (location_recommendations["Place"] == place_name)
@@ -9696,37 +9641,36 @@ if active_page == PAGE_NAMES[10]:
                         st.info(f"{place_to_save} is already saved.")
 
             with s2:
-                if st.button("Clear Saved Places", use_container_width=True, key="phase5_clear_saved_places_btn"):
+                if st.button("Clear Saved Places", use_container_width=True, key="optimized_clear_saved_places_btn"):
                     st.session_state.saved_retirement_places = []
                     st.success("Saved places cleared.")
 
-        saved_places = st.session_state.get("saved_retirement_places", [])
-        if saved_places:
-            saved_df = pd.DataFrame(saved_places)
-            saved_display = saved_df.copy()
-            if "Estimated Annual State/Local Tax" in saved_display.columns:
-                saved_display["Estimated Annual State/Local Tax"] = saved_display["Estimated Annual State/Local Tax"].map(money)
+            saved_places = st.session_state.get("saved_retirement_places", [])
+            if saved_places:
+                saved_df = pd.DataFrame(saved_places)
+                saved_display = saved_df.copy()
+                if "Estimated Annual State/Local Tax" in saved_display.columns:
+                    saved_display["Estimated Annual State/Local Tax"] = saved_display["Estimated Annual State/Local Tax"].map(money)
 
-            show_cols = [c for c in [
-                "Place", "State", "Type", "Recommended Fit Score", "Estimated Annual State/Local Tax",
-                "Healthcare", "Affordability", "Lifestyle", "Climate", "Golf / Recreation", "Why It Fits", "Watch Outs"
-            ] if c in saved_display.columns]
+                show_cols = [c for c in [
+                    "Place", "State", "Type", "Recommended Fit Score", "Estimated Annual State/Local Tax",
+                    "Healthcare", "Affordability", "Lifestyle", "Climate", "Golf / Recreation", "Why It Fits", "Watch Outs"
+                ] if c in saved_display.columns]
 
-            st.dataframe(saved_display[show_cols], use_container_width=True, hide_index=True)
+                st.dataframe(saved_display[show_cols], use_container_width=True, hide_index=True)
 
-            saved_csv = saved_df.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                "Download Saved Places CSV",
-                saved_csv,
-                "saved_retirement_places.csv",
-                "text/csv",
-                use_container_width=True,
-                key="phase5_saved_places_csv"
-            )
-
-            st.info("Saved places will appear in the next Blueprint Report PDF you generate.")
-        else:
-            st.info("No saved retirement places yet. Save a place from the city-level recommendations above.")
+                saved_csv = saved_df.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    "Download Saved Places CSV",
+                    saved_csv,
+                    "saved_retirement_places.csv",
+                    "text/csv",
+                    use_container_width=True,
+                    key="optimized_saved_places_csv"
+                )
+                st.info("Saved places will appear in the next Blueprint Report PDF you generate.")
+            else:
+                st.info("No saved retirement places yet. Save a place from the city-level recommendations above.")
 
         csv = personalized_df.to_csv(index=False).encode("utf-8")
         st.download_button(
@@ -9736,6 +9680,9 @@ if active_page == PAGE_NAMES[10]:
             "text/csv",
             use_container_width=True
         )
+
+    st.caption("This page is educational and simplified. It does not replace professional tax, financial, legal, insurance, relocation, or real-estate advice.")
+
 
 
 if active_page == PAGE_NAMES[11]:
