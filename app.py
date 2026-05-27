@@ -6934,12 +6934,12 @@ if active_page == PAGE_NAMES[0]:
         </div>
         """, unsafe_allow_html=True)
 
-        c_action_1, c_action_2 = st.columns([1, 1])
-        with c_action_1:
-            if st.button("Next: See Ideas to Improve My Score", type="primary", use_container_width=True, key="dashboard_why_to_action_plan"):
+        next_cols_explain = st.columns([1, 1])
+        with next_cols_explain[0]:
+            if st.button("Next: See Ideas to Improve My Score", type="primary", use_container_width=True, key="dashboard_explanation_to_action"):
                 go_to_page("Recommendations")
-        with c_action_2:
-            if st.button("Save This Baseline First", use_container_width=True, key="dashboard_why_to_saved_blueprints"):
+        with next_cols_explain[1]:
+            if st.button("Save This Baseline First", use_container_width=True, key="dashboard_explanation_to_saved"):
                 go_to_page("Saved Scenarios")
 
         st.markdown("""
@@ -9002,6 +9002,71 @@ div[data-testid="stDataFrame"] {
 
 
 /* Expanded Blueprint Dashboard explanation */
+.rb-explain-next {
+    margin-top: 18px;
+    border: 1px solid #BAE6FD;
+    background: #F0F9FF;
+    border-radius: 16px;
+    padding: 14px 16px;
+}
+.rb-explain-next-title {
+    color: #075985;
+    font-weight: 950;
+    margin-bottom: 6px;
+}
+.rb-explain-next ul {
+    margin: 8px 0 0 20px;
+    padding: 0;
+    color: #475569;
+}
+.rb-explain-next li {
+    margin-bottom: 6px;
+    line-height: 1.4;
+}
+.rb-explain-note {
+    margin-top: 16px;
+    color: #475569;
+    font-size: .95rem;
+    line-height: 1.45;
+}
+.rb-explain-note b {
+    color: #0f172a;
+    font-weight: 950;
+}
+
+
+/* Dashboard explanation placed near score cards */
+.rb-dashboard-explain {
+    margin: 18px 0 14px 0;
+    border: 1px solid #A7F3D0;
+    border-radius: 22px;
+    background: linear-gradient(135deg, #F0FDF4 0%, #ECFEFF 100%);
+    padding: 22px 24px;
+    box-shadow: 0 12px 30px rgba(16,185,129,.08);
+}
+.rb-explain-kicker {
+    color: #2563EB;
+    font-size: .78rem;
+    font-weight: 950;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin-bottom: 8px;
+}
+.rb-explain-title {
+    color: #047857;
+    font-size: 1.25rem;
+    font-weight: 950;
+    margin-bottom: 12px;
+}
+.rb-explain-copy {
+    color: #64748B;
+    font-size: 1rem;
+    line-height: 1.55;
+}
+.rb-explain-copy b {
+    color: #334155;
+    font-weight: 950;
+}
 .rb-explain-next {
     margin-top: 18px;
     border: 1px solid #BAE6FD;
