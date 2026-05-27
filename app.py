@@ -6745,6 +6745,7 @@ if active_page == PAGE_NAMES[0]:
         if avg_gap_home <= 0 and "Total Spending" in safe_df_home.columns and "Total Non-Portfolio Income" in safe_df_home.columns:
             avg_gap_home = float((safe_df_home["Total Spending"] - safe_df_home["Total Non-Portfolio Income"]).clip(lower=0).mean())
         monthly_gap_raw_home = max(avg_gap_home, 0) / 12
+        monthly_gap_home = compact_money(monthly_gap_raw_home)
 
         target_retire_age_home = int(st.session_state.get("retire_age", 0) or 0)
         ss_start_age_home = int(st.session_state.get("ss_start_age", 62) or 62)
@@ -6759,27 +6760,33 @@ if active_page == PAGE_NAMES[0]:
             total_income_first_year_home = 0
 
         dashboard_reason_bits = []
-        if ss_gap_years_home > 0:
-            dashboard_reason_bits.append(f"You have about <b>{ss_gap_years_home} year(s)</b> before Social Security starts, so savings may need to carry more of the early retirement spending.")
+
+        if rtv_score_home < 60:
+            dashboard_reason_bits.append(f"<b>Blueprint Score:</b> Your score is <b>{rtv_score_home}/100</b>, which means the current plan needs attention before it looks retirement-ready.")
+        elif rtv_score_home < 80:
+            dashboard_reason_bits.append(f"<b>Blueprint Score:</b> Your score is <b>{rtv_score_home}/100</b>. The plan may be possible, but the cushion is thin.")
         else:
-            dashboard_reason_bits.append("Social Security appears to start at or before the tested retirement age, which can reduce pressure on savings.")
+            dashboard_reason_bits.append(f"<b>Blueprint Score:</b> Your score is <b>{rtv_score_home}/100</b>. The plan looks stronger under the current assumptions, but it still should be stress-tested.")
+
+        if ss_gap_years_home > 0:
+            dashboard_reason_bits.append(f"<b>Social Security gap:</b> There are about <b>{ss_gap_years_home} year(s)</b> between the tested retirement age and when Social Security starts. During that gap, savings may need to carry more of the spending.")
+        else:
+            dashboard_reason_bits.append("<b>Social Security timing:</b> Social Security appears to start at or before the tested retirement age, which can reduce pressure on savings.")
 
         if healthcare_gap_years_home > 0:
-            dashboard_reason_bits.append(f"You have about <b>{healthcare_gap_years_home} year(s)</b> before Medicare age 65, so healthcare costs may be an important bridge expense.")
+            dashboard_reason_bits.append(f"<b>Healthcare bridge:</b> There are about <b>{healthcare_gap_years_home} year(s)</b> before Medicare age 65. Healthcare costs during this bridge period can reduce the plan cushion.")
         else:
-            dashboard_reason_bits.append("The plan does not show a major pre-Medicare healthcare bridge based on the current ages.")
+            dashboard_reason_bits.append("<b>Healthcare bridge:</b> The plan does not show a major pre-Medicare healthcare bridge based on the current ages.")
 
         if monthly_gap_raw_home > 0:
-            dashboard_reason_bits.append(f"The plan needs about <b>{money(monthly_gap_raw_home)}</b> per month from savings after estimated income is counted.")
+            dashboard_reason_bits.append(f"<b>Monthly gap from savings:</b> After estimated income is counted, about <b>{compact_money(monthly_gap_raw_home)}</b> per month still needs to come from savings.")
         else:
-            dashboard_reason_bits.append("Estimated income appears to cover the monthly spending need in the early years.")
+            dashboard_reason_bits.append("<b>Monthly gap from savings:</b> Estimated income appears to cover the monthly spending need in the early years.")
 
         if end_total_home <= 0 or unmet_need_home > 0:
-            dashboard_reason_bits.append("The projection shows a shortfall or portfolio depletion, so the plan needs a bigger change.")
-        elif rtv_score_home < 70:
-            dashboard_reason_bits.append("The plan appears possible, but the cushion is thin. Small changes may make a big difference.")
+            dashboard_reason_bits.append("<b>Money left:</b> The projection shows a shortfall or portfolio depletion. The biggest levers are usually retiring later, reducing spending, increasing income, or saving more before retirement.")
         else:
-            dashboard_reason_bits.append("The plan has a stronger cushion under the current assumptions, but still deserves stress testing.")
+            dashboard_reason_bits.append(f"<b>Money left:</b> The projection estimates about <b>{compact_money(end_total_home)}</b> left at the end of the plan. This is a cushion estimate, not a guarantee.")
 
         dashboard_reason_html = "<br/><br/>".join(dashboard_reason_bits)
 
@@ -6845,6 +6852,18 @@ if active_page == PAGE_NAMES[0]:
         </div>
         """, unsafe_allow_html=True)
 
+        st.markdown(f"""
+        <div class="rb-next-box">
+          <div class="rb-next-heading">Why these numbers look this way</div>
+          <div class="rb-muted">
+            {dashboard_reason_html}
+            <br/><br/>
+            <b>Important:</b> The age shown is your <b>current target age being tested</b>, not a recommendation that you should retire at that age.
+            Use the Action Plan next to see what can improve the score.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
         st.markdown("""
         <div class="rb-save-callout">
           <div>
@@ -6862,7 +6881,7 @@ if active_page == PAGE_NAMES[0]:
             if st.button("Save This Blueprint", type="primary", use_container_width=True, key="dashboard_save_baseline_blueprint"):
                 go_to_page("Saved Scenarios")
         with save_cols[1]:
-            if st.button("View Action Plan", use_container_width=True, key="dashboard_view_action_after_save_prompt"):
+            if st.button("Next: View Action Plan", use_container_width=True, key="dashboard_view_action_after_save_prompt"):
                 go_to_page("Recommendations")
     else:
         st.markdown("""
@@ -6931,19 +6950,6 @@ if active_page == PAGE_NAMES[0]:
         """, unsafe_allow_html=True)
         if st.button("Start My Blueprint", use_container_width=True, key="next_start_guided"):
             go_to_page("Guided Questions")
-
-    if safe_can_run_home:
-        st.markdown(f"""
-        <div class="rb-next-box">
-          <div class="rb-next-heading">Why these numbers look this way</div>
-          <div class="rb-muted">
-            {dashboard_reason_html}
-            <br/><br/>
-            <b>Important:</b> The age shown is your <b>current target age being tested</b>, not a recommendation that you should retire at that age.
-            Use the Age Optimizer and Action Plan to compare safer alternatives.
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
 
     st.markdown("### Premium Retirement Tools")
     st.caption("Once the basics are entered, these tools help compare retirement ages, reduce risk, plan withdrawals, and create a fuller retirement blueprint.")
@@ -8834,6 +8840,13 @@ div[data-testid="stDataFrame"] {
 
 
 /* Dashboard plain-English explanation polish */
+.rb-next-box b {
+    color: #0f172a;
+    font-weight: 900;
+}
+
+
+/* Dashboard explanation polish */
 .rb-next-box b {
     color: #0f172a;
     font-weight: 900;
