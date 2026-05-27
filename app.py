@@ -8164,7 +8164,38 @@ if active_page == PAGE_NAMES[9]:
         color: #64748b;
         font-size: 0.8rem;
     }
-    </style>
+    
+/* ==========================================================
+   Hide Streamlit's "Press Enter to submit form" text globally
+   ========================================================== */
+input::placeholder,
+textarea::placeholder,
+input:focus::placeholder,
+textarea:focus::placeholder,
+[data-baseweb="input"] input::placeholder,
+[data-baseweb="input"] input:focus::placeholder,
+[data-baseweb="textarea"] textarea::placeholder,
+[data-baseweb="textarea"] textarea:focus::placeholder,
+.stNumberInput input::placeholder,
+.stNumberInput input:focus::placeholder,
+.stTextInput input::placeholder,
+.stTextInput input:focus::placeholder,
+.stTextArea textarea::placeholder,
+.stTextArea textarea:focus::placeholder,
+input[placeholder="Press Enter to submit form"]::placeholder,
+input[placeholder="Press Enter to submit form"]:focus::placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
+    -webkit-text-fill-color: transparent !important;
+    font-size: 0 !important;
+}
+
+input[placeholder="Press Enter to submit form"],
+input[placeholder="Press Enter to submit form"]:focus {
+    caret-color: #0f172a !important;
+}
+
+</style>
     """, unsafe_allow_html=True)
 
     st.markdown("<div class='saved-page-title'>Saved Scenarios</div>", unsafe_allow_html=True)
