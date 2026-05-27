@@ -6660,6 +6660,28 @@ def render_dashboard_combo_overview(df, rtv_score, rtv_label):
 
 
 
+def compact_money(value):
+    try:
+        value = float(value or 0)
+    except Exception:
+        value = 0.0
+
+    sign = "-" if value < 0 else ""
+    value = abs(value)
+
+    if value >= 1_000_000:
+        shown = value / 1_000_000
+        if shown >= 10:
+            return f"{sign}${shown:,.0f}M"
+        return f"{sign}${shown:,.1f}M"
+    if value >= 1_000:
+        shown = value / 1_000
+        if shown >= 100:
+            return f"{sign}${shown:,.0f}K"
+        return f"{sign}${shown:,.1f}K"
+    return f"{sign}${value:,.0f}"
+
+
 def render_guided_progress(current_step: int):
     steps = [
         (1, "Start Blueprint", "Enter core numbers"),
@@ -6721,7 +6743,7 @@ if active_page == PAGE_NAMES[0]:
         rtv_value_home = f"{rtv_score_home}/100"
         rtv_note_home = f"{rtv_label_home} readiness score based on your current inputs."
         planning_age_home = int(st.session_state.get("end_age", 90) or 90)
-        money_left_home = money(safe_df_home["End Total"].iloc[-1])
+        money_left_home = compact_money(safe_df_home["End Total"].iloc[-1])
 
         unmet_need_home = float(safe_df_home["Unmet Need"].sum() or 0)
         end_total_home = float(safe_df_home["End Total"].iloc[-1] or 0)
@@ -7250,7 +7272,7 @@ if active_page == PAGE_NAMES[2]:
             help=FIELD_HELP["survivor_spending"]
         )
 
-        save_budget = st.form_submit_button("Save budget")
+        save_budget = st.form_submit_button("Save budget", type="primary", use_container_width=True)
 
     if save_budget:
         st.session_state.budget_mode = budget_mode
@@ -7658,7 +7680,7 @@ def render_basic_blueprint_dashboard():
       </div>
       <div class="rb-card">
         <div class="rb-card-top"><div class="rb-card-label">Money Left at Age {snap['end_age']}</div><div class="rb-icon">$</div></div>
-        <div class="rb-card-value">{money(snap['money_left'])}</div>
+        <div class="rb-card-value">{compact_money(snap['money_left'])}</div>
         <div class="rb-card-note">Basic estimate after retirement spending and Social Security.</div>
       </div>
       <div class="rb-card">
@@ -8414,6 +8436,21 @@ div[role="radiogroup"] label[data-checked="true"] span {
 }
 div[role="radiogroup"] input {
     display: none !important;
+}
+
+
+/* Keep large money values readable inside dashboard cards */
+.rb-card-value,
+.rb-kpi-value {
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+}
+.rb-card-value {
+    font-size: clamp(1.65rem, 2.4vw, 2.25rem) !important;
+}
+.rb-kpi-value {
+    font-size: clamp(1.65rem, 2.4vw, 2.35rem) !important;
 }
 
 </style>
