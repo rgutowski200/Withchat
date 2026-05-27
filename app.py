@@ -7685,7 +7685,7 @@ def render_basic_blueprint_dashboard():
       </div>
       <div class="rb-card">
         <div class="rb-card-top"><div class="rb-card-label">Monthly Gap From Savings</div><div class="rb-icon">↗</div></div>
-        <div class="rb-card-value">{money(snap['monthly_gap'])}</div>
+        <div class="rb-card-value">{compact_money(snap['monthly_gap'])}</div>
         <div class="rb-card-note">Estimated first-year monthly amount needed from savings.</div>
       </div>
     </div>
@@ -7979,7 +7979,7 @@ if active_page == PAGE_NAMES[7]:
           </div>
           <div class="rb-card">
             <div class="rb-card-top"><div class="rb-card-label">Monthly Gap From Savings</div><div class="rb-icon">↗</div></div>
-            <div class="rb-card-value">{money(monthly_gap)}</div>
+            <div class="rb-card-value">{compact_money(monthly_gap)}</div>
             <div class="rb-card-note">Estimated monthly amount that needs to come from savings.</div>
           </div>
         </div>
@@ -8505,6 +8505,31 @@ div[role="radiogroup"] input {
 div[data-testid="stDataFrame"] {
     border-radius: 16px !important;
     overflow: hidden !important;
+}
+
+
+/* Force dashboard money-left values to stay on one line */
+.money-compact,
+.rb-card-value,
+.rb-kpi-value {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    line-height: 1.05 !important;
+}
+
+.rb-card-value {
+    font-size: clamp(1.55rem, 2.1vw, 2.05rem) !important;
+}
+
+.rb-kpi-value {
+    font-size: clamp(1.55rem, 2.1vw, 2.15rem) !important;
+}
+
+/* Give KPI cards a little more breathing room for money values */
+.rb-card,
+.rb-kpi-card {
+    min-width: 0 !important;
 }
 
 </style>
