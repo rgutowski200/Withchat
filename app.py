@@ -6790,35 +6790,69 @@ if active_page == PAGE_NAMES[0]:
             total_income_first_year_home = 0
 
         dashboard_reason_bits = []
+        dashboard_idea_bits = []
 
         if rtv_score_home < 60:
-            dashboard_reason_bits.append(f"<b>Blueprint Score:</b> Your score is <b>{rtv_score_home}/100</b>, which means the current plan needs attention before it looks retirement-ready.")
+            dashboard_status_plain = "This plan needs work before it looks retirement-ready."
+            dashboard_reason_bits.append(f"<b>Blueprint Score:</b> Your score is <b>{rtv_score_home}/100</b>. {dashboard_status_plain}")
+            dashboard_idea_bits.append("Try a later retirement age.")
+            dashboard_idea_bits.append("Try lowering monthly spending.")
+            dashboard_idea_bits.append("Add income sources if available.")
         elif rtv_score_home < 80:
-            dashboard_reason_bits.append(f"<b>Blueprint Score:</b> Your score is <b>{rtv_score_home}/100</b>. The plan may be possible, but the cushion is thin.")
+            dashboard_status_plain = "This plan may be possible, but the cushion is thin."
+            dashboard_reason_bits.append(f"<b>Blueprint Score:</b> Your score is <b>{rtv_score_home}/100</b>. {dashboard_status_plain}")
+            dashboard_idea_bits.append("Build more cushion before retirement.")
+            dashboard_idea_bits.append("Stress test bad market years.")
+            dashboard_idea_bits.append("Compare Social Security timing.")
         else:
-            dashboard_reason_bits.append(f"<b>Blueprint Score:</b> Your score is <b>{rtv_score_home}/100</b>. The plan looks stronger under the current assumptions, but it still should be stress-tested.")
+            dashboard_status_plain = "This plan looks stronger under the current assumptions."
+            dashboard_reason_bits.append(f"<b>Blueprint Score:</b> Your score is <b>{rtv_score_home}/100</b>. {dashboard_status_plain} You should still stress-test it.")
+            dashboard_idea_bits.append("Save this version as your baseline.")
+            dashboard_idea_bits.append("Run stress tests to see how it handles bad years.")
+            dashboard_idea_bits.append("Compare one or two alternate retirement ages.")
 
         if ss_gap_years_home > 0:
             dashboard_reason_bits.append(f"<b>Social Security gap:</b> There are about <b>{ss_gap_years_home} year(s)</b> between the tested retirement age and when Social Security starts. During that gap, savings may need to carry more of the spending.")
+            dashboard_idea_bits.append("Use the Action Plan to test whether delaying retirement or changing Social Security timing improves the score.")
         else:
             dashboard_reason_bits.append("<b>Social Security timing:</b> Social Security appears to start at or before the tested retirement age, which can reduce pressure on savings.")
 
         if healthcare_gap_years_home > 0:
             dashboard_reason_bits.append(f"<b>Healthcare bridge:</b> There are about <b>{healthcare_gap_years_home} year(s)</b> before Medicare age 65. Healthcare costs during this bridge period can reduce the plan cushion.")
+            dashboard_idea_bits.append("Check whether healthcare costs before Medicare are realistic.")
         else:
             dashboard_reason_bits.append("<b>Healthcare bridge:</b> The plan does not show a major pre-Medicare healthcare bridge based on the current ages.")
 
         if monthly_gap_raw_home > 0:
             dashboard_reason_bits.append(f"<b>Monthly gap from savings:</b> After estimated income is counted, about <b>{compact_money(monthly_gap_raw_home)}</b> per month still needs to come from savings.")
+            if monthly_gap_raw_home >= 8000:
+                dashboard_idea_bits.append("The savings gap is large, so spending, income, and retirement age are the biggest levers.")
+            elif monthly_gap_raw_home >= 3000:
+                dashboard_idea_bits.append("The savings gap is manageable to test, but still deserves attention.")
         else:
             dashboard_reason_bits.append("<b>Monthly gap from savings:</b> Estimated income appears to cover the monthly spending need in the early years.")
 
         if end_total_home <= 0 or unmet_need_home > 0:
             dashboard_reason_bits.append("<b>Money left:</b> The projection shows a shortfall or portfolio depletion. The biggest levers are usually retiring later, reducing spending, increasing income, or saving more before retirement.")
+            dashboard_idea_bits.append("Go to the Action Plan to see which lever may add the most points.")
         else:
             dashboard_reason_bits.append(f"<b>Money left:</b> The projection estimates about <b>{compact_money(end_total_home)}</b> left at the end of the plan. This is a cushion estimate, not a guarantee.")
+            if end_total_home < 250000:
+                dashboard_idea_bits.append("The ending cushion is thin, so stress testing matters.")
+            else:
+                dashboard_idea_bits.append("The ending balance is a cushion estimate. Use stress tests before relying on it.")
 
         dashboard_reason_html = "<br/><br/>".join(dashboard_reason_bits)
+
+        # Deduplicate action ideas while preserving order.
+        cleaned_ideas = []
+        seen_ideas = set()
+        for idea in dashboard_idea_bits:
+            if idea not in seen_ideas:
+                cleaned_ideas.append(idea)
+                seen_ideas.add(idea)
+
+        dashboard_ideas_html = "".join([f"<li>{idea}</li>" for idea in cleaned_ideas[:5]])
 
         status_title = "Your plan is ready to review."
         status_note = "Use the Blueprint Dashboard, Action Plan, Confidence Test, Stress Tests, and Blueprint Report for deeper analysis."
@@ -6888,12 +6922,25 @@ if active_page == PAGE_NAMES[0]:
           <div class="rb-explain-title">Why these numbers look this way</div>
           <div class="rb-explain-copy">
             {dashboard_reason_html}
-            <br/><br/>
+          </div>
+          <div class="rb-explain-next">
+            <div class="rb-explain-next-title">What to look at next</div>
+            <ul>{dashboard_ideas_html}</ul>
+          </div>
+          <div class="rb-explain-note">
             <b>Important:</b> The age shown is your <b>current target age being tested</b>, not a recommendation that you should retire at that age.
             The Action Plan is the next step to see what changes may improve the score.
           </div>
         </div>
         """, unsafe_allow_html=True)
+
+        c_action_1, c_action_2 = st.columns([1, 1])
+        with c_action_1:
+            if st.button("Next: See Ideas to Improve My Score", type="primary", use_container_width=True, key="dashboard_why_to_action_plan"):
+                go_to_page("Recommendations")
+        with c_action_2:
+            if st.button("Save This Baseline First", use_container_width=True, key="dashboard_why_to_saved_blueprints"):
+                go_to_page("Saved Scenarios")
 
         st.markdown("""
         <div class="rb-save-callout">
@@ -8950,6 +8997,40 @@ div[data-testid="stDataFrame"] {
 }
 .rb-explain-copy b {
     color: #334155;
+    font-weight: 950;
+}
+
+
+/* Expanded Blueprint Dashboard explanation */
+.rb-explain-next {
+    margin-top: 18px;
+    border: 1px solid #BAE6FD;
+    background: #F0F9FF;
+    border-radius: 16px;
+    padding: 14px 16px;
+}
+.rb-explain-next-title {
+    color: #075985;
+    font-weight: 950;
+    margin-bottom: 6px;
+}
+.rb-explain-next ul {
+    margin: 8px 0 0 20px;
+    padding: 0;
+    color: #475569;
+}
+.rb-explain-next li {
+    margin-bottom: 6px;
+    line-height: 1.4;
+}
+.rb-explain-note {
+    margin-top: 16px;
+    color: #475569;
+    font-size: .95rem;
+    line-height: 1.45;
+}
+.rb-explain-note b {
+    color: #0f172a;
     font-weight: 950;
 }
 
