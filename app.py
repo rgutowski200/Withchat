@@ -6357,6 +6357,12 @@ NAV_LABELS = {
     "Help / Instructions": "Help",
 }
 
+
+# TEMPORARY TESTING OVERRIDE:
+# Unlock all premium features for every user while testing.
+# Before launch, remove this and connect is_premium_user to the paid subscription status.
+st.session_state["is_premium_user"] = True
+
 if "active_page" not in st.session_state or st.session_state.active_page not in PAGE_NAMES:
     st.session_state.active_page = "Home"
 
@@ -10152,7 +10158,7 @@ if active_page == "Plans & Pricing":
     ], columns=["Feature", "Basic Free", "Detailed Premium", "One-Time Report"])
     st.dataframe(comparison, use_container_width=True, hide_index=True)
 
-    st.warning("Pricing can still be adjusted before launch. This app is educational only and does not provide financial, tax, legal, insurance, or investment advice.")
+    st.warning("Testing mode: premium features are temporarily unlocked for all users. Pricing can still be adjusted before launch. This app is educational only and does not provide financial, tax, legal, insurance, or investment advice.")
 
 
 
