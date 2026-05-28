@@ -6514,6 +6514,11 @@ def render_navigation():
 
         st.caption("PLAN SECTIONS")
 
+        # Quick Analysis shortcut: takes users to the Quick Blueprint starter on Start My Blueprint.
+        if st.button("⚡ Quick Analysis", key="nav_quick_analysis_shortcut", use_container_width=True):
+            st.session_state["open_quick_blueprint"] = True
+            go_to_page("Guided Questions")
+
         ordered_pages = [
             "Home",
             "Guided Questions",
@@ -7048,7 +7053,7 @@ if active_page == PAGE_NAMES[1]:
     st.subheader("Quick Blueprint")
     st.caption("Simple starter version for free trial users. Enter the basics first, then use the detailed section below when you want a more precise plan.")
 
-    with st.expander("Open Quick Blueprint starter", expanded=True):
+    with st.expander("Open Quick Blueprint starter", expanded=bool(st.session_state.pop("open_quick_blueprint", False)) or True):
         q1, q2, q3 = st.columns(3)
         quick_current_age = q1.number_input("Current age", 0, 100, st.session_state.current_age, help=FIELD_HELP["current_age"])
         quick_retire_age = q2.number_input("Target retirement age", 0, 100, st.session_state.retire_age, help=FIELD_HELP["retire_age"])
@@ -9479,6 +9484,12 @@ div[data-testid="stDataFrame"] {
 /* Sidebar cleanup: avoid oversized hover-tooltip feel */
 section[data-testid="stSidebar"] button {
     overflow: hidden !important;
+}
+
+
+/* Sidebar Quick Analysis shortcut */
+section[data-testid="stSidebar"] button[kind="secondary"] {
+    margin-bottom: 2px;
 }
 
 </style>
