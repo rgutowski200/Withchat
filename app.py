@@ -8699,7 +8699,18 @@ if active_page == PAGE_NAMES[8]:
         start_total = float(df["Start Total"].iloc[0] or 0)
         ending_total = float(df["End Total"].iloc[-1] or 0)
         end_age = int(df["Age"].iloc[-1])
-        total_withdrawals = float(df["Portfolio Need"].sum() if "Portfolio Need" in df.columns else 0)
+
+        # Projection summary card: show the estimated portfolio available at the
+        # selected retirement age instead of total lifetime withdrawals.
+        retire_age_for_card = int(st.session_state.get("retire_age", 0) or 0)
+        retirement_rows_for_card = df[df["Age"] >= retire_age_for_card] if "Age" in df.columns else pd.DataFrame()
+        if not retirement_rows_for_card.empty and "Start Total" in retirement_rows_for_card.columns:
+            portfolio_at_retirement = float(retirement_rows_for_card["Start Total"].iloc[0] or 0)
+            portfolio_at_retirement_age = int(retirement_rows_for_card["Age"].iloc[0])
+        else:
+            portfolio_at_retirement = start_total
+            portfolio_at_retirement_age = retire_age_for_card
+
         total_tax = float(df["Estimated Federal Tax"].sum() if "Estimated Federal Tax" in df.columns else 0)
 
         st.markdown("""
@@ -8726,9 +8737,9 @@ if active_page == PAGE_NAMES[8]:
             <div class="rb-card-note">Estimated balance at the end of the plan.</div>
           </div>
           <div class="rb-card">
-            <div class="rb-card-top"><div class="rb-card-label">Total Withdrawals</div><div class="rb-icon">↗</div></div>
-            <div class="rb-card-value">{compact_money(total_withdrawals)}</div>
-            <div class="rb-card-note">Estimated amount pulled from savings over the plan.</div>
+            <div class="rb-card-top"><div class="rb-card-label">Portfolio at Retirement</div><div class="rb-icon">↗</div></div>
+            <div class="rb-card-value">{compact_money(portfolio_at_retirement)}</div>
+            <div class="rb-card-note">Estimated portfolio available at age {portfolio_at_retirement_age} when retirement begins.</div>
           </div>
           <div class="rb-card">
             <div class="rb-card-top"><div class="rb-card-label">Estimated Federal Tax</div><div class="rb-icon">$</div></div>
