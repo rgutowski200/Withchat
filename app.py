@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6756,6 +6757,49 @@ def render_guided_progress(current_step: int):
     st.markdown("".join(html), unsafe_allow_html=True)
 
 
+
+def remove_input_submit_placeholders():
+    components.html(
+        """
+        <script>
+        function clearStreamlitSubmitHints() {
+            const doc = window.parent.document;
+            const inputs = doc.querySelectorAll('input');
+            inputs.forEach(function(input) {
+                if (input.placeholder && input.placeholder.toLowerCase().includes('press enter')) {
+                    input.placeholder = '';
+                    input.setAttribute('placeholder', '');
+                }
+                if (input.getAttribute('aria-label') && input.getAttribute('aria-label').toLowerCase().includes('press enter')) {
+                    input.setAttribute('aria-label', '');
+                }
+            });
+
+            const textNodes = [];
+            const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+            while (walker.nextNode()) {
+                const node = walker.currentNode;
+                if (node.nodeValue && node.nodeValue.includes('Press Enter to submit form')) {
+                    node.nodeValue = node.nodeValue.replace('Press Enter to submit form', '');
+                }
+            }
+        }
+
+        clearStreamlitSubmitHints();
+        setTimeout(clearStreamlitSubmitHints, 100);
+        setTimeout(clearStreamlitSubmitHints, 400);
+        setTimeout(clearStreamlitSubmitHints, 1000);
+        const observer = new MutationObserver(clearStreamlitSubmitHints);
+        observer.observe(window.parent.document.body, { childList: true, subtree: true, attributes: true });
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
+
+
+remove_input_submit_placeholders()
+
 if active_page == PAGE_NAMES[0]:
     render_guided_progress(1)
     missing_items_home = required_missing()
@@ -9596,6 +9640,18 @@ div[data-baseweb="input"] input::placeholder {
 .stNumberInput input::placeholder {
     color: transparent !important;
     opacity: 0 !important;
+}
+
+
+/* Strong hide for Streamlit form submit placeholder */
+input[placeholder*="Press Enter"]::placeholder,
+input::placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
+    font-size: 0 !important;
+}
+div[data-baseweb="input"] input[placeholder*="Press Enter"] {
+    text-indent: 0 !important;
 }
 
 </style>
