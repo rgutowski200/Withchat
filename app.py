@@ -6523,7 +6523,6 @@ def render_navigation():
             "Home",
             "Guided Questions",
             "Budget Builder",
-            "Income Builder",
             "Review Answers",
             "Retirement Dashboard",
             "Recommendations",
@@ -7007,7 +7006,7 @@ if active_page == PAGE_NAMES[0]:
           <div class="rb-panel-title"><span>🚀</span><span>Quick Start Roadmap</span></div>
           <div class="rb-qs-step"><span class="rb-qs-step-num">1</span><span class="rb-qs-step-text"><b>Start My Blueprint</b><br/>Enter your age, savings, retirement age, Social Security, returns, and household setup.</span></div>
           <div class="rb-qs-step"><span class="rb-qs-step-num">2</span><span class="rb-qs-step-text"><b>Build Your Spending Plan</b><br/>Estimate how much you want to spend each year in retirement.</span></div>
-          <div class="rb-qs-step"><span class="rb-qs-step-num">3</span><span class="rb-qs-step-text"><b>Add Income Sources</b><br/>Include pension, rental income, part-time work, or other retirement income.</span></div>
+          <div class="rb-qs-step"><span class="rb-qs-step-num">3</span><span class="rb-qs-step-text"><b>Add Income Sources</b><br/>Add other income sources on the Spending Plan page.</span></div>
           <div class="rb-qs-step"><span class="rb-qs-step-num">4</span><span class="rb-qs-step-text"><b>Review Your Dashboard</b><br/>See your Blueprint Score, projected money left, withdrawal pressure, and income coverage.</span></div>
           <div class="rb-qs-step"><span class="rb-qs-step-num">5</span><span class="rb-qs-step-text"><b>Compare and Improve</b><br/>Use the Action Plan, Age Optimizer, scenarios, and bucket strategy to improve the plan.</span></div>
           <div class="rb-qs-step"><span class="rb-qs-step-num">6</span><span class="rb-qs-step-text"><b>Save or Export</b><br/>Save blueprints, compare options, and export a full Blueprint Report.</span></div>
@@ -7333,7 +7332,7 @@ if active_page == PAGE_NAMES[1]:
 
 
 if active_page == PAGE_NAMES[2]:
-    render_page_shell("Spending Plan", "Estimate your retirement lifestyle costs using either a quick monthly number or a more detailed category-by-category budget.", "💳")
+    render_page_shell("Spending Plan", "Estimate retirement spending and add other income sources like pensions, rental income, annuities, or part-time work.", "💳")
     render_guided_progress(2)
     page_help(
         "Budget Builder",
@@ -7484,17 +7483,12 @@ if active_page == PAGE_NAMES[2]:
         if st.button("Back: Start My Blueprint", use_container_width=True, key="back_from_budget_to_guided"):
             go_to_page("Guided Questions")
     with next_cols[1]:
-        if st.button("Next: Income Plan", type="primary", use_container_width=True, key="next_from_budget_to_income"):
-            go_to_page("Income Builder")
+        if st.button("Next: Review Inputs", type="primary", use_container_width=True, key="next_from_budget_to_income"):
+            go_to_page("Review Answers")
 
+    st.divider()
+    st.markdown("### Income Sources")
 
-if active_page == PAGE_NAMES[3]:
-    render_page_shell("Income Plan", "Add pensions, rental income, side income, annuities, or any other cash flows that reduce pressure on your portfolio.", "💼")
-    render_guided_progress(3)
-    page_help(
-        "Income Builder",
-        "This page captures income besides portfolio withdrawals, such as pensions, rental income, part-time work, consulting, annuities, or business income. More reliable income usually reduces portfolio withdrawal pressure."
-    )
     st.write("Add pension, rental income, annuity, side gig, consulting, business income, dividends, royalties, or other retirement income.")
 
     income_mode = st.radio(
@@ -7553,6 +7547,9 @@ if active_page == PAGE_NAMES[3]:
             go_to_page("Review Answers")
 
 
+if active_page == PAGE_NAMES[3]:
+    # Income Plan has been merged into Spending Plan.
+    go_to_page("Budget Builder")
 if active_page == PAGE_NAMES[4]:
     render_page_shell("Household Plan", "Household setup now lives inside Start My Blueprint.", "👥")
     st.info("Household planning is now included directly on the Start My Blueprint page. Use the spouse / partner checkbox there to include or hide household fields.")
@@ -7561,7 +7558,7 @@ if active_page == PAGE_NAMES[4]:
 
 if active_page == PAGE_NAMES[5]:
     render_page_shell("Review Inputs", "See a clean summary of your current inputs before running deeper analysis or sharing the results.", "📝")
-    render_guided_progress(4)
+    render_guided_progress(3)
     page_help(
         "Review Answers",
         "This page summarizes your saved inputs before running the plan. Use it to catch missing or incorrect assumptions before trusting the results."
@@ -7934,8 +7931,8 @@ def render_basic_blueprint_dashboard():
     st.divider()
     nav_cols = st.columns([1, 1])
     with nav_cols[0]:
-        if st.button("Back: Income Plan", use_container_width=True, key="review_inputs_back_income"):
-            go_to_page("Income Builder")
+        if st.button("Back: Spending Plan", use_container_width=True, key="review_inputs_back_income"):
+            go_to_page("Budget Builder")
     with nav_cols[1]:
         if st.button("Next: Retirement Dashboard", type="primary", use_container_width=True, key="review_inputs_to_retirement_dashboard"):
             go_to_page("Retirement Dashboard")
@@ -8528,7 +8525,7 @@ if active_page == PAGE_NAMES[7]:
 
 if active_page == PAGE_NAMES[8]:
     render_page_shell("Projection", "A clean year-by-year view of how your retirement blueprint may play out.", "📈")
-    render_guided_progress(4)
+    render_guided_progress(3)
 
     if st.session_state.get("projection_focus"):
         focus_label = st.session_state.get("projection_focus")
@@ -9490,6 +9487,17 @@ section[data-testid="stSidebar"] button {
 /* Sidebar Quick Analysis shortcut */
 section[data-testid="stSidebar"] button[kind="secondary"] {
     margin-bottom: 2px;
+}
+
+
+/* Five-step retirement blueprint path after merging Income into Spending */
+.rb-step-grid, .rb-progress-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+}
+@media (max-width: 900px) {
+    .rb-step-grid, .rb-progress-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
 }
 
 </style>
