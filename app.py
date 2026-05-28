@@ -1891,6 +1891,80 @@ def pct(x):
 
 
 # -----------------------------
+# Social Security Timing Helper
+# -----------------------------
+def estimate_social_security_by_claim_age(annual_benefit_at_62, claim_age):
+    """Approximate annual Social Security benefit if the user-entered amount is the age-62 benefit.
+
+    Assumption: the benefit entered is the age-62 annual benefit. We approximate age 62 as
+    70% of full retirement age benefit, full retirement age as 67, and delayed credits as
+    8% per year from 67 through 70. This keeps the app educational and avoids needing a
+    separate full-retirement-age slider.
+    """
+    base = max(float(annual_benefit_at_62 or 0), 0)
+    age = max(62, min(int(claim_age or 62), 70))
+    if base <= 0:
+        return 0.0
+
+    fra_benefit = base / 0.70
+    if age <= 67:
+        factor = 0.70 + ((age - 62) / 5.0) * 0.30
+    else:
+        factor = 1.00 + ((age - 67) * 0.08)
+    return fra_benefit * factor
+
+
+def social_security_for_age(current_age, start_age, annual_benefit_at_62):
+    if int(current_age) < int(start_age or 62):
+        return 0.0
+    return estimate_social_security_by_claim_age(annual_benefit_at_62, start_age)
+
+
+# -----------------------------
+# RMD Helper - simplified Uniform Lifetime Table
+# -----------------------------
+def get_rmd_start_age():
+    """Simplified default RMD start age.
+
+    Current app default uses 75 because most users planning from their 50s today
+    are likely in the SECURE 2.0 age-75 group. This is educational and should be
+    verified for the user's birth year.
+    """
+    return int(st.session_state.get("rmd_start_age", 75) or 75)
+
+
+def uniform_lifetime_divisor(age):
+    """IRS Uniform Lifetime Table divisors for common RMD ages.
+
+    Returns None before RMD age. For very old ages beyond the table below, use
+    the last divisor as a conservative fallback.
+    """
+    divisors = {
+        72: 27.4, 73: 26.5, 74: 25.5, 75: 24.6, 76: 23.7, 77: 22.9, 78: 22.0,
+        79: 21.1, 80: 20.2, 81: 19.4, 82: 18.5, 83: 17.7, 84: 16.8, 85: 16.0,
+        86: 15.2, 87: 14.4, 88: 13.7, 89: 12.9, 90: 12.2, 91: 11.5, 92: 10.8,
+        93: 10.1, 94: 9.5, 95: 8.9, 96: 8.4, 97: 7.8, 98: 7.3, 99: 6.8,
+        100: 6.4, 101: 6.0, 102: 5.6, 103: 5.2, 104: 4.9, 105: 4.6,
+        106: 4.3, 107: 4.1, 108: 3.9, 109: 3.7, 110: 3.5, 111: 3.4,
+        112: 3.3, 113: 3.1, 114: 3.0, 115: 2.9, 116: 2.8, 117: 2.7,
+        118: 2.5, 119: 2.3, 120: 2.0,
+    }
+    age = int(age or 0)
+    if age < get_rmd_start_age():
+        return None
+    return divisors.get(age, divisors[max(divisors)])
+
+
+def calculate_required_minimum_distribution(age, traditional_balance):
+    """Simplified annual RMD estimate from the pre-tax balance."""
+    balance = max(float(traditional_balance or 0), 0)
+    divisor = uniform_lifetime_divisor(age)
+    if divisor is None or divisor <= 0 or balance <= 0:
+        return 0.0
+    return min(balance, balance / divisor)
+
+
+# -----------------------------
 # Federal Tax Engine - Phase 2
 # -----------------------------
 # Update this one section annually when the IRS publishes new brackets.
@@ -2124,7 +2198,7 @@ FIELD_HELP = {
     "annual_contribution": "How much you expect to add to retirement accounts each year until retirement.",
     "healthcare": "Estimated annual healthcare cost after retirement before Medicare or in addition to Medicare.",
     "user_ss_age": "Age when you expect to start Social Security. Earlier usually means lower benefits; later usually means higher benefits.",
-    "user_ss": "Estimated annual Social Security benefit in today’s dollars.",
+    "user_ss": "Estimated annual Social Security benefit at age 62 in today’s dollars. The app adjusts it upward if you choose a later claiming age.",
     "growth_return": "Expected annual return for growth assets. This is only an assumption, not a guarantee.",
     "safe_return": "Expected annual return for Bucket 1 or safer assets.",
     "inflation": "Expected annual inflation rate used to increase future spending.",
@@ -2145,7 +2219,7 @@ FIELD_HELP = {
     "spouse_annual_contribution": "Spouse or partner’s expected annual retirement contributions before retirement.",
     "spouse_healthcare": "Estimated spouse or partner annual healthcare cost in retirement.",
     "spouse_ss_age": "Age when spouse or partner expects to start Social Security.",
-    "spouse_ss": "Estimated annual spouse or partner Social Security benefit.",
+    "spouse_ss": "Estimated annual spouse or partner Social Security benefit at age 62 in today’s dollars. The app adjusts it upward if they choose a later claiming age.",
 }
 
 def page_help(title, body):
@@ -3488,6 +3562,7 @@ defaults = {
     "retirement_housing_plan": "Unsure",
     "tax_year": 2026,
     "filing_status": "married_joint",
+    "rmd_start_age": 75,
     "user_plan": "free",
     "premium_preview_enabled": True,
     "bucket2_years": 5.0,
@@ -3569,6 +3644,7 @@ def get_scenario_data():
         "home_value", "mortgage_balance", "monthly_mortgage",
         "annual_property_taxes_home", "mortgage_payoff_age",
         "retirement_housing_plan",
+        "rmd_start_age",
         "enable_spending_change", "spending_change_age", "spending_change_monthly",
     ]
 
@@ -3868,11 +3944,10 @@ def run_projection():
 
         household_retired = age >= int(st.session_state.retire_age) and (not spouse_alive or spouse_age >= int(st.session_state.spouse_retire_age))
 
-        if household_retired and bucket1 <= 0 and base_spending > 0:
-            target = annual_spending_for_age(age) * float(st.session_state.bucket1_years)
-            transfer = min(trad, target)
-            trad -= transfer
-            bucket1 += transfer * 0.80
+        # Do not auto-transfer pre-tax money into Bucket 1.
+        # Bucket 1 in this projection represents actual cash/safe assets entered by the user.
+        # The 2-bucket module shows suggested targets separately without silently reclassifying
+        # traditional assets or using a hardcoded after-tax haircut.
 
         conversion = 0
         if age >= int(st.session_state.retire_age) and float(st.session_state.annual_conversion) > 0:
@@ -3880,11 +3955,12 @@ def run_projection():
             trad -= conversion
             roth += conversion
 
-        user_ss = float(st.session_state.user_ss) if age >= int(st.session_state.user_ss_age) else 0
-        spouse_ss = float(st.session_state.spouse_ss) if spouse_alive and spouse_age >= int(st.session_state.spouse_ss_age) else 0
+        user_ss = social_security_for_age(age, int(st.session_state.user_ss_age), float(st.session_state.user_ss))
+        spouse_ss = social_security_for_age(spouse_age, int(st.session_state.spouse_ss_age), float(st.session_state.spouse_ss)) if spouse_alive else 0
         if st.session_state.has_spouse and not spouse_alive:
             if st.session_state.survivor_ss_strategy == "Higher benefit continues":
-                ss_income = max(user_ss, float(st.session_state.spouse_ss))
+                spouse_survivor_ss = estimate_social_security_by_claim_age(float(st.session_state.spouse_ss), int(st.session_state.spouse_ss_age))
+                ss_income = max(user_ss, spouse_survivor_ss)
             else:
                 ss_income = user_ss
         else:
@@ -3905,9 +3981,11 @@ def run_projection():
 
         healthcare = 0
         if age >= int(st.session_state.retire_age):
-            healthcare += float(st.session_state.healthcare)
+            user_healthcare_years = max(age - int(st.session_state.retire_age), 0)
+            healthcare += float(st.session_state.healthcare) * ((1 + float(st.session_state.inflation)) ** user_healthcare_years)
         if spouse_alive and spouse_age >= int(st.session_state.spouse_retire_age):
-            healthcare += float(st.session_state.spouse_healthcare)
+            spouse_healthcare_years = max(spouse_age - int(st.session_state.spouse_retire_age), 0)
+            healthcare += float(st.session_state.spouse_healthcare) * ((1 + float(st.session_state.inflation)) ** spouse_healthcare_years)
 
         mortgage_payment = annual_mortgage_payment_for_age(age) if household_retired else 0
         total_spending = spending + healthcare + mortgage_payment
@@ -3931,7 +4009,23 @@ def run_projection():
             used_trad += take
         take = min(roth, max(withdrawal_needed, 0)); roth -= take; withdrawal_needed -= take; used_roth += take
 
-        estimated_federal_tax = base_federal_tax + federal_tax_from_trad
+        rmd_required = calculate_required_minimum_distribution(age, trad + used_trad)
+        forced_rmd = 0.0
+        federal_tax_from_forced_rmd = 0.0
+        taxable_reinvestment = 0.0
+        if household_retired and rmd_required > used_trad and trad > 0:
+            forced_rmd = min(trad, rmd_required - used_trad)
+            federal_tax_from_forced_rmd = incremental_federal_tax(
+                ordinary_income_before_withdrawals + used_trad,
+                forced_rmd,
+                social_security_income=ss_income
+            )
+            trad -= forced_rmd
+            used_trad += forced_rmd
+            taxable_reinvestment = max(forced_rmd - federal_tax_from_forced_rmd, 0)
+            taxable += taxable_reinvestment
+
+        estimated_federal_tax = base_federal_tax + federal_tax_from_trad + federal_tax_from_forced_rmd
         final_tax_estimate = estimate_federal_tax(ordinary_income_before_withdrawals + used_trad, social_security_income=ss_income)
         actual_withdrawal = used_b1 + used_taxable + used_trad + used_roth
         end_total = trad + roth + taxable + bucket1
@@ -3966,8 +4060,13 @@ def run_projection():
             "Federal Taxable Income": final_tax_estimate["taxable_income"],
             "Effective Federal Tax Rate": estimated_federal_tax / max(final_tax_estimate["gross_ordinary_income"], 1),
             "Portfolio Withdrawal": actual_withdrawal,
+            # Backward-compatible alias used throughout the UI for the amount needed from savings.
+            "Portfolio Need": actual_withdrawal,
             "Left Over After Spending": leftover,
             "Roth Conversion": conversion,
+            "RMD Required": rmd_required,
+            "Forced RMD": forced_rmd,
+            "RMD Reinvested to Taxable": taxable_reinvestment,
             "Unmet Need": max(withdrawal_needed, 0),
             "Withdrawal Rate": actual_withdrawal / max(start_total, 1),
             "Income Coverage Ratio": non_portfolio_income / max(total_spending, 1),
@@ -4415,11 +4514,10 @@ def run_projection_with_return_sequence(return_sequence):
 
         household_retired = age >= int(st.session_state.retire_age) and (not spouse_alive or spouse_age >= int(st.session_state.spouse_retire_age))
 
-        if household_retired and bucket1 <= 0 and base_spending > 0:
-            target = annual_spending_for_age(age) * float(st.session_state.bucket1_years)
-            transfer = min(trad, target)
-            trad -= transfer
-            bucket1 += transfer * 0.80
+        # Do not auto-transfer pre-tax money into Bucket 1.
+        # Bucket 1 in this projection represents actual cash/safe assets entered by the user.
+        # The 2-bucket module shows suggested targets separately without silently reclassifying
+        # traditional assets or using a hardcoded after-tax haircut.
 
         conversion = 0
         if age >= int(st.session_state.retire_age) and float(st.session_state.annual_conversion) > 0:
@@ -4427,12 +4525,13 @@ def run_projection_with_return_sequence(return_sequence):
             trad -= conversion
             roth += conversion
 
-        user_ss = float(st.session_state.user_ss) if age >= int(st.session_state.user_ss_age) else 0
-        spouse_ss = float(st.session_state.spouse_ss) if spouse_alive and spouse_age >= int(st.session_state.spouse_ss_age) else 0
+        user_ss = social_security_for_age(age, int(st.session_state.user_ss_age), float(st.session_state.user_ss))
+        spouse_ss = social_security_for_age(spouse_age, int(st.session_state.spouse_ss_age), float(st.session_state.spouse_ss)) if spouse_alive else 0
 
         if st.session_state.has_spouse and not spouse_alive:
             if st.session_state.survivor_ss_strategy == "Higher benefit continues":
-                ss_income = max(user_ss, float(st.session_state.spouse_ss))
+                spouse_survivor_ss = estimate_social_security_by_claim_age(float(st.session_state.spouse_ss), int(st.session_state.spouse_ss_age))
+                ss_income = max(user_ss, spouse_survivor_ss)
             else:
                 ss_income = user_ss
         else:
@@ -4452,9 +4551,11 @@ def run_projection_with_return_sequence(return_sequence):
 
         healthcare = 0
         if age >= int(st.session_state.retire_age):
-            healthcare += float(st.session_state.healthcare)
+            user_healthcare_years = max(age - int(st.session_state.retire_age), 0)
+            healthcare += float(st.session_state.healthcare) * ((1 + float(st.session_state.inflation)) ** user_healthcare_years)
         if spouse_alive and spouse_age >= int(st.session_state.spouse_retire_age):
-            healthcare += float(st.session_state.spouse_healthcare)
+            spouse_healthcare_years = max(spouse_age - int(st.session_state.spouse_retire_age), 0)
+            healthcare += float(st.session_state.spouse_healthcare) * ((1 + float(st.session_state.inflation)) ** spouse_healthcare_years)
 
         mortgage_payment = annual_mortgage_payment_for_age(age) if household_retired else 0
         total_spending = spending + healthcare + mortgage_payment
@@ -4491,7 +4592,23 @@ def run_projection_with_return_sequence(return_sequence):
         withdrawal_needed -= take
         used_roth += take
 
-        estimated_federal_tax = base_federal_tax + federal_tax_from_trad
+        rmd_required = calculate_required_minimum_distribution(age, trad + used_trad)
+        forced_rmd = 0.0
+        federal_tax_from_forced_rmd = 0.0
+        taxable_reinvestment = 0.0
+        if household_retired and rmd_required > used_trad and trad > 0:
+            forced_rmd = min(trad, rmd_required - used_trad)
+            federal_tax_from_forced_rmd = incremental_federal_tax(
+                ordinary_income_before_withdrawals + used_trad,
+                forced_rmd,
+                social_security_income=ss_income
+            )
+            trad -= forced_rmd
+            used_trad += forced_rmd
+            taxable_reinvestment = max(forced_rmd - federal_tax_from_forced_rmd, 0)
+            taxable += taxable_reinvestment
+
+        estimated_federal_tax = base_federal_tax + federal_tax_from_trad + federal_tax_from_forced_rmd
         final_tax_estimate = estimate_federal_tax(ordinary_income_before_withdrawals + used_trad, social_security_income=ss_income)
         actual_withdrawal = used_b1 + used_taxable + used_trad + used_roth
         end_total = trad + roth + taxable + bucket1
@@ -4511,6 +4628,11 @@ def run_projection_with_return_sequence(return_sequence):
             "Federal Taxable Income": final_tax_estimate["taxable_income"],
             "Effective Federal Tax Rate": estimated_federal_tax / max(final_tax_estimate["gross_ordinary_income"], 1),
             "Portfolio Withdrawal": actual_withdrawal,
+            # Backward-compatible alias used throughout the UI for the amount needed from savings.
+            "Portfolio Need": actual_withdrawal,
+            "RMD Required": rmd_required,
+            "Forced RMD": forced_rmd,
+            "RMD Reinvested to Taxable": taxable_reinvestment,
             "Unmet Need": max(withdrawal_needed, 0),
             "Withdrawal Rate": actual_withdrawal / max(start_total, 1),
             "Income Coverage Ratio": non_portfolio_income / max(total_spending, 1),
@@ -4674,20 +4796,27 @@ def run_stress_test_scenario(
             forced_returns.extend([base_return] * (years - len(forced_returns)))
 
     original_inflation = float(st.session_state.inflation)
-    original_spending = st.session_state.flat_monthly_spending
+    original_flat_spending = st.session_state.flat_monthly_spending
+    original_budget_values = {key: st.session_state.get(key, 0) for key, _ in budget_keys}
 
     try:
         if inflation_override is not None:
             st.session_state.inflation = inflation_override
 
-        if st.session_state.budget_mode == "Flat monthly number":
-            st.session_state.flat_monthly_spending = original_spending * spending_multiplier
+        if spending_multiplier != 1.0:
+            if st.session_state.budget_mode == "Flat monthly number":
+                st.session_state.flat_monthly_spending = original_flat_spending * spending_multiplier
+            else:
+                for key, _ in budget_keys:
+                    st.session_state[key] = float(original_budget_values.get(key, 0) or 0) * spending_multiplier
 
         sim_df = run_projection_with_return_sequence(forced_returns)
 
     finally:
         st.session_state.inflation = original_inflation
-        st.session_state.flat_monthly_spending = original_spending
+        st.session_state.flat_monthly_spending = original_flat_spending
+        for key, value in original_budget_values.items():
+            st.session_state[key] = value
 
     if sim_df.empty:
         return {
@@ -6435,7 +6564,6 @@ PAGE_NAMES = [
     "AI Retirement Coach",
     "Retirement Age Optimizer",
     "Resources",
-    "Plans & Pricing",
     "Help / Instructions",
 ]
 
@@ -6457,7 +6585,6 @@ PAGE_ICONS = {
     "AI Retirement Coach": "🤖",
     "Retirement Age Optimizer": "🎯",
     "Resources": "📚",
-    "Plans & Pricing": "💎",
     "Help / Instructions": "❓",
 }
 
@@ -6479,7 +6606,6 @@ NAV_LABELS = {
     "AI Retirement Coach": "Blueprint Coach",
     "Retirement Age Optimizer": "Age Optimizer",
     "Resources": "Resources",
-    "Plans & Pricing": "Plans & Pricing",
     "Help / Instructions": "Help",
 }
 
@@ -6529,8 +6655,7 @@ def render_navigation():
             "PDF Report",
             "AI Retirement Coach",
             "Resources",
-            "Plans & Pricing",
-            "Help / Instructions",
+                    "Help / Instructions",
         ]
 
         for page_name in ordered_pages:
@@ -6695,7 +6820,7 @@ def render_dashboard_combo_overview(df, rtv_score, rtv_label):
         </div>
         """, unsafe_allow_html=True)
         if st.button("See Action Plan", key="dashboard_combo_action_plan", use_container_width=True):
-            go_to_page("Action Plan")
+            go_to_page("Recommendations")
     with right:
         st.markdown('<div class="rb-modern-card"><h4>Projected Portfolio Value</h4><div class="rb-modern-muted" style="margin-top:4px;">See how the current plan may evolve over time.</div></div>', unsafe_allow_html=True)
         st.pyplot(plot_portfolio_area_chart(df), use_container_width=True)
@@ -6800,7 +6925,7 @@ if active_page == PAGE_NAMES[0]:
         monthly_gap_home = compact_money(monthly_gap_raw_home)
 
         target_retire_age_home = int(st.session_state.get("retire_age", 0) or 0)
-        ss_start_age_home = int(st.session_state.get("ss_start_age", 62) or 62)
+        ss_start_age_home = int(st.session_state.get("user_ss_age", 62) or 62)
         healthcare_gap_years_home = max(0, min(65, planning_age_home) - target_retire_age_home) if target_retire_age_home else 0
         ss_gap_years_home = max(0, ss_start_age_home - target_retire_age_home) if target_retire_age_home else 0
         annual_spending_home = annual_household_spending() + float(st.session_state.get("healthcare", 0) or 0)
@@ -7079,7 +7204,7 @@ if active_page == PAGE_NAMES[1]:
 
         q1, q2, q3 = st.columns(3)
         quick_ss_age = q1.number_input("Social Security start age", 62, 70, st.session_state.user_ss_age, help=FIELD_HELP["user_ss_age"])
-        quick_ss = q2.number_input("Annual Social Security", min_value=0, value=st.session_state.user_ss, step=1000, help=FIELD_HELP["user_ss"])
+        quick_ss = q2.number_input("Annual Social Security at 62", min_value=0, value=st.session_state.user_ss, step=1000, help=FIELD_HELP["user_ss"])
         quick_growth_return = q3.slider("Expected average return", 0.0, 15.0, st.session_state.growth_return * 100, help=FIELD_HELP["growth_return"]) / 100
 
         quick_save = st.button("Save Quick Blueprint", type="primary", use_container_width=True, key="save_quick_blueprint_button")
@@ -7103,21 +7228,23 @@ if active_page == PAGE_NAMES[1]:
                 "safe_return": 0.045,
                 "inflation": 0.03,
                 "bucket1_years": 3.0,
+
+                # CRITICAL MATH FIX:
+                # Quick Blueprint spending must feed the same fields used by run_projection().
+                "budget_mode": "Flat monthly number",
+                "flat_monthly_spending": quick_monthly_spending,
+
+                # Backward-compatible aliases used by the Basic Blueprint dashboard and older page logic.
+                "monthly_spending": quick_monthly_spending,
+                "spending_quick_monthly": quick_monthly_spending,
+                "basic_blueprint_monthly_spending": quick_monthly_spending,
+                "basic_blueprint_annual_spending": quick_monthly_spending * 12,
+                "monthly_expenses": quick_monthly_spending,
+                "annual_spending": quick_monthly_spending * 12,
+                "monthly_needs": quick_monthly_spending,
+                "retirement_monthly_spending": quick_monthly_spending,
             }.items():
                 st.session_state[k] = v
-
-            st.session_state.monthly_spending = quick_monthly_spending
-            st.session_state.spending_quick_monthly = quick_monthly_spending
-            st.session_state.basic_blueprint_monthly_spending = quick_monthly_spending
-            st.session_state.basic_blueprint_annual_spending = quick_monthly_spending * 12
-            if "monthly_expenses" in st.session_state:
-                st.session_state.monthly_expenses = quick_monthly_spending
-            if "annual_spending" in st.session_state:
-                st.session_state.annual_spending = quick_monthly_spending * 12
-            if "monthly_needs" in st.session_state:
-                st.session_state.monthly_needs = quick_monthly_spending
-            if "retirement_monthly_spending" in st.session_state:
-                st.session_state.retirement_monthly_spending = quick_monthly_spending
 
             st.session_state.quick_blueprint_saved = True
             st.success("Quick Blueprint saved. Your Basic Blueprint is ready.")
@@ -7198,7 +7325,7 @@ if active_page == PAGE_NAMES[1]:
             annual_contribution = c1.number_input("Annual contributions until retirement", min_value=0, value=st.session_state.annual_contribution, step=5000, help=FIELD_HELP["annual_contribution"])
             healthcare = c2.number_input("Your annual healthcare in retirement", min_value=0, value=st.session_state.healthcare, step=1000, help=FIELD_HELP["healthcare"])
             user_ss_age = c3.number_input("Your Social Security start age", 62, 70, st.session_state.user_ss_age, help=FIELD_HELP["user_ss_age"])
-            user_ss = c4.number_input("Your annual Social Security", min_value=0, value=st.session_state.user_ss, step=1000, help=FIELD_HELP["user_ss"])
+            user_ss = c4.number_input("Your annual Social Security at 62", min_value=0, value=st.session_state.user_ss, step=1000, help=FIELD_HELP["user_ss"])
 
             st.subheader("Household")
             has_spouse = bool(st.session_state.get("has_spouse", False))
@@ -7214,7 +7341,7 @@ if active_page == PAGE_NAMES[1]:
                 spouse_annual_contribution = c1.number_input("Spouse annual contributions", min_value=0, value=st.session_state.spouse_annual_contribution, step=5000, help=FIELD_HELP["spouse_annual_contribution"])
                 spouse_healthcare = c2.number_input("Spouse annual healthcare", min_value=0, value=st.session_state.spouse_healthcare, step=1000, help=FIELD_HELP["spouse_healthcare"])
                 spouse_ss_age = c3.number_input("Spouse Social Security age", 62, 70, st.session_state.spouse_ss_age, help=FIELD_HELP["spouse_ss_age"])
-                spouse_ss = c4.number_input("Spouse annual Social Security", min_value=0, value=st.session_state.spouse_ss, step=1000, help=FIELD_HELP["spouse_ss"])
+                spouse_ss = c4.number_input("Spouse annual Social Security at 62", min_value=0, value=st.session_state.spouse_ss, step=1000, help=FIELD_HELP["spouse_ss"])
 
                 survivor_ss_strategy = st.selectbox(
                     "Survivor Social Security strategy",
@@ -7929,7 +8056,7 @@ def render_basic_blueprint_dashboard():
         """, unsafe_allow_html=True)
         if st.button("Upgrade to Get a Detailed Blueprint", type="primary", use_container_width=True, key="basic_upgrade_prompt"):
             st.session_state.show_premium_prompt = True
-            go_to_page("Plans & Pricing")
+            st.info("Pricing is temporarily hidden while we finalize the app. Premium tools are still available in testing mode.")
 
     st.caption("Basic Blueprint is educational and simplified. It is not financial, tax, legal, insurance, or investment advice.")
 
@@ -7975,7 +8102,7 @@ if active_page == PAGE_NAMES[6]:
         dashboard_unmet_need = float(df["Unmet Need"].sum() or 0) if "Unmet Need" in df.columns else 0
 
         dashboard_target_age = int(st.session_state.get("retire_age", 0) or 0)
-        dashboard_ss_age = int(st.session_state.get("ss_start_age", 62) or 62)
+        dashboard_ss_age = int(st.session_state.get("user_ss_age", 62) or 62)
         dashboard_plan_age = int(st.session_state.get("end_age", 90) or 90)
         dashboard_ss_gap = max(0, dashboard_ss_age - dashboard_target_age) if dashboard_target_age else 0
         dashboard_healthcare_gap = max(0, min(65, dashboard_plan_age) - dashboard_target_age) if dashboard_target_age else 0
@@ -9500,6 +9627,12 @@ section[data-testid="stSidebar"] button {
     if "saved_ai_recommendations" not in st.session_state:
         st.session_state.saved_ai_recommendations = {}
 
+    def saved_scenario_annual_spending(data):
+        """Calculate spending from saved scenario data using the same flat/detailed logic as the live app."""
+        if data.get("budget_mode", "Flat monthly number") == "Detailed monthly budget":
+            return sum(float(data.get(k, 0) or 0) for k, _ in budget_keys) * 12
+        return float(data.get("flat_monthly_spending", 0) or 0) * 12
+
     def scenario_summary_from_data(data):
         traditional = float(data.get("traditional", 0) or 0)
         roth = float(data.get("roth", 0) or 0)
@@ -9507,8 +9640,8 @@ section[data-testid="stSidebar"] button {
         cash = float(data.get("cash", 0) or 0)
         total_assets = traditional + roth + taxable + cash
 
-        monthly_spending = float(data.get("flat_monthly_spending", 0) or 0)
-        annual_spending = monthly_spending * 12
+        annual_spending = saved_scenario_annual_spending(data)
+        monthly_spending = annual_spending / 12
 
         user_ss = float(data.get("user_ss", 0) or 0)
         spouse_ss = float(data.get("spouse_ss", 0) or 0) if data.get("has_spouse", False) else 0
@@ -11232,125 +11365,6 @@ if active_page == "Retirement Age Optimizer":
 if active_page == "Resources":
     render_resources_page()
 
-
-
-if active_page == "Plans & Pricing":
-    render_page_shell("Plans & Pricing", "Choose the level of retirement planning detail that fits where you are today.", "💎")
-    page_help(
-        "Plans & Pricing",
-        "This page explains what is included in the free Basic Blueprint and what users unlock with Detailed Blueprint and Premium tools."
-    )
-
-    st.markdown("""
-    <div class="rb-insight-card">
-      <div class="rb-insight-kicker">Upgrade Path</div>
-      <div class="rb-insight-title">From basic retirement snapshot to full retirement blueprint</div>
-      <div class="rb-insight-copy">
-        The free Basic Blueprint gives users a fast first look. Premium unlocks the detailed planning tools needed
-        to compare scenarios, improve the plan, and create a fuller retirement strategy.
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    c1, c2, c3 = st.columns(3)
-
-    with c1:
-        st.markdown("""
-        <div class="rb-premium-card-compact">
-          <div class="rb-premium-icon">🟢</div>
-          <div class="rb-premium-title">Basic Blueprint</div>
-          <div class="rb-premium-copy">
-            A simple starter snapshot using age, retirement age, savings, spending, Social Security, and return assumptions.
-          </div>
-          <div class="rb-premium-badge">Free Trial</div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown("**Included:**")
-        st.write("- Quick Blueprint inputs")
-        st.write("- Basic retirement snapshot")
-        st.write("- Basic money-left estimate")
-        st.write("- Basic monthly savings gap")
-        st.write("- Educational resources")
-        st.metric("Price", "$0")
-
-    with c2:
-        st.markdown("""
-        <div class="rb-premium-card-compact">
-          <div class="rb-premium-icon">💎</div>
-          <div class="rb-premium-title">Detailed Blueprint</div>
-          <div class="rb-premium-copy">
-            A fuller planning experience with more precise inputs, account-level detail, and personalized planning insights.
-          </div>
-          <div class="rb-premium-badge">Recommended</div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown("**Top Premium Unlocks:**")
-        st.write("- Detailed Blueprint inputs")
-        st.write("- Retirement Age Optimizer")
-        st.write("- Scenario Comparison")
-        st.write("- 2-Bucket Strategy")
-        st.write("- Full Blueprint Report")
-        st.metric("Monthly", "$14.99/mo")
-        st.caption("Annual option: $99/year")
-        if st.button("Upgrade to Detailed Blueprint", type="primary", use_container_width=True, key="plans_upgrade_detailed"):
-            st.session_state.show_premium_prompt = True
-            st.info("Payment connection comes next. For now, this button marks the intended upgrade path.")
-
-    with c3:
-        st.markdown("""
-        <div class="rb-premium-card-compact">
-          <div class="rb-premium-icon">📄</div>
-          <div class="rb-premium-title">One-Time Blueprint Report</div>
-          <div class="rb-premium-copy">
-            A one-time polished report for users who want a snapshot they can save, print, or review with a spouse or advisor.
-          </div>
-          <div class="rb-premium-badge">One-Time</div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown("**Good for:**")
-        st.write("- Non-subscription users")
-        st.write("- Retirement checkups")
-        st.write("- Spouse conversations")
-        st.write("- Advisor review meetings")
-        st.write("- Exportable report")
-        st.metric("Price", "$39")
-        if st.button("Get One-Time Report", use_container_width=True, key="plans_onetime_report"):
-            st.session_state.show_premium_prompt = True
-            st.info("One-time report checkout can be connected in the monetization phase.")
-
-    st.subheader("Everything Premium Includes")
-    premium_features = pd.DataFrame([
-        ["Detailed Blueprint", "More accurate inputs and projections"],
-        ["Detailed Spending Plan", "Better estimate of real retirement expenses"],
-        ["Account-Level Planning", "Traditional / Roth / taxable / cash breakdown"],
-        ["Retirement Age Optimizer", "See earliest, recommended, and safest retirement ages"],
-        ["Scenario Comparison", "Compare retire at 58 vs. 60 vs. 62 and other choices"],
-        ["2-Bucket Strategy", "Separate safety money from long-term growth money"],
-        ["Tax-Aware Withdrawal Plan", "Understand which accounts may be better to draw from"],
-        ["Roth Conversion Explorer", "Test possible Roth conversion strategies"],
-        ["Best Places to Retire", "Compare retirement locations"],
-        ["Full Blueprint Report", "Export/share a polished retirement summary"],
-        ["Blueprint Coach", "Ask plain-English questions about the plan"],
-        ["Saved Blueprint Comparisons", "Save and compare multiple plans"],
-    ], columns=["Premium Feature", "What It Helps With"])
-    st.dataframe(premium_features, use_container_width=True, hide_index=True)
-
-    st.subheader("Simple feature comparison")
-    comparison = pd.DataFrame([
-        ["Quick Blueprint", "Yes", "Yes", "Included in detailed planning"],
-        ["Basic retirement snapshot", "Yes", "Yes", "Yes"],
-        ["Detailed spending plan", "No", "Yes", "Yes"],
-        ["Account-level planning", "No", "Yes", "Yes"],
-        ["Scenario comparison", "Preview only", "Yes", "Yes"],
-        ["Age Optimizer", "Locked", "Yes", "Yes"],
-        ["Tax-aware withdrawal plan", "Locked", "Yes", "Yes"],
-        ["Roth Conversion Explorer", "Locked", "Yes", "Yes"],
-        ["Full Blueprint Report", "Locked", "Yes", "Yes"],
-        ["Saved blueprint comparisons", "Locked", "Yes", "Optional"],
-    ], columns=["Feature", "Basic Free", "Detailed Premium", "One-Time Report"])
-    st.dataframe(comparison, use_container_width=True, hide_index=True)
-
-    st.warning("Testing mode: premium features are temporarily unlocked for all users. Pricing can still be adjusted before launch. This app is educational only and does not provide financial, tax, legal, insurance, or investment advice.")
 
 
 
