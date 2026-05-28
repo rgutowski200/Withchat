@@ -6516,10 +6516,6 @@ def render_navigation():
 
         st.caption("PLAN SECTIONS")
 
-        # Quick Analysis shortcut: simple starter plan.
-        if st.button("⚡ Quick Analysis", key="nav_quick_analysis_shortcut", use_container_width=True):
-            go_to_page("Quick Analysis")
-
         ordered_pages = [
             "Home",
             "Quick Analysis",
