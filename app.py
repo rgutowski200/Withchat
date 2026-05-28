@@ -33,28 +33,34 @@ section[data-testid="stSidebar"] {
     background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
     border-right: 1px solid #E2E8F0;
 }
+section[data-testid="stSidebar"] div.stButton {
+    margin-bottom: 10px;
+}
 section[data-testid="stSidebar"] div.stButton > button {
     justify-content: flex-start;
-    min-height: 46px;
-    border-radius: 12px;
-    background: transparent;
+    min-height: 50px;
+    border-radius: 18px;
+    padding: 0 14px;
+    background: linear-gradient(180deg,#F8FBFF 0%,#EEF6FF 100%);
     color: #0F172A;
-    border: 1px solid transparent;
-    box-shadow: none;
-    font-weight: 750;
+    border: 1px solid #DBEAFE;
+    box-shadow: 0 8px 18px rgba(37,99,235,.08);
+    font-weight: 800;
+    transition: all .18s ease;
 }
 section[data-testid="stSidebar"] div.stButton > button:hover {
-    background: #EEF6FF;
-    border-color: #DBEAFE;
+    background: linear-gradient(180deg,#EFF6FF 0%,#E0F2FE 100%);
+    border-color: #93C5FD;
     color: #1D4ED8;
-    transform: none;
-    box-shadow: none;
+    transform: translateY(-1px);
+    box-shadow: 0 12px 22px rgba(37,99,235,.12);
 }
 section[data-testid="stSidebar"] div.stButton > button:disabled {
     background: linear-gradient(135deg,#2563EB,#1D4ED8);
     color: white;
     border-color: #1D4ED8;
     opacity: 1;
+    box-shadow: 0 12px 24px rgba(37,99,235,.22);
 }
 
 /* Hide old top nav wrapper if any legacy markup remains */
