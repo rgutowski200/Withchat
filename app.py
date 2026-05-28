@@ -6543,7 +6543,6 @@ def render_navigation():
                 key=f"sidebar_nav_{page_name}",
                 use_container_width=True,
                 disabled=is_active,
-                help=f"Go to {display_name}",
             ):
                 go_to_page(page_name)
 
@@ -9468,6 +9467,12 @@ div[data-testid="stDataFrame"] {
 /* Money-left card runout note */
 .rb-kpi-card-v2 .rb-kpi-pill {
     white-space: nowrap;
+}
+
+
+/* Sidebar cleanup: avoid oversized hover-tooltip feel */
+section[data-testid="stSidebar"] button {
+    overflow: hidden !important;
 }
 
 </style>
