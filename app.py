@@ -6955,7 +6955,7 @@ def render_basic_quick_dashboard():
     with c1:
         if st.button("Build Detailed Plan", type="primary", use_container_width=True, key="basic_dashboard_build_detailed"):
             st.session_state["show_basic_dashboard"] = False
-            go_to_page("Guided Questions")
+            go_to_page("Home")
     with c2:
         if st.button("Save This Blueprint", use_container_width=True, key="basic_dashboard_save"):
             go_to_page("Saved Scenarios")
@@ -7616,9 +7616,9 @@ if active_page == "Quick Analysis":
 
     qa_cols = st.columns([1, 1])
     with qa_cols[0]:
-        if st.button("Back to Start My Blueprint", type="primary", use_container_width=True, key="quick_analysis_to_start_blueprint"):
+        if st.button("Back to Home", type="primary", use_container_width=True, key="quick_analysis_to_home"):
             st.session_state["show_basic_dashboard"] = False
-            go_to_page("Guided Questions")
+            go_to_page("Home")
     with qa_cols[1]:
         if st.button("Build Detailed Plan", use_container_width=True, key="quick_analysis_to_start"):
             go_to_page("Guided Questions")
