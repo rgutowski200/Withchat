@@ -6802,7 +6802,175 @@ def remove_input_submit_placeholders():
 
 remove_input_submit_placeholders()
 
+
+def run_basic_quick_projection():
+    """Simple Quick Analysis projection for free/basic users."""
+    current_age = int(st.session_state.get("current_age", st.session_state.get("quick_current_age", 0)) or 0)
+    retire_age = int(st.session_state.get("retire_age", st.session_state.get("quick_retire_age", 0)) or 0)
+    end_age = int(st.session_state.get("end_age", st.session_state.get("quick_end_age", 90)) or 90)
+    savings = float(st.session_state.get("quick_total_savings", 0) or 0)
+    if savings <= 0:
+        savings = float(st.session_state.get("trad_total", 0) or 0) + float(st.session_state.get("roth_total", 0) or 0) + float(st.session_state.get("taxable_total", 0) or 0)
+
+    monthly_spending = float(st.session_state.get("monthly_spending", st.session_state.get("quick_monthly_spending", 0)) or 0)
+    annual_spending = monthly_spending * 12
+    annual_contrib = float(st.session_state.get("contrib", st.session_state.get("quick_contrib", 0)) or 0)
+    ss_start_age = int(st.session_state.get("ss_start_age", st.session_state.get("quick_ss_age", 62)) or 62)
+    ss_annual = float(st.session_state.get("ss_annual", st.session_state.get("quick_ss_annual", 0)) or 0)
+    ret = float(st.session_state.get("growth_return", st.session_state.get("quick_growth_return", 7.0)) or 7.0) / 100
+
+    balance = savings
+    rows = []
+    runout_age = None
+
+    for age in range(current_age, end_age + 1):
+        start_balance = balance
+        retired = age >= retire_age
+
+        if retired:
+            income = ss_annual if age >= ss_start_age else 0
+            withdrawal = max(annual_spending - income, 0)
+            balance = max(balance - withdrawal, 0)
+            if balance <= 0 and runout_age is None and withdrawal > 0:
+                runout_age = age
+        else:
+            withdrawal = 0
+            income = 0
+            balance += annual_contrib
+
+        balance = balance * (1 + ret) if balance > 0 else 0
+
+        rows.append({
+            "Age": age,
+            "Start Total": start_balance,
+            "End Total": balance,
+            "Retired": retired,
+            "Spending": annual_spending if retired else 0,
+            "Social Security": income,
+            "Portfolio Need": withdrawal,
+        })
+
+    ending = float(rows[-1]["End Total"] if rows else 0)
+    years_retired = max(end_age - retire_age + 1, 1) if retire_age else 1
+    first_year_need = max(annual_spending - (ss_annual if retire_age >= ss_start_age else 0), 0)
+
+    # Basic score: intentionally simple, used only for Quick Analysis.
+    if ending <= 0:
+        score = 35
+    else:
+        cushion_years = ending / max(annual_spending, 1)
+        score = min(100, max(0, int(55 + cushion_years * 8)))
+        if first_year_need / max(savings, 1) > 0.06:
+            score -= 10
+        if ss_start_age > retire_age:
+            score -= min(12, (ss_start_age - retire_age) * 3)
+        score = max(0, min(100, score))
+
+    if score >= 85:
+        label = "Strong"
+        can_retire = "Looks Good"
+    elif score >= 70:
+        label = "Likely Viable"
+        can_retire = "Possible"
+    elif score >= 50:
+        label = "Needs Work"
+        can_retire = "Needs Work"
+    else:
+        label = "High Risk"
+        can_retire = "High Risk"
+
+    return pd.DataFrame(rows), {
+        "score": score,
+        "label": label,
+        "can_retire": can_retire,
+        "ending": ending,
+        "runout_age": runout_age,
+        "monthly_gap": first_year_need / 12,
+        "plan_age": end_age,
+        "retire_age": retire_age,
+        "ss_gap": max(0, ss_start_age - retire_age) if retire_age else 0,
+    }
+
+
+def render_basic_quick_dashboard():
+    """Basic dashboard shown after Quick Analysis, without requiring the full detailed plan."""
+    qdf, basic = run_basic_quick_projection()
+
+    st.markdown("""
+    <div class="rb-dashboard-explain rb-dashboard-explain-top">
+      <div class="rb-explain-kicker">Basic Blueprint</div>
+      <div class="rb-explain-title">Your starter retirement snapshot</div>
+      <div class="rb-explain-copy">
+        This is a simplified estimate from your Quick Analysis inputs. It is meant to show whether your target retirement age looks reasonable before you build a full detailed plan.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    money_left_note = f"Money may run out around age {basic['runout_age']}." if basic["runout_age"] else "Estimated balance at the end of the plan."
+    money_left_pill = f"Runs out at {basic['runout_age']}" if basic["runout_age"] else "Projected"
+
+    st.markdown(f"""
+    <div class="rb-card-grid">
+      <div class="rb-card">
+        <div class="rb-card-label">Basic Blueprint Score</div>
+        <div class="rb-card-value">{basic['score']}/100</div>
+        <div class="rb-pill">{basic['label']}</div>
+        <div class="rb-card-note">Starter readiness signal based on Quick Analysis inputs.</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-label">Can I Retire at {basic['retire_age']}?</div>
+        <div class="rb-card-value">{basic['can_retire']}</div>
+        <div class="rb-pill">Basic estimate</div>
+        <div class="rb-card-note">This tests your selected target age, not a final recommendation.</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-label">Money Left at {basic['plan_age']}</div>
+        <div class="rb-card-value">{money(basic['ending'])}</div>
+        <div class="rb-pill">{money_left_pill}</div>
+        <div class="rb-card-note">{money_left_note}</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-label">Monthly Gap From Savings</div>
+        <div class="rb-card-value">{money(basic['monthly_gap'])}</div>
+        <div class="rb-pill">Savings need</div>
+        <div class="rb-card-note">Estimated first-year monthly amount that needs to come from savings.</div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div class="rb-dashboard-explain rb-dashboard-explain-top">
+      <div class="rb-explain-kicker">Why this looks this way</div>
+      <div class="rb-explain-title">What your Quick Analysis is saying</div>
+      <div class="rb-explain-copy">
+        <b>Social Security gap:</b> There are about <b>{basic['ss_gap']} year(s)</b> between the tested retirement age and Social Security start age.
+        During that gap, savings may need to carry more of the spending.<br/><br/>
+        <b>Monthly savings need:</b> About <b>{money(basic['monthly_gap'])}</b> per month may need to come from savings in the first retirement year.<br/><br/>
+        <b>Money left:</b> This is a simple projection, not a guarantee. The detailed planner adds taxes, account types, spending categories, Roth conversions, home equity, and bucket strategy.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    c1, c2 = st.columns([1, 1])
+    with c1:
+        if st.button("Build Detailed Plan", type="primary", use_container_width=True, key="basic_dashboard_build_detailed"):
+            st.session_state["show_basic_dashboard"] = False
+            go_to_page("Guided Questions")
+    with c2:
+        if st.button("Save This Blueprint", use_container_width=True, key="basic_dashboard_save"):
+            go_to_page("Saved Scenarios")
+
 if active_page == PAGE_NAMES[0]:
+    if st.session_state.get("show_basic_dashboard", False):
+        render_page_shell(
+            "Retirement Dashboard",
+            "Your basic retirement snapshot from Quick Analysis.",
+            "📊",
+            "Basic Blueprint",
+        )
+        render_basic_quick_dashboard()
+        st.stop()
+
     render_guided_progress(1)
     missing_items_home = required_missing()
 
@@ -7431,6 +7599,7 @@ if active_page == "Quick Analysis":
                 st.session_state.ss_start_age = st.session_state.quick_ss_age
                 st.session_state.ss_annual = st.session_state.quick_ss_annual
                 st.session_state.growth_return = st.session_state.quick_growth_return
+                st.session_state["show_basic_dashboard"] = True
                 st.success("Quick Blueprint saved.")
 
 
@@ -7448,6 +7617,7 @@ if active_page == "Quick Analysis":
     qa_cols = st.columns([1, 1])
     with qa_cols[0]:
         if st.button("View Retirement Dashboard", type="primary", use_container_width=True, key="quick_analysis_to_dashboard"):
+            st.session_state["show_basic_dashboard"] = True
             go_to_page("Retirement Dashboard")
     with qa_cols[1]:
         if st.button("Build Detailed Plan", use_container_width=True, key="quick_analysis_to_start"):
@@ -9654,6 +9824,46 @@ input::placeholder {
 }
 div[data-baseweb="input"] input[placeholder*="Press Enter"] {
     text-indent: 0 !important;
+}
+
+
+/* Basic Quick Analysis dashboard cards */
+.rb-card-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    align-items: stretch;
+}
+.rb-card {
+    border: 1px solid #E2E8F0;
+    border-radius: 22px;
+    background: #FFFFFF;
+    padding: 20px;
+    min-height: 190px;
+    box-shadow: 0 12px 28px rgba(15,23,42,.055);
+}
+.rb-card-label {
+    color: #334155;
+    font-weight: 850;
+    font-size: .96rem;
+    margin-bottom: 12px;
+}
+.rb-card-value {
+    font-size: 2.1rem;
+    font-weight: 950;
+    color: #0F172A;
+    line-height: 1.05;
+    margin-bottom: 12px;
+}
+.rb-card-note {
+    color: #64748B;
+    line-height: 1.4;
+    margin-top: 10px;
+}
+@media (max-width: 900px) {
+    .rb-card-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 </style>
