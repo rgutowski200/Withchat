@@ -7616,9 +7616,9 @@ if active_page == "Quick Analysis":
 
     qa_cols = st.columns([1, 1])
     with qa_cols[0]:
-        if st.button("View Retirement Dashboard", type="primary", use_container_width=True, key="quick_analysis_to_dashboard"):
-            st.session_state["show_basic_dashboard"] = True
-            go_to_page("Retirement Dashboard")
+        if st.button("Back to Start My Blueprint", type="primary", use_container_width=True, key="quick_analysis_to_start_blueprint"):
+            st.session_state["show_basic_dashboard"] = False
+            go_to_page("Guided Questions")
     with qa_cols[1]:
         if st.button("Build Detailed Plan", use_container_width=True, key="quick_analysis_to_start"):
             go_to_page("Guided Questions")
