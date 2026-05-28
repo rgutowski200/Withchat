@@ -6521,6 +6521,7 @@ def render_navigation():
 
         ordered_pages = [
             "Home",
+            "Quick Analysis",
             "Guided Questions",
             "Budget Builder",
             "Review Answers",
@@ -9580,6 +9581,21 @@ section[data-testid="stSidebar"] button[kind="secondary"] {
 /* Quick Analysis starter page */
 .rb-dashboard-explain-top {
     margin-top: 18px;
+}
+
+
+/* Hide browser/Streamlit number-input submit hint text */
+input::placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
+}
+div[data-baseweb="input"] input::placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
+}
+.stNumberInput input::placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
 }
 
 </style>
