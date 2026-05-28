@@ -9105,134 +9105,136 @@ div[data-testid="stDataFrame"] {
 
 /* Retirement Dashboard plain-English explanation */
 .rb-dashboard-explain {
-    margin: 18px 0 14px 0;
-    border: 1px solid #A7F3D0;
-    border-radius: 22px;
-    background: linear-gradient(135deg, #F0FDF4 0%, #ECFEFF 100%);
-    padding: 22px 24px;
-    box-shadow: 0 12px 30px rgba(16,185,129,.08);
+    border: 1px solid #BFDBFE !important;
+    border-radius: 24px !important;
+    background: linear-gradient(180deg, #F8FBFF 0%, #EFF6FF 100%) !important;
+    padding: 22px 24px !important;
+    box-shadow: 0 10px 24px rgba(59,130,246,.08) !important;
 }
 .rb-explain-kicker {
-    color: #2563EB;
-    font-size: .78rem;
-    font-weight: 950;
-    text-transform: uppercase;
-    letter-spacing: .08em;
-    margin-bottom: 8px;
+    color: #2563EB !important;
+    font-size: .78rem !important;
+    font-weight: 900 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .08em !important;
+    margin-bottom: 8px !important;
 }
 .rb-explain-title {
-    color: #047857;
-    font-size: 1.25rem;
-    font-weight: 950;
-    margin-bottom: 12px;
+    color: #1E3A8A !important;
+    font-size: 1.28rem !important;
+    font-weight: 950 !important;
+    margin-bottom: 14px !important;
 }
 .rb-explain-copy {
-    color: #64748B;
-    font-size: 1rem;
-    line-height: 1.55;
+    color: #475569 !important;
+    font-size: 1rem !important;
+    line-height: 1.65 !important;
 }
 .rb-explain-copy b {
-    color: #334155;
-    font-weight: 950;
+    color: #0F172A !important;
+    font-weight: 900 !important;
 }
 
 
 /* Expanded Retirement Dashboard explanation */
 .rb-explain-next {
-    margin-top: 18px;
-    border: 1px solid #BAE6FD;
-    background: #F0F9FF;
-    border-radius: 16px;
-    padding: 14px 16px;
+    margin-top: 18px !important;
+    border: 1px solid #DBEAFE !important;
+    background: rgba(255,255,255,.65) !important;
+    border-radius: 18px !important;
+    padding: 14px 16px !important;
 }
 .rb-explain-next-title {
-    color: #075985;
-    font-weight: 950;
-    margin-bottom: 6px;
+    color: #1D4ED8 !important;
+    font-weight: 900 !important;
+    margin-bottom: 6px !important;
 }
 .rb-explain-next ul {
-    margin: 8px 0 0 20px;
-    padding: 0;
-    color: #475569;
+    margin: 8px 0 0 20px !important;
+    padding: 0 !important;
+    color: #475569 !important;
 }
 .rb-explain-next li {
-    margin-bottom: 6px;
-    line-height: 1.4;
+    margin-bottom: 7px !important;
+    line-height: 1.45 !important;
 }
 .rb-explain-note {
-    margin-top: 16px;
-    color: #475569;
-    font-size: .95rem;
-    line-height: 1.45;
+    margin-top: 16px !important;
+    color: #475569 !important;
+    font-size: .96rem !important;
+    line-height: 1.55 !important;
+    border-top: 1px solid rgba(59,130,246,.15) !important;
+    padding-top: 14px !important;
 }
 .rb-explain-note b {
-    color: #0f172a;
-    font-weight: 950;
+    color: #0F172A !important;
+    font-weight: 900 !important;
 }
 
 
 /* Dashboard explanation placed near score cards */
 .rb-dashboard-explain {
-    margin: 18px 0 14px 0;
-    border: 1px solid #A7F3D0;
-    border-radius: 22px;
-    background: linear-gradient(135deg, #F0FDF4 0%, #ECFEFF 100%);
-    padding: 22px 24px;
-    box-shadow: 0 12px 30px rgba(16,185,129,.08);
+    border: 1px solid #BFDBFE !important;
+    border-radius: 24px !important;
+    background: linear-gradient(180deg, #F8FBFF 0%, #EFF6FF 100%) !important;
+    padding: 22px 24px !important;
+    box-shadow: 0 10px 24px rgba(59,130,246,.08) !important;
 }
 .rb-explain-kicker {
-    color: #2563EB;
-    font-size: .78rem;
-    font-weight: 950;
-    text-transform: uppercase;
-    letter-spacing: .08em;
-    margin-bottom: 8px;
+    color: #2563EB !important;
+    font-size: .78rem !important;
+    font-weight: 900 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .08em !important;
+    margin-bottom: 8px !important;
 }
 .rb-explain-title {
-    color: #047857;
-    font-size: 1.25rem;
-    font-weight: 950;
-    margin-bottom: 12px;
+    color: #1E3A8A !important;
+    font-size: 1.28rem !important;
+    font-weight: 950 !important;
+    margin-bottom: 14px !important;
 }
 .rb-explain-copy {
-    color: #64748B;
-    font-size: 1rem;
-    line-height: 1.55;
+    color: #475569 !important;
+    font-size: 1rem !important;
+    line-height: 1.65 !important;
 }
 .rb-explain-copy b {
-    color: #334155;
-    font-weight: 950;
+    color: #0F172A !important;
+    font-weight: 900 !important;
 }
 .rb-explain-next {
-    margin-top: 18px;
-    border: 1px solid #BAE6FD;
-    background: #F0F9FF;
-    border-radius: 16px;
-    padding: 14px 16px;
+    margin-top: 18px !important;
+    border: 1px solid #DBEAFE !important;
+    background: rgba(255,255,255,.65) !important;
+    border-radius: 18px !important;
+    padding: 14px 16px !important;
 }
 .rb-explain-next-title {
-    color: #075985;
-    font-weight: 950;
-    margin-bottom: 6px;
+    color: #1D4ED8 !important;
+    font-weight: 900 !important;
+    margin-bottom: 6px !important;
 }
 .rb-explain-next ul {
-    margin: 8px 0 0 20px;
-    padding: 0;
-    color: #475569;
+    margin: 8px 0 0 20px !important;
+    padding: 0 !important;
+    color: #475569 !important;
 }
 .rb-explain-next li {
-    margin-bottom: 6px;
-    line-height: 1.4;
+    margin-bottom: 7px !important;
+    line-height: 1.45 !important;
 }
 .rb-explain-note {
-    margin-top: 16px;
-    color: #475569;
-    font-size: .95rem;
-    line-height: 1.45;
+    margin-top: 16px !important;
+    color: #475569 !important;
+    font-size: .96rem !important;
+    line-height: 1.55 !important;
+    border-top: 1px solid rgba(59,130,246,.15) !important;
+    padding-top: 14px !important;
 }
 .rb-explain-note b {
-    color: #0f172a;
-    font-weight: 950;
+    color: #0F172A !important;
+    font-weight: 900 !important;
 }
 
 
@@ -9301,45 +9303,45 @@ div[data-testid="stDataFrame"] {
     width: 100% !important;
 }
 .rb-dashboard-explain {
-    border: 1px solid #A7F3D0 !important;
-    border-radius: 22px !important;
-    background: linear-gradient(135deg, #F0FDF4 0%, #ECFEFF 100%) !important;
+    border: 1px solid #BFDBFE !important;
+    border-radius: 24px !important;
+    background: linear-gradient(180deg, #F8FBFF 0%, #EFF6FF 100%) !important;
     padding: 22px 24px !important;
-    box-shadow: 0 12px 30px rgba(16,185,129,.08) !important;
+    box-shadow: 0 10px 24px rgba(59,130,246,.08) !important;
 }
 .rb-explain-kicker {
     color: #2563EB !important;
     font-size: .78rem !important;
-    font-weight: 950 !important;
+    font-weight: 900 !important;
     text-transform: uppercase !important;
     letter-spacing: .08em !important;
     margin-bottom: 8px !important;
 }
 .rb-explain-title {
-    color: #047857 !important;
-    font-size: 1.25rem !important;
+    color: #1E3A8A !important;
+    font-size: 1.28rem !important;
     font-weight: 950 !important;
-    margin-bottom: 12px !important;
+    margin-bottom: 14px !important;
 }
 .rb-explain-copy {
-    color: #64748B !important;
+    color: #475569 !important;
     font-size: 1rem !important;
-    line-height: 1.55 !important;
+    line-height: 1.65 !important;
 }
 .rb-explain-copy b {
-    color: #334155 !important;
-    font-weight: 950 !important;
+    color: #0F172A !important;
+    font-weight: 900 !important;
 }
 .rb-explain-next {
     margin-top: 18px !important;
-    border: 1px solid #BAE6FD !important;
-    background: #F0F9FF !important;
-    border-radius: 16px !important;
+    border: 1px solid #DBEAFE !important;
+    background: rgba(255,255,255,.65) !important;
+    border-radius: 18px !important;
     padding: 14px 16px !important;
 }
 .rb-explain-next-title {
-    color: #075985 !important;
-    font-weight: 950 !important;
+    color: #1D4ED8 !important;
+    font-weight: 900 !important;
     margin-bottom: 6px !important;
 }
 .rb-explain-next ul {
@@ -9348,18 +9350,20 @@ div[data-testid="stDataFrame"] {
     color: #475569 !important;
 }
 .rb-explain-next li {
-    margin-bottom: 6px !important;
-    line-height: 1.4 !important;
+    margin-bottom: 7px !important;
+    line-height: 1.45 !important;
 }
 .rb-explain-note {
     margin-top: 16px !important;
     color: #475569 !important;
-    font-size: .95rem !important;
-    line-height: 1.45 !important;
+    font-size: .96rem !important;
+    line-height: 1.55 !important;
+    border-top: 1px solid rgba(59,130,246,.15) !important;
+    padding-top: 14px !important;
 }
 .rb-explain-note b {
-    color: #0f172a !important;
-    font-weight: 950 !important;
+    color: #0F172A !important;
+    font-weight: 900 !important;
 }
 
 
@@ -9381,49 +9385,49 @@ div[data-testid="stDataFrame"] {
 /* Light theme-matching explanation box under the cards */
 .rb-dashboard-explain-top {
     margin-top: 18px !important;
-    margin-bottom: 24px !important;
+    margin-bottom: 22px !important;
     width: 100% !important;
 }
 .rb-dashboard-explain {
-    border: 1px solid #C7D2FE !important;
-    border-radius: 22px !important;
-    background: linear-gradient(135deg, #F8FAFC 0%, #EEF6FF 48%, #ECFEFF 100%) !important;
+    border: 1px solid #BFDBFE !important;
+    border-radius: 24px !important;
+    background: linear-gradient(180deg, #F8FBFF 0%, #EFF6FF 100%) !important;
     padding: 22px 24px !important;
-    box-shadow: 0 12px 30px rgba(37,99,235,.07) !important;
+    box-shadow: 0 10px 24px rgba(59,130,246,.08) !important;
 }
 .rb-explain-kicker {
     color: #2563EB !important;
     font-size: .78rem !important;
-    font-weight: 950 !important;
+    font-weight: 900 !important;
     text-transform: uppercase !important;
     letter-spacing: .08em !important;
     margin-bottom: 8px !important;
 }
 .rb-explain-title {
-    color: #0F172A !important;
-    font-size: 1.25rem !important;
+    color: #1E3A8A !important;
+    font-size: 1.28rem !important;
     font-weight: 950 !important;
-    margin-bottom: 12px !important;
+    margin-bottom: 14px !important;
 }
 .rb-explain-copy {
-    color: #64748B !important;
+    color: #475569 !important;
     font-size: 1rem !important;
-    line-height: 1.55 !important;
+    line-height: 1.65 !important;
 }
 .rb-explain-copy b {
-    color: #334155 !important;
-    font-weight: 950 !important;
+    color: #0F172A !important;
+    font-weight: 900 !important;
 }
 .rb-explain-next {
     margin-top: 18px !important;
-    border: 1px solid #BFDBFE !important;
-    background: rgba(239,246,255,.82) !important;
-    border-radius: 16px !important;
+    border: 1px solid #DBEAFE !important;
+    background: rgba(255,255,255,.65) !important;
+    border-radius: 18px !important;
     padding: 14px 16px !important;
 }
 .rb-explain-next-title {
     color: #1D4ED8 !important;
-    font-weight: 950 !important;
+    font-weight: 900 !important;
     margin-bottom: 6px !important;
 }
 .rb-explain-next ul {
@@ -9432,18 +9436,20 @@ div[data-testid="stDataFrame"] {
     color: #475569 !important;
 }
 .rb-explain-next li {
-    margin-bottom: 6px !important;
-    line-height: 1.4 !important;
+    margin-bottom: 7px !important;
+    line-height: 1.45 !important;
 }
 .rb-explain-note {
     margin-top: 16px !important;
     color: #475569 !important;
-    font-size: .95rem !important;
-    line-height: 1.45 !important;
+    font-size: .96rem !important;
+    line-height: 1.55 !important;
+    border-top: 1px solid rgba(59,130,246,.15) !important;
+    padding-top: 14px !important;
 }
 .rb-explain-note b {
-    color: #0f172a !important;
-    font-weight: 950 !important;
+    color: #0F172A !important;
+    font-weight: 900 !important;
 }
 
 
