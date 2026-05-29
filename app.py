@@ -9949,59 +9949,395 @@ section[data-testid="stSidebar"] button {
         return recs
 
     def build_pdf_report_bytes(name, data, summary, recommendations):
+        """Create a polished, client-friendly PDF report for a saved retirement scenario."""
         buffer = io.BytesIO()
-        fig = plt.figure(figsize=(8.5, 11))
-        fig.text(0.08, 0.94, "Retirement Blueprint Scenario Report", fontsize=22, weight="bold")
-        fig.text(0.08, 0.90, name, fontsize=16, weight="bold")
-
-        y = 0.84
-        lines = [
-            f"Blueprint Score: {summary['score']}/100 ({summary['label']})",
-            f"Current Age: {summary['current_age']}",
-            f"Retirement Age: {summary['retire_age']}",
-            f"Plan Until Age: {summary['end_age']}",
-            f"Total Assets: {money(summary['total_assets'])}",
-            f"Traditional: {money(summary['traditional'])}",
-            f"Roth: {money(summary['roth'])}",
-            f"Taxable: {money(summary['taxable'])}",
-            f"Cash / Bucket 1: {money(summary['cash'])}",
-            f"Monthly Spending: {money(summary['monthly_spending'])}",
-            f"Annual Spending: {money(summary['annual_spending'])}",
-            f"Annual Income: {money(summary['annual_income'])}",
-            f"Income Coverage: {pct(summary['income_coverage'])}",
-            f"Estimated Max Withdrawal Rate: {pct(summary['rough_wr'])}",
-            f"Growth Return: {pct(summary['growth_return'])}",
-            f"Inflation: {pct(summary['inflation'])}",
-            f"Safe Return: {pct(summary['safe_return'])}",
-            f"Bucket 1 Years: {summary['bucket1_years']:.1f}",
-            f"Annual Roth Conversion: {money(summary['annual_conversion'])}",
-        ]
-
-        fig.text(0.08, y, "Scenario Snapshot", fontsize=14, weight="bold")
-        y -= 0.035
-
-        for line in lines:
-            fig.text(0.10, y, line, fontsize=10)
-            y -= 0.028
-
-        y -= 0.015
-        fig.text(0.08, y, "Recommendations", fontsize=14, weight="bold")
-        y -= 0.035
-
-        for rec in recommendations:
-            fig.text(0.10, y, f"- {rec}", fontsize=9)
-            y -= 0.045
-
-        fig.text(
-            0.08,
-            0.06,
-            "Educational planning tool only. Not financial, tax, legal, investment, or insurance advice.",
-            fontsize=8,
-            color="gray"
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=0.45 * inch,
+            leftMargin=0.45 * inch,
+            topMargin=0.45 * inch,
+            bottomMargin=0.45 * inch,
+            title=f"Retirement Blueprint 101 - {name}",
         )
 
-        fig.savefig(buffer, format="pdf", bbox_inches="tight")
-        plt.close(fig)
+        styles = getSampleStyleSheet()
+        styles.add(ParagraphStyle(
+            name="RBTitle",
+            parent=styles["Title"],
+            fontName="Helvetica-Bold",
+            fontSize=24,
+            leading=28,
+            textColor=colors.HexColor("#0F172A"),
+            spaceAfter=8,
+        ))
+        styles.add(ParagraphStyle(
+            name="RBSubtitle",
+            parent=styles["BodyText"],
+            fontSize=10.5,
+            leading=14,
+            textColor=colors.HexColor("#475569"),
+            spaceAfter=10,
+        ))
+        styles.add(ParagraphStyle(
+            name="RBSection",
+            parent=styles["Heading2"],
+            fontName="Helvetica-Bold",
+            fontSize=14,
+            leading=18,
+            textColor=colors.HexColor("#1D4ED8"),
+            spaceBefore=12,
+            spaceAfter=7,
+        ))
+        styles.add(ParagraphStyle(
+            name="RBBody",
+            parent=styles["BodyText"],
+            fontSize=9.5,
+            leading=13,
+            textColor=colors.HexColor("#334155"),
+            spaceAfter=6,
+        ))
+        styles.add(ParagraphStyle(
+            name="RBSmall",
+            parent=styles["BodyText"],
+            fontSize=8,
+            leading=10,
+            textColor=colors.HexColor("#64748B"),
+        ))
+        styles.add(ParagraphStyle(
+            name="RBCardLabel",
+            parent=styles["BodyText"],
+            fontName="Helvetica-Bold",
+            fontSize=7.5,
+            leading=9,
+            textColor=colors.HexColor("#64748B"),
+            alignment=1,
+        ))
+        styles.add(ParagraphStyle(
+            name="RBCardValue",
+            parent=styles["BodyText"],
+            fontName="Helvetica-Bold",
+            fontSize=14,
+            leading=17,
+            textColor=colors.HexColor("#0F172A"),
+            alignment=1,
+        ))
+        styles.add(ParagraphStyle(
+            name="RBWhiteTitle",
+            parent=styles["Title"],
+            fontName="Helvetica-Bold",
+            fontSize=22,
+            leading=26,
+            textColor=colors.white,
+            alignment=0,
+        ))
+        styles.add(ParagraphStyle(
+            name="RBWhiteBody",
+            parent=styles["BodyText"],
+            fontSize=10,
+            leading=14,
+            textColor=colors.HexColor("#DBEAFE"),
+            alignment=0,
+        ))
+
+        def esc(x):
+            return xml_escape(str(x))
+
+        def para(text, style="RBBody"):
+            return Paragraph(esc(text), styles[style])
+
+        def bullet(text):
+            return Paragraph("• " + esc(text), styles["RBBody"])
+
+        def status_color(score):
+            if score >= 85:
+                return colors.HexColor("#16A34A")
+            if score >= 70:
+                return colors.HexColor("#2563EB")
+            if score >= 55:
+                return colors.HexColor("#F59E0B")
+            return colors.HexColor("#DC2626")
+
+        projection_df, projection_score, projection_label, projection_reasons = run_projection_for_saved_scenario(data)
+        if projection_df is None:
+            projection_df = pd.DataFrame()
+
+        score = int(summary.get("score", projection_score if projection_score is not None else 0) or 0)
+        label = summary.get("label", projection_label or "Needs Review")
+        score_fill = max(0, min(100, score))
+        retire_age = int(summary.get("retire_age", 0) or 0)
+        current_age = int(summary.get("current_age", 0) or 0)
+        end_age = int(summary.get("end_age", 90) or 90)
+        years_to_retire = max(retire_age - current_age, 0)
+        annual_spending = float(summary.get("annual_spending", 0) or 0)
+        annual_income = float(summary.get("annual_income", 0) or 0)
+        annual_gap = max(annual_spending - annual_income, 0)
+        income_coverage = float(summary.get("income_coverage", 0) or 0)
+        max_wr = float(summary.get("rough_wr", 0) or 0)
+        ending_portfolio = float(summary.get("ending_portfolio", 0) or 0)
+        unmet_need = float(summary.get("unmet_need", 0) or 0)
+
+        if not projection_df.empty:
+            retired_rows = projection_df[projection_df["Age"] >= retire_age] if retire_age > 0 else projection_df
+            portfolio_at_retirement = float(projection_df.loc[projection_df["Age"] >= retire_age, "Start Total"].iloc[0]) if retire_age > 0 and not projection_df.loc[projection_df["Age"] >= retire_age].empty else float(projection_df["Start Total"].iloc[0])
+            total_withdrawals = float(projection_df["Portfolio Withdrawal"].sum()) if "Portfolio Withdrawal" in projection_df else 0
+            total_federal_tax = float(projection_df["Estimated Federal Tax"].sum()) if "Estimated Federal Tax" in projection_df else 0
+            first_shortfall_age = None
+            if "Unmet Need" in projection_df and (projection_df["Unmet Need"] > 0).any():
+                first_shortfall_age = int(projection_df.loc[projection_df["Unmet Need"] > 0, "Age"].iloc[0])
+            rmd_total = float(projection_df["RMD Required"].sum()) if "RMD Required" in projection_df else 0
+            conversion_total = float(projection_df["Roth Conversion"].sum()) if "Roth Conversion" in projection_df else 0
+        else:
+            portfolio_at_retirement = float(summary.get("total_assets", 0) or 0)
+            total_withdrawals = 0
+            total_federal_tax = 0
+            first_shortfall_age = None
+            rmd_total = 0
+            conversion_total = 0
+
+        if score >= 85:
+            executive_summary = (
+                "This retirement blueprint appears strong based on the current inputs. The main planning focus should shift from 'Can I retire?' "
+                "to 'How do I make this more tax-efficient, resilient, and comfortable?'"
+            )
+        elif score >= 70:
+            executive_summary = (
+                "This blueprint appears workable, but it deserves stress testing. The plan may be sensitive to market returns, early-retirement spending, "
+                "healthcare costs, or tax assumptions."
+            )
+        elif score >= 55:
+            executive_summary = (
+                "This blueprint is possible but not yet comfortable. A few targeted changes could materially improve the plan, especially around spending, "
+                "retirement age, savings, guaranteed income, or cash-bucket protection."
+            )
+        else:
+            executive_summary = (
+                "This blueprint needs improvement before it should be treated as a confident retirement plan. The highest-impact levers are usually delaying retirement, "
+                "lowering spending, increasing savings, and improving income coverage."
+            )
+
+        strengths = []
+        risks = []
+        next_steps = []
+
+        if years_to_retire >= 5:
+            strengths.append(f"You have about {years_to_retire} years before the target retirement age, giving the plan time to benefit from continued savings and compounding.")
+        else:
+            risks.append("The target retirement date is close, so the plan has less time to recover from market declines or unexpected expenses.")
+
+        if income_coverage >= 0.70:
+            strengths.append("Non-portfolio income covers a large share of spending, reducing pressure on investments.")
+        elif income_coverage >= 0.40:
+            strengths.append("Non-portfolio income covers a meaningful share of spending.")
+        else:
+            risks.append("Income coverage is low, meaning more of retirement spending depends on portfolio withdrawals.")
+
+        if max_wr <= 0.04 and annual_spending > 0:
+            strengths.append("The estimated maximum withdrawal rate is in a conservative range.")
+        elif max_wr <= 0.06 and annual_spending > 0:
+            risks.append("Withdrawal pressure is moderate. This can work, but it should be tested against poor early market returns.")
+        elif annual_spending > 0:
+            risks.append("Withdrawal pressure is high. The plan may be vulnerable if early retirement years include weak market returns.")
+
+        if float(summary.get("cash", 0) or 0) >= annual_spending * 2 and annual_spending > 0:
+            strengths.append("Bucket 1 / cash appears to provide at least two years of spending coverage.")
+        elif annual_spending > 0:
+            risks.append("Bucket 1 / cash may be light. Consider building a 2–4 year safer-spending reserve before retirement.")
+
+        if float(summary.get("traditional", 0) or 0) > max(float(summary.get("roth", 0) or 0) * 3, 250000):
+            risks.append("Traditional retirement assets are much larger than Roth assets, which can create future RMD and tax-management pressure.")
+            next_steps.append("Run Roth conversion scenarios for the gap years between retirement and Social Security / RMDs.")
+
+        if unmet_need > 0:
+            risks.append(f"The projection shows an estimated unmet need of {money(unmet_need)} over the plan period.")
+            next_steps.append("Test a lower-spending scenario and a later-retirement scenario to identify the smallest change that fixes the shortfall.")
+
+        if first_shortfall_age:
+            risks.append(f"The first projected shortfall appears around age {first_shortfall_age}.")
+
+        next_steps.extend(recommendations[:5])
+        if not next_steps:
+            next_steps = [
+                "Stress test the plan with lower returns, higher inflation, and higher healthcare costs.",
+                "Review Social Security timing to compare lifetime income and survivor-benefit tradeoffs.",
+                "Review tax-efficient withdrawal order across taxable, traditional, and Roth accounts.",
+            ]
+
+        # Cover / hero
+        story = []
+        hero = Table(
+            [[
+                Paragraph("Retirement Blueprint 101", styles["RBWhiteTitle"]),
+                Paragraph(f"Blueprint Score<br/><font size='24'><b>{score}/100</b></font><br/>{esc(label)}", styles["RBWhiteBody"]),
+            ], [
+                Paragraph(esc(name), styles["RBWhiteBody"]),
+                Paragraph("Educational retirement-readiness report", styles["RBWhiteBody"]),
+            ]],
+            colWidths=[5.0 * inch, 2.0 * inch],
+            rowHeights=[0.70 * inch, 0.35 * inch],
+        )
+        hero.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#1D4ED8")),
+            ("BOX", (0, 0), (-1, -1), 1.0, colors.HexColor("#1D4ED8")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#60A5FA")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 14),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 14),
+            ("TOPPADDING", (0, 0), (-1, -1), 10),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+        ]))
+        story.append(hero)
+        story.append(Spacer(1, 0.18 * inch))
+
+        story.append(Paragraph("Executive Summary", styles["RBSection"]))
+        story.append(para(executive_summary))
+        story.append(para(
+            f"Based on the current assumptions, the model estimates {money(portfolio_at_retirement)} at the target retirement age of {retire_age}, "
+            f"{money(ending_portfolio)} remaining at age {end_age}, and a maximum estimated withdrawal rate of {pct(max_wr)}. "
+            f"Annual spending is modeled at {money(annual_spending)}, with {money(annual_income)} of average annual non-portfolio income."
+        ))
+
+        # Color score bar
+        score_table = Table(
+            [[Paragraph("Readiness Score", styles["RBCardLabel"]), Paragraph(f"{score}/100", styles["RBCardValue"]), Paragraph(label, styles["RBCardLabel"])]],
+            colWidths=[2.0 * inch, 2.5 * inch, 2.5 * inch],
+            rowHeights=[0.40 * inch],
+        )
+        score_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#EFF6FF")),
+            ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#BFDBFE")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TEXTCOLOR", (1, 0), (1, 0), status_color(score)),
+        ]))
+        story.append(score_table)
+        story.append(Spacer(1, 0.12 * inch))
+
+        card_data = [
+            [Paragraph("Current Age", styles["RBCardLabel"]), Paragraph("Retire Age", styles["RBCardLabel"]), Paragraph("Plan Until", styles["RBCardLabel"]), Paragraph("Assets Today", styles["RBCardLabel"])],
+            [Paragraph(str(current_age), styles["RBCardValue"]), Paragraph(str(retire_age), styles["RBCardValue"]), Paragraph(str(end_age), styles["RBCardValue"]), Paragraph(money(summary.get("total_assets", 0)), styles["RBCardValue"])],
+            [Paragraph("At Retirement", styles["RBCardLabel"]), Paragraph("Ending Portfolio", styles["RBCardLabel"]), Paragraph("Annual Gap", styles["RBCardLabel"]), Paragraph("Max Withdrawal", styles["RBCardLabel"])],
+            [Paragraph(money(portfolio_at_retirement), styles["RBCardValue"]), Paragraph(money(ending_portfolio), styles["RBCardValue"]), Paragraph(money(annual_gap), styles["RBCardValue"]), Paragraph(pct(max_wr), styles["RBCardValue"])],
+        ]
+        cards = Table(card_data, colWidths=[1.75 * inch] * 4, rowHeights=[0.24 * inch, 0.42 * inch, 0.24 * inch, 0.42 * inch])
+        cards.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FAFC")),
+            ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#CBD5E1")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.50, colors.HexColor("#E2E8F0")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ]))
+        story.append(cards)
+
+        story.append(Paragraph("What Is Helping the Plan", styles["RBSection"]))
+        for item in (strengths or ["No major strengths were identified yet because the inputs are still incomplete."]):
+            story.append(bullet(item))
+
+        story.append(Paragraph("Main Risks / Watch Items", styles["RBSection"]))
+        for item in (risks or ["No major red flags were identified from the current inputs. Keep stress-testing before making final retirement decisions."]):
+            story.append(bullet(item))
+
+        story.append(Paragraph("Recommended Next Moves", styles["RBSection"]))
+        for item in next_steps[:8]:
+            story.append(bullet(item))
+
+        story.append(PageBreak())
+        story.append(Paragraph("Detailed Snapshot", styles["RBSection"]))
+        snapshot_rows = [
+            ["Category", "Value", "Why it matters"],
+            ["Traditional retirement assets", money(summary.get("traditional", 0)), "Taxable later; drives future RMD planning"],
+            ["Roth assets", money(summary.get("roth", 0)), "Tax-free flexibility later"],
+            ["Taxable brokerage", money(summary.get("taxable", 0)), "Useful bridge account before 59½ / Medicare"],
+            ["Bucket 1 / cash", money(summary.get("cash", 0)), "Helps reduce sequence-of-return risk"],
+            ["Monthly spending", money(summary.get("monthly_spending", 0)), "Largest driver of retirement readiness"],
+            ["Annual spending", money(annual_spending), "Used to estimate withdrawal needs"],
+            ["Annual income", money(annual_income), "Reduces portfolio withdrawals"],
+            ["Income coverage", pct(income_coverage), "Share of spending covered by income"],
+            ["Total projected withdrawals", money(total_withdrawals), "Total portfolio withdrawals over the plan"],
+            ["Estimated federal tax", money(total_federal_tax), "Educational estimate only"],
+        ]
+        snapshot_table = Table(snapshot_rows, colWidths=[2.0 * inch, 1.45 * inch, 3.55 * inch], repeatRows=1)
+        snapshot_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#DBEAFE")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#0F172A")),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#CBD5E1")),
+            ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#FFFFFF")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAFC")]),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("FONTSIZE", (0, 0), (-1, -1), 8.2),
+            ("LEADING", (0, 0), (-1, -1), 10),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        story.append(snapshot_table)
+
+        story.append(Paragraph("Planning Assumptions", styles["RBSection"]))
+        assumptions = [
+            ["Assumption", "Current Setting"],
+            ["Growth return", pct(summary.get("growth_return", 0))],
+            ["Inflation", pct(summary.get("inflation", 0))],
+            ["Safe / Bucket 1 return", pct(summary.get("safe_return", 0))],
+            ["Bucket 1 years", f"{float(summary.get('bucket1_years', 0) or 0):.1f}"],
+            ["Annual Roth conversion", money(summary.get("annual_conversion", 0))],
+            ["RMDs estimated", "Yes, when applicable" if rmd_total > 0 else "No RMD shown in this projection"],
+            ["Roth conversions modeled", money(conversion_total)],
+        ]
+        assumption_table = Table(assumptions, colWidths=[3.5 * inch, 3.5 * inch], repeatRows=1)
+        assumption_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#DCFCE7")),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#CBD5E1")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAFC")]),
+            ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
+        story.append(assumption_table)
+
+        if not projection_df.empty:
+            story.append(Paragraph("Projection Checkpoints", styles["RBSection"]))
+            checkpoint_ages = sorted(set([current_age, retire_age, 62, 65, 67, 70, end_age]))
+            checkpoint_rows = [["Age", "Start Balance", "End Balance", "Spending", "Income", "From Portfolio", "Est. Tax"]]
+            for age in checkpoint_ages:
+                match = projection_df[projection_df["Age"] == age]
+                if match.empty:
+                    continue
+                r = match.iloc[0]
+                checkpoint_rows.append([
+                    str(int(r["Age"])),
+                    money(r.get("Start Total", 0)),
+                    money(r.get("End Total", 0)),
+                    money(r.get("Total Spending", 0)),
+                    money(r.get("Total Non-Portfolio Income", 0)),
+                    money(r.get("Portfolio Withdrawal", 0)),
+                    money(r.get("Estimated Federal Tax", 0)),
+                ])
+            if len(checkpoint_rows) > 1:
+                checkpoint_table = Table(checkpoint_rows, colWidths=[0.55 * inch, 1.05 * inch, 1.05 * inch, 1.05 * inch, 1.05 * inch, 1.1 * inch, 1.05 * inch], repeatRows=1)
+                checkpoint_table.setStyle(TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E0F2FE")),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#CBD5E1")),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAFC")]),
+                    ("FONTSIZE", (0, 0), (-1, -1), 7.5),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]))
+                story.append(checkpoint_table)
+
+        story.append(Spacer(1, 0.15 * inch))
+        story.append(para(
+            "Important: This report is an educational estimate. It is not financial, tax, legal, investment, or insurance advice. "
+            "Before making retirement decisions, validate assumptions with qualified financial, tax, and legal professionals.",
+            "RBSmall",
+        ))
+
+        def add_page_number(canvas, doc_obj):
+            canvas.saveState()
+            canvas.setFillColor(colors.HexColor("#64748B"))
+            canvas.setFont("Helvetica", 8)
+            canvas.drawString(0.45 * inch, 0.28 * inch, "Retirement Blueprint 101")
+            canvas.drawRightString(8.05 * inch, 0.28 * inch, f"Page {doc_obj.page}")
+            canvas.restoreState()
+
+        doc.build(story, onFirstPage=add_page_number, onLaterPages=add_page_number)
         buffer.seek(0)
         return buffer.getvalue()
 
