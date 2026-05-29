@@ -1701,6 +1701,66 @@ def inject_app_styles():
 inject_app_styles()
 
 
+# -----------------------------
+# Modern blue slider styling
+# -----------------------------
+st.markdown("""
+<style>
+/* Modern blue/teal slider polish */
+div[data-testid="stSlider"] {
+    padding: 0.25rem 0.15rem 0.55rem 0.15rem;
+}
+
+div[data-testid="stSlider"] [data-baseweb="slider"] {
+    padding-top: 0.8rem !important;
+    padding-bottom: 0.25rem !important;
+}
+
+/* Slider track container */
+div[data-testid="stSlider"] [data-baseweb="slider"] > div {
+    min-height: 10px !important;
+}
+
+/* Thumb / handle */
+div[data-testid="stSlider"] [data-baseweb="slider"] div[role="slider"] {
+    width: 22px !important;
+    height: 22px !important;
+    border-radius: 999px !important;
+    background: linear-gradient(135deg, #2563EB 0%, #14B8A6 100%) !important;
+    border: 4px solid #FFFFFF !important;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.28) !important;
+}
+
+/* Thumb focus state */
+div[data-testid="stSlider"] [data-baseweb="slider"] div[role="slider"]:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.16), 0 8px 18px rgba(37, 99, 235, 0.28) !important;
+}
+
+/* Slider value bubble/text */
+div[data-testid="stSlider"] [data-testid="stThumbValue"],
+div[data-testid="stSlider"] [data-testid="stTickBarMin"],
+div[data-testid="stSlider"] [data-testid="stTickBarMax"] {
+    color: #2563EB !important;
+    font-weight: 900 !important;
+}
+
+/* Try to override the default red active range in recent Streamlit builds */
+div[data-testid="stSlider"] [data-baseweb="slider"] div[style*="background"] {
+    border-radius: 999px !important;
+}
+
+/* Visual card wrapper around each slider so it feels more premium */
+div[data-testid="stSlider"] > label {
+    margin-bottom: 0.3rem !important;
+}
+
+/* Small note: the exact inner slider DOM can vary by Streamlit version.
+   These selectors safely improve the handle/value across versions. */
+</style>
+""", unsafe_allow_html=True)
+
+
 def auth_box():
     """Keep authentication state available without rendering a second account/logout bar.
 
@@ -7278,7 +7338,15 @@ if active_page == PAGE_NAMES[1]:
             q1, q2, q3 = st.columns(3)
             quick_ss_age = q1.number_input("Social Security start age", 62, 70, st.session_state.user_ss_age, help=FIELD_HELP["user_ss_age"])
             quick_ss = q2.number_input("Annual Social Security at 62", min_value=0, value=st.session_state.user_ss, step=1000, help=FIELD_HELP["user_ss"])
-            quick_growth_return = q3.slider("Expected average return", 0.0, 15.0, st.session_state.growth_return * 100, help=FIELD_HELP["growth_return"]) / 100
+            quick_growth_return = q3.slider(
+            "Expected average return",
+            min_value=0.0,
+            max_value=30.0,
+            value=min(max(float(st.session_state.growth_return) * 100, 0.0), 30.0),
+            step=0.25,
+            format="%.2f%%",
+            help=FIELD_HELP["growth_return"],
+        ) / 100
 
             quick_save = st.button("Save Quick Blueprint", type="primary", use_container_width=True, key="save_quick_blueprint_button")
 
@@ -7436,9 +7504,33 @@ if active_page == PAGE_NAMES[1]:
 
                 st.subheader("Assumptions")
                 c1, c2, c3 = st.columns(3)
-                growth_return = c1.slider("Growth return", 0.0, 15.0, st.session_state.growth_return * 100, help=FIELD_HELP["growth_return"]) / 100
-                safe_return = c2.slider("Bucket 1 safe return", 0.0, 10.0, st.session_state.safe_return * 100, help=FIELD_HELP["safe_return"]) / 100
-                inflation = c3.slider("Inflation", 0.0, 10.0, st.session_state.inflation * 100, help=FIELD_HELP["inflation"]) / 100
+                growth_return = c1.slider(
+                "Growth return",
+                min_value=0.0,
+                max_value=30.0,
+                value=min(max(float(st.session_state.growth_return) * 100, 0.0), 30.0),
+                step=0.25,
+                format="%.2f%%",
+                help=FIELD_HELP["growth_return"],
+            ) / 100
+                safe_return = c2.slider(
+                "Bucket 1 safe return",
+                min_value=0.0,
+                max_value=10.0,
+                value=min(max(float(st.session_state.safe_return) * 100, 0.0), 10.0),
+                step=0.25,
+                format="%.2f%%",
+                help=FIELD_HELP["safe_return"],
+            ) / 100
+                inflation = c3.slider(
+                "Inflation",
+                min_value=0.0,
+                max_value=10.0,
+                value=min(max(float(st.session_state.inflation) * 100, 0.0), 10.0),
+                step=0.25,
+                format="%.2f%%",
+                help=FIELD_HELP["inflation"],
+            ) / 100
 
                 st.subheader("Strategy")
                 c1, c2 = st.columns(2)
@@ -10887,9 +10979,10 @@ if active_page == PAGE_NAMES[11]:
         mean_return = c2.slider(
             "Average annual return",
             min_value=0.0,
-            max_value=12.0,
-            value=float(st.session_state.growth_return) * 100,
+            max_value=30.0,
+            value=min(max(float(st.session_state.growth_return) * 100, 0.0), 30.0),
             step=0.25,
+            format="%.2f%%",
             help="Expected average annual return for growth assets."
         ) / 100
 
