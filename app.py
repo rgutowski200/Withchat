@@ -23,7 +23,7 @@ from reportlab.platypus import (
     PageBreak,
 )
 
-st.set_page_config(page_title="Retirement Blueprint 101", layout="wide")
+st.set_page_config(page_title="Retirement Blueprint 101", layout="wide", initial_sidebar_state="collapsed")
 
 
 st.markdown("""
@@ -6620,27 +6620,65 @@ if "active_page" not in st.session_state or st.session_state.active_page not in 
     st.session_state.active_page = "Home"
 
 def auto_close_sidebar():
-    """Auto-close the Streamlit sidebar after a sidebar menu click.
+    """Auto-collapse the Streamlit sidebar after a sidebar navigation click.
 
-    This is especially helpful on iPad/mobile so the selected page opens cleanly.
+    Streamlit has changed the sidebar button label across versions
+    (Close sidebar, Collapse sidebar, Hide sidebar, etc.), so this uses
+    several selectors and retries briefly after the page reruns.
     """
     components.html(
         """
         <script>
-        setTimeout(function() {
-            const parentDoc = window.parent.document;
-            const buttons = Array.from(parentDoc.querySelectorAll("button"));
+        (function() {
+            function findCloseSidebarButton(doc) {
+                const selectors = [
+                    '[data-testid="stSidebarCollapseButton"] button',
+                    '[data-testid="stSidebarCollapseButton"]',
+                    'button[aria-label*="Close" i]',
+                    'button[title*="Close" i]',
+                    'button[aria-label*="Collapse" i]',
+                    'button[title*="Collapse" i]',
+                    'button[aria-label*="Hide" i]',
+                    'button[title*="Hide" i]'
+                ];
 
-            const closeButton = buttons.find(btn => {
-                const label = (btn.getAttribute("aria-label") || "").toLowerCase();
-                const title = (btn.getAttribute("title") || "").toLowerCase();
-                return label.includes("close sidebar") || title.includes("close sidebar");
-            });
+                for (const selector of selectors) {
+                    const el = doc.querySelector(selector);
+                    if (el) return el;
+                }
 
-            if (closeButton) {
-                closeButton.click();
+                const buttons = Array.from(doc.querySelectorAll('button'));
+                return buttons.find(btn => {
+                    const text = (btn.innerText || btn.textContent || '').toLowerCase();
+                    const label = (btn.getAttribute('aria-label') || '').toLowerCase();
+                    const title = (btn.getAttribute('title') || '').toLowerCase();
+                    const combined = text + ' ' + label + ' ' + title;
+                    return (
+                        combined.includes('close sidebar') ||
+                        combined.includes('collapse sidebar') ||
+                        combined.includes('hide sidebar') ||
+                        combined.includes('chevron_left') ||
+                        combined.includes('keyboard_arrow_left')
+                    );
+                });
             }
-        }, 250);
+
+            let tries = 0;
+            const timer = setInterval(function() {
+                tries += 1;
+                const doc = window.parent.document;
+                const btn = findCloseSidebarButton(doc);
+
+                if (btn) {
+                    btn.click();
+                    clearInterval(timer);
+                }
+
+                if (tries >= 20) {
+                    clearInterval(timer);
+                }
+            }, 150);
+        })();
         </script>
         """,
         height=0,
