@@ -7141,6 +7141,143 @@ def compact_money(value):
     return f"{sign}${value:,.0f}"
 
 
+def render_tax_aware_withdrawal_plan(projection_df=None):
+    """Premium-style educational withdrawal-order section.
+
+    This does not give individualized tax advice. It gives a plain-English
+    planning sequence based on the account balances entered in the app.
+    """
+    traditional = float(st.session_state.get("traditional", 0) or 0)
+    roth = float(st.session_state.get("roth", 0) or 0)
+    taxable = float(st.session_state.get("taxable", 0) or 0)
+    cash = float(st.session_state.get("cash", 0) or 0)
+    total_assets = traditional + roth + taxable + cash
+
+    monthly_spending = float(st.session_state.get("monthly_spending", 0) or 0)
+    annual_spending = monthly_spending * 12
+    annual_income = (
+        float(st.session_state.get("pension", 0) or 0)
+        + float(st.session_state.get("other_income", 0) or 0)
+        + float(st.session_state.get("ss", 0) or 0)
+    )
+    estimated_gap = max(0.0, annual_spending - annual_income)
+
+    if projection_df is not None and not projection_df.empty and "Portfolio Need" in projection_df.columns:
+        try:
+            retired_rows = projection_df[projection_df.get("Household Retired", False) == True]
+            if not retired_rows.empty:
+                estimated_gap = float(retired_rows["Portfolio Need"].iloc[0] or estimated_gap)
+        except Exception:
+            pass
+
+    st.markdown("""
+    <div class="rb-insight-card">
+      <div class="rb-insight-kicker">Premium Tool</div>
+      <div class="rb-insight-title">Tax-Aware Withdrawal Plan</div>
+      <div class="rb-insight-copy">
+        A plain-English starting point for which accounts may make sense to draw from first.
+        The goal is to fund spending while managing taxes, preserving flexibility, and keeping Roth money powerful later.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.metric("Taxable Brokerage", money(taxable))
+    with c2:
+        st.metric("Traditional / Pre-Tax", money(traditional))
+    with c3:
+        st.metric("Roth", money(roth))
+    with c4:
+        st.metric("Estimated Annual Gap", money(estimated_gap))
+
+    order_rows = []
+    step = 1
+    if cash > 0:
+        order_rows.append({
+            "Step": step,
+            "Account": "Cash / Bucket 1",
+            "Use For": "Near-term spending buffer",
+            "Why": "Can reduce the need to sell investments during bad market years.",
+            "Watchout": "Too much cash can drag down long-term growth.",
+        })
+        step += 1
+    if taxable > 0:
+        order_rows.append({
+            "Step": step,
+            "Account": "Taxable brokerage",
+            "Use For": "Early flexible withdrawals",
+            "Why": "Often gives flexibility and may receive capital-gains treatment instead of ordinary income treatment.",
+            "Watchout": "Selling appreciated holdings can create taxable gains.",
+        })
+        step += 1
+    if traditional > 0:
+        order_rows.append({
+            "Step": step,
+            "Account": "Traditional 401(k) / IRA",
+            "Use For": "Bracket-aware withdrawals or Roth conversions",
+            "Why": "Strategic withdrawals before RMD age may reduce future tax pressure.",
+            "Watchout": "Withdrawals are generally taxed as ordinary income and may affect Medicare/IRMAA later.",
+        })
+        step += 1
+    if roth > 0:
+        order_rows.append({
+            "Step": step,
+            "Account": "Roth IRA / Roth 401(k)",
+            "Use For": "Later-life flexibility and tax-free reserve",
+            "Why": "Preserving Roth can help with future tax control, survivor planning, and legacy flexibility.",
+            "Watchout": "Using Roth too early can give up years of tax-free growth.",
+        })
+
+    if not order_rows:
+        st.warning("Add account balances first, then this section will build a suggested withdrawal order.")
+        return
+
+    st.subheader("Suggested withdrawal order")
+    st.dataframe(pd.DataFrame(order_rows), use_container_width=True, hide_index=True)
+
+    st.subheader("What this means for your blueprint")
+    notes = []
+    if taxable <= 0 and traditional > 0:
+        notes.append("You have little or no taxable brokerage entered, so early retirement withdrawals may lean more heavily on pre-tax money unless cash/Bucket 1 is available.")
+    if traditional > roth * 3 and traditional > 250000:
+        notes.append("Your pre-tax balance is much larger than Roth. That can create future RMD and survivor-tax pressure, so Roth conversions may be worth testing.")
+    if roth > 0:
+        notes.append("You have Roth money available. A common strategy is to preserve it for later years unless it is needed to avoid a high tax year.")
+    if cash < estimated_gap and estimated_gap > 0:
+        notes.append("Your cash/Bucket 1 balance may cover less than one year of estimated portfolio withdrawals. A larger safety bucket may reduce sequence-of-returns risk.")
+    if not notes:
+        notes.append("Your account mix gives the app enough flexibility to test withdrawal sequencing, Roth conversions, and Bucket 1 planning.")
+
+    for note in notes:
+        st.info(note)
+
+    st.markdown("""
+    <div class="rb-next-box">
+      <div class="rb-next-heading">Educational rule of thumb</div>
+      <div class="rb-muted">
+        Many retirees start with taxable/cash for flexibility, use traditional accounts strategically to manage brackets and future RMDs,
+        and preserve Roth assets for later tax-free flexibility. The best order can change based on Social Security timing,
+        healthcare subsidies, RMDs, pension income, and filing status.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    nav_cols = st.columns(3)
+    with nav_cols[0]:
+        if st.button("Test Roth Conversions", use_container_width=True, key="tax_plan_test_roth"):
+            go_to_page("Guided Questions")
+    with nav_cols[1]:
+        if st.button("Review Projection Table", use_container_width=True, key="tax_plan_projection"):
+            st.session_state.projection_focus = ""
+            st.rerun()
+    with nav_cols[2]:
+        if st.button("Create Blueprint Report", use_container_width=True, key="tax_plan_report"):
+            go_to_page("PDF Report")
+
+    st.caption("Educational planning estimate only. Confirm tax decisions with a qualified CPA, tax professional, or fiduciary financial planner.")
+
+
 def render_guided_progress(current_step: int):
     steps = [
         (1, "Start Blueprint", "Enter core numbers"),
@@ -8986,8 +9123,15 @@ if active_page == PAGE_NAMES[8]:
 
     if st.session_state.get("projection_focus"):
         focus_label = st.session_state.get("projection_focus")
-        st.info(f"Opened from Premium Retirement Tools: **{focus_label}**. Review the projection below for year-by-year balances, income, withdrawals, taxes, and Roth conversion impact.")
-        if st.button("Clear projection note", key="clear_projection_focus"):
+        if focus_label == "Tax-Aware Withdrawal Plan":
+            if can_run:
+                render_tax_aware_withdrawal_plan(df)
+            else:
+                render_tax_aware_withdrawal_plan(None)
+            st.divider()
+        else:
+            st.info(f"Opened from Premium Retirement Tools: **{focus_label}**. Review the projection below for year-by-year balances, income, withdrawals, taxes, and Roth conversion impact.")
+        if st.button("Clear premium tool view", key="clear_projection_focus"):
             st.session_state.projection_focus = ""
             st.rerun()
 
