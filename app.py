@@ -5061,6 +5061,141 @@ def build_action_plan_rows(df, rtv_score):
     return rows
 
 
+def build_report_best_retirement_age_guidance():
+    """
+    Builds a concise retirement-age recommendation for the PDF report using the
+    same optimizer logic already used inside the app.
+    """
+    try:
+        current_age = int(st.session_state.get("current_age", 0) or 0)
+        planning_age = int(st.session_state.get("end_age", 90) or 90)
+        if current_age <= 0 or planning_age <= current_age + 1:
+            return None
+
+        test_start = max(current_age + 1, min(int(st.session_state.get("retire_age", current_age + 1) or current_age + 1) - 3, planning_age - 1))
+        test_end = min(75, planning_age - 1, max(int(st.session_state.get("retire_age", current_age + 1) or current_age + 1) + 7, current_age + 10))
+        if test_end < test_start:
+            test_start = current_age + 1
+            test_end = min(75, planning_age - 1)
+
+        opt = build_retirement_age_optimizer_results(
+            start_age=test_start,
+            end_age=test_end,
+            safety_target=max(250000, annual_household_spending() * 2),
+        )
+        if not opt or opt.get("recommended") is None:
+            return opt
+        return opt
+    except Exception:
+        return None
+
+
+def build_best_age_explanation(opt):
+    """Plain-English explanation for why the report selected the recommended age."""
+    if not opt or opt.get("recommended") is None:
+        return "The report could not calculate a best retirement age because the projection did not have enough complete inputs or no tested age appeared to work."
+
+    rec = opt["recommended"]
+    earliest = opt.get("earliest")
+    safest = opt.get("safest")
+    rec_age = int(rec["Retirement Age"])
+    parts = [
+        f"Age {rec_age} looks like the best tested retirement age because it balances retiring sooner with a {int(rec['Blueprint Score'])}/100 Blueprint Score, projected ending portfolio of {money(rec['Ending Portfolio'])}, and a maximum withdrawal rate of {pct(rec['Max Withdrawal Rate'])}.",
+    ]
+
+    if earliest is not None and int(earliest["Retirement Age"]) < rec_age:
+        parts.append(
+            f"Age {int(earliest['Retirement Age'])} appears to be the earliest tested age that works, but age {rec_age} provides more cushion and/or less withdrawal pressure."
+        )
+
+    if safest is not None and int(safest["Retirement Age"]) > rec_age:
+        parts.append(
+            f"Age {int(safest['Retirement Age'])} is the safest tested age by ending balance, but the report favors age {rec_age} because it may allow retirement sooner while still keeping a reasonable margin."
+        )
+
+    if int(rec.get("Healthcare Gap Years", 0)) > 0:
+        parts.append(
+            f"This age still has about {int(rec['Healthcare Gap Years'])} year(s) before Medicare, so healthcare and ACA planning remain important."
+        )
+
+    if int(rec.get("Years Until Social Security", 0)) > 0:
+        parts.append(
+            f"The portfolio may need to bridge about {int(rec['Years Until Social Security'])} year(s) before Social Security starts."
+        )
+
+    return " ".join(parts)
+
+
+def build_best_age_pdf_rows(opt):
+    rows = [["Age Result", "Age", "Blueprint Score", "Ending Portfolio", "Why it matters"]]
+    if not opt or opt.get("recommended") is None:
+        rows.append(["Best tested age", "N/A", "N/A", "N/A", "Not enough complete inputs or no tested age appeared to work."])
+        return rows
+
+    for label, key, why in [
+        ("Earliest age that works", "earliest", "First tested age where the plan appears to last through the planning age."),
+        ("Best age to retire", "recommended", "Best balance of score, cushion, withdrawal pressure, healthcare gap, Social Security gap, and retiring sooner."),
+        ("Safest tested age", "safest", "Tested age with the highest projected ending portfolio."),
+    ]:
+        row = opt.get(key)
+        if row is None:
+            rows.append([label, "N/A", "N/A", "N/A", "No tested age met this condition."])
+        else:
+            rows.append([
+                label,
+                str(int(row["Retirement Age"])),
+                f"{int(row['Blueprint Score'])}/100",
+                money(row["Ending Portfolio"]),
+                why,
+            ])
+    return rows
+
+
+def build_score_improvement_detail_rows(df, rtv_score, limit=6):
+    """More detailed score-improvement table for the PDF report."""
+    rows = [["Recommendation", "Why it improves the score", "Score Impact", "New Score", "Projected Ending Portfolio"]]
+    try:
+        actions = build_rtv_improvement_recommendations(df, rtv_score)
+    except Exception:
+        actions = []
+
+    top = [a for a in actions if a.get("Blueprint Impact", 0) > 0][:limit]
+    if not top:
+        rows.append([
+            "Keep monitoring the plan",
+            "The current score is already strong or no simple test created a higher score. Stress-test inflation, healthcare, taxes, and market returns annually.",
+            "+0",
+            f"{rtv_score}/100",
+            money(float(df["End Total"].iloc[-1])) if df is not None and not df.empty else "N/A",
+        ])
+        return rows
+
+    for a in top:
+        action = a.get("Action", "Review assumption")
+        if "Reduce spending" in action:
+            why = "Reduces annual portfolio withdrawals and lowers sequence-of-return risk."
+        elif "Delay retirement" in action:
+            why = "Adds saving years, shortens the drawdown period, and gives the portfolio more time to compound."
+        elif "contributions" in action:
+            why = "Builds the retirement base before withdrawals begin."
+        elif "Social Security" in action:
+            why = "Can increase reliable income later and reduce pressure on investments."
+        elif "Plan to age" in action:
+            why = "Improves the modeled result, but should be used carefully because longevity risk still matters."
+        else:
+            why = "Improves one or more assumptions used by the projection model."
+
+        impact = int(a.get("Blueprint Impact", 0))
+        rows.append([
+            action,
+            why,
+            f"+{impact}" if impact > 0 else str(impact),
+            f"{int(a.get('New Blueprint Score', rtv_score))}/100",
+            money(a.get("Ending Portfolio", 0)),
+        ])
+    return rows
+
+
 def build_general_recommendation_paragraphs(df, rtv_score):
     ending = float(df["End Total"].iloc[-1])
     starting = float(df["Start Total"].iloc[0])
@@ -5242,6 +5377,16 @@ def build_pdf_report(df):
     )
     story.append(Paragraph(summary_text, body))
 
+    best_age_opt = build_report_best_retirement_age_guidance()
+    if best_age_opt and best_age_opt.get("recommended") is not None:
+        recommended_age = int(best_age_opt["recommended"]["Retirement Age"])
+        story.append(Paragraph("Best Age to Retire Estimate", h2))
+        story.append(Paragraph(build_best_age_explanation(best_age_opt), body))
+        story.append(make_pdf_table(build_best_age_pdf_rows(best_age_opt), col_widths=[1.4*inch, 0.55*inch, 0.9*inch, 1.2*inch, 2.45*inch], font_size=7.1))
+    else:
+        story.append(Paragraph("Best Age to Retire Estimate", h2))
+        story.append(Paragraph("The report could not calculate a best retirement age yet. Complete the core inputs, then rerun the report to compare retirement ages.", body))
+
     if rtv_reasons:
         story.append(Paragraph("Main score drivers:", h2))
         for reason in rtv_reasons[:5]:
@@ -5356,6 +5501,20 @@ def build_pdf_report(df):
     story.append(Paragraph("Blueprint Improvement Ideas", h2))
     action_rows = build_action_plan_rows(df, rtv_score)
     story.append(make_pdf_table(action_rows, col_widths=[2.15 * inch, 2.55 * inch, 0.95 * inch, 0.95 * inch]))
+
+    story.append(Spacer(1, 0.15 * inch))
+    story.append(Paragraph("Ways to Improve Your Blueprint Score", h2))
+    story.append(Paragraph(
+        "These are the highest-impact levers the app tested against the current blueprint. The goal is not to force every change, but to show which assumptions most improve retirement readiness.",
+        body
+    ))
+    story.append(make_pdf_table(build_score_improvement_detail_rows(df, rtv_score), col_widths=[1.55*inch, 2.15*inch, 0.75*inch, 0.75*inch, 1.35*inch], font_size=7.0))
+
+    if 'best_age_opt' not in locals():
+        best_age_opt = build_report_best_retirement_age_guidance()
+    story.append(Spacer(1, 0.15 * inch))
+    story.append(Paragraph("Best Age to Retire and Why", h2))
+    story.append(Paragraph(build_best_age_explanation(best_age_opt), body))
 
     story.append(Spacer(1, 0.2 * inch))
     story.append(Paragraph("Can the user spend more?", h2))
