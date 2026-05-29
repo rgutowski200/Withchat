@@ -7172,16 +7172,6 @@ if active_page == PAGE_NAMES[0]:
         </div>
         """, unsafe_allow_html=True)
 
-        starter_cols = st.columns(4)
-        with starter_cols[0]:
-            st.markdown('<div class="rb-mini-step"><b>1</b><br/>Enter your age and savings</div>', unsafe_allow_html=True)
-        with starter_cols[1]:
-            st.markdown('<div class="rb-mini-step"><b>2</b><br/>Add retirement spending</div>', unsafe_allow_html=True)
-        with starter_cols[2]:
-            st.markdown('<div class="rb-mini-step"><b>3</b><br/>Add income sources</div>', unsafe_allow_html=True)
-        with starter_cols[3]:
-            st.markdown('<div class="rb-mini-step"><b>4</b><br/>Review your Blueprint</div>', unsafe_allow_html=True)
-
         if st.button("Start My Blueprint", type="primary", use_container_width=True, key="home_empty_start_blueprint"):
             go_to_page("Guided Questions")
 
