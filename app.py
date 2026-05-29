@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6618,10 +6619,40 @@ st.session_state["is_premium_user"] = True
 if "active_page" not in st.session_state or st.session_state.active_page not in PAGE_NAMES:
     st.session_state.active_page = "Home"
 
+def auto_close_sidebar():
+    """Auto-close the Streamlit sidebar after a sidebar menu click.
+
+    This is especially helpful on iPad/mobile so the selected page opens cleanly.
+    """
+    components.html(
+        """
+        <script>
+        setTimeout(function() {
+            const parentDoc = window.parent.document;
+            const buttons = Array.from(parentDoc.querySelectorAll("button"));
+
+            const closeButton = buttons.find(btn => {
+                const label = (btn.getAttribute("aria-label") || "").toLowerCase();
+                const title = (btn.getAttribute("title") || "").toLowerCase();
+                return label.includes("close sidebar") || title.includes("close sidebar");
+            });
+
+            if (closeButton) {
+                closeButton.click();
+            }
+        }, 250);
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
+
+
 def go_to_page(page_name: str):
     # Use a plain session_state value, not a widget key. This avoids the
     # StreamlitAPIException caused by trying to modify a radio widget after render.
     st.session_state.active_page = page_name
+    st.session_state.close_sidebar_after_nav = True
     st.rerun()
 
 def render_navigation():
@@ -6686,6 +6717,10 @@ def render_navigation():
 
 render_navigation()
 active_page = st.session_state.active_page
+
+if st.session_state.get("close_sidebar_after_nav", False):
+    auto_close_sidebar()
+    st.session_state.close_sidebar_after_nav = False
 
 # Safe projection object used by premium insight cards across pages.
 # Keep this before any page rendering so Start My Blueprint / Home can use df safely.
