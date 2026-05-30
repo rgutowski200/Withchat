@@ -673,6 +673,43 @@ div.stButton > button:focus {
         0 16px 28px rgba(37, 99, 235, 0.20);
 }
 
+/* Make Streamlit download buttons match the regular blue app buttons */
+div[data-testid="stDownloadButton"] > button {
+    width: 100%;
+    min-height: 54px;
+    border-radius: 16px;
+    border: 1px solid rgba(59, 130, 246, 0.12) !important;
+    background: linear-gradient(180deg, #3B82F6 0%, #2563EB 100%) !important;
+    color: #ffffff !important;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    padding: 0.85rem 1.1rem;
+    box-shadow:
+        0 12px 24px rgba(37, 99, 235, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+    transition:
+        transform 0.18s ease,
+        box-shadow 0.18s ease,
+        filter 0.18s ease,
+        background 0.18s ease;
+}
+
+div[data-testid="stDownloadButton"] > button:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.02);
+    box-shadow:
+        0 16px 28px rgba(37, 99, 235, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+}
+
+div[data-testid="stDownloadButton"] > button:focus {
+    outline: none !important;
+    box-shadow:
+        0 0 0 4px rgba(59, 130, 246, 0.16),
+        0 16px 28px rgba(37, 99, 235, 0.20) !important;
+}
+
 /* Secondary buttons */
 div.stButton > button[kind="secondary"] {
     background: #ffffff;
