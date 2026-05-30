@@ -1831,7 +1831,43 @@ def render_auth_form():
 
 user = auth_box()
 
-# Landing-page sign-in controls are rendered beside the plain-English intro below.
+# Account controls
+# Keep sign-in visible at the very top so users can save and reload blueprints.
+acct_left, acct_right = st.columns([5.5, 1.4])
+with acct_right:
+    if user:
+        user_email = getattr(user, "email", "Signed in")
+        st.caption(f"Signed in as {user_email}")
+        if st.button("Sign out", use_container_width=True, key="top_sign_out"):
+            try:
+                supabase.auth.sign_out()
+            except Exception:
+                pass
+            st.session_state.user = None
+            st.session_state.show_auth_form = False
+            st.rerun()
+    else:
+        if st.button("Sign In / Create Account", use_container_width=True, key="top_open_auth"):
+            st.session_state.show_auth_form = not st.session_state.get("show_auth_form", False)
+
+if not user and st.session_state.get("show_auth_form"):
+    render_auth_form()
+
+# Header / hero area
+hero_left = st.container()
+
+with hero_left:
+    st.markdown("""
+    <div class="rb-hero" style="margin-top: 8px; margin-bottom: 10px;">
+      <div class="rb-logo-row">
+        <div class="rb-logo">↗</div>
+        <div>
+          <div class="rb-hero-title">Retirement Blueprint 101</div>
+          <p class="rb-hero-subtitle">See when you can retire, how long your money may last, and what to improve before you make the leap.</p>
+        </div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 
@@ -7844,72 +7880,35 @@ if active_page == PAGE_NAMES[0]:
         status_note = "You can still use the planner, but saved blueprints require an account." if not user else "Complete the required fields below to unlock projections and recommendations."
         required_panel = ", ".join(missing_items_home) if missing_items_home else "Review Start My Blueprint and Spending Plan."
 
-    intro_left, intro_right = st.columns([4.6, 1.2], gap="large")
-
-    with intro_left:
-        st.markdown("""
-        <div class="rb-insight-card" style="margin-top: 10px; margin-bottom: 22px;">
-          <div class="rb-insight-kicker">Plain-English Retirement Planning</div>
-          <div class="rb-insight-title">You do not need to be a financial expert to use this.</div>
-          <div class="rb-insight-copy">
-            Retirement can feel confusing because there are a lot of moving parts: savings, Social Security,
-            spending, taxes, healthcare, and market ups and downs. This tool is designed to turn those pieces
-            into simple answers you can understand and act on.
-          </div>
-          <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-top:16px;">
-            <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:16px; padding:16px;">
-              <div style="font-weight:900; color:#0f172a; margin-bottom:6px;">1. Start with estimates</div>
-              <div class="rb-muted">You can use your best guess today. The goal is to get a clear starting point, then improve it over time.</div>
-            </div>
-            <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:16px; padding:16px;">
-              <div style="font-weight:900; color:#0f172a; margin-bottom:6px;">2. See what matters most</div>
-              <div class="rb-muted">The app shows whether spending, income, retirement age, or savings is putting the most pressure on your plan.</div>
-            </div>
-            <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:16px; padding:16px;">
-              <div style="font-weight:900; color:#0f172a; margin-bottom:6px;">3. Test better options</div>
-              <div class="rb-muted">Try different retirement ages, spending levels, and Social Security timing to see what improves your confidence.</div>
-            </div>
-          </div>
-          <div style="margin-top:14px; color:#475569; line-height:1.5;">
-            Think of this as a retirement GPS. It does not promise the future, but it helps you see the road ahead,
-            spot the potholes, and decide what to adjust before you make a big decision.
-          </div>
+    st.markdown("""
+    <div class="rb-insight-card" style="margin-top: 10px; margin-bottom: 22px;">
+      <div class="rb-insight-kicker">Plain-English Retirement Planning</div>
+      <div class="rb-insight-title">You do not need to be a financial expert to use this.</div>
+      <div class="rb-insight-copy">
+        Retirement can feel confusing because there are a lot of moving parts: savings, Social Security,
+        spending, taxes, healthcare, and market ups and downs. This tool is designed to turn those pieces
+        into simple answers you can understand and act on.
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-top:16px;">
+        <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:16px; padding:16px;">
+          <div style="font-weight:900; color:#0f172a; margin-bottom:6px;">1. Start with estimates</div>
+          <div class="rb-muted">You can use your best guess today. The goal is to get a clear starting point, then improve it over time.</div>
         </div>
-        """, unsafe_allow_html=True)
-
-    with intro_right:
-        st.markdown("<div style='height: 22px;'></div>", unsafe_allow_html=True)
-        if user:
-            user_email = getattr(user, "email", "Signed in")
-            st.markdown(f"""
-            <div class="rb-card" style="padding:18px; margin-top: 8px;">
-              <div class="rb-card-label" style="margin-bottom:8px;">Account</div>
-              <div style="font-weight:800; color:#0f172a; margin-bottom:6px;">Signed in</div>
-              <div class="rb-muted" style="margin-bottom:14px; word-break:break-word;">{user_email}</div>
-            </div>
-            """, unsafe_allow_html=True)
-            if st.button("Sign out", use_container_width=True, key="home_side_sign_out"):
-                try:
-                    supabase.auth.sign_out()
-                except Exception:
-                    pass
-                st.session_state.user = None
-                st.session_state.show_auth_form = False
-                st.rerun()
-        else:
-            st.markdown("""
-            <div class="rb-card" style="padding:18px; margin-top: 8px;">
-              <div class="rb-card-label" style="margin-bottom:8px;">Optional Account</div>
-              <div style="font-weight:800; color:#0f172a; margin-bottom:8px;">Save your progress</div>
-              <div class="rb-muted" style="margin-bottom:14px;">Create an account if you want to save blueprints and come back later.</div>
-            </div>
-            """, unsafe_allow_html=True)
-            if st.button("Sign In / Create Account", use_container_width=True, key="home_side_auth"):
-                st.session_state.show_auth_form = not st.session_state.get("show_auth_form", False)
-            st.caption("You can still use the planner without signing in.")
-
-    if not user and st.session_state.get("show_auth_form"):
-        render_auth_form()
+        <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:16px; padding:16px;">
+          <div style="font-weight:900; color:#0f172a; margin-bottom:6px;">2. See what matters most</div>
+          <div class="rb-muted">The app shows whether spending, income, retirement age, or savings is putting the most pressure on your plan.</div>
+        </div>
+        <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:16px; padding:16px;">
+          <div style="font-weight:900; color:#0f172a; margin-bottom:6px;">3. Test better options</div>
+          <div class="rb-muted">Try different retirement ages, spending levels, and Social Security timing to see what improves your confidence.</div>
+        </div>
+      </div>
+      <div style="margin-top:14px; color:#475569; line-height:1.5;">
+        Think of this as a retirement GPS. It does not promise the future, but it helps you see the road ahead,
+        spot the potholes, and decide what to adjust before you make a big decision.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
     if safe_can_run_home:
