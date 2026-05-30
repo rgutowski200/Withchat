@@ -8545,6 +8545,187 @@ def calculate_basic_blueprint_snapshot():
     }
 
 
+
+def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
+    """Premium-looking dashboard summary inspired by the requested mockup."""
+    current_age = int(st.session_state.get("current_age", 0) or 0)
+    retire_age = int(st.session_state.get("retire_age", 0) or 0)
+    end_age = int(st.session_state.get("end_age", 90) or 90)
+    ss_age = int(st.session_state.get("user_ss_age", 62) or 62)
+    rmd_age = int(get_rmd_start_age())
+    monthly_spending = float(annual_household_spending() or 0) / 12
+    ending_balance = float(df["End Total"].iloc[-1] or 0) if "End Total" in df.columns and not df.empty else 0.0
+    unmet_need = float(df["Unmet Need"].sum() or 0) if "Unmet Need" in df.columns else 0.0
+    income_coverage = float(df["Income Coverage Ratio"].mean() or 0) if "Income Coverage Ratio" in df.columns else 0.0
+    max_withdrawal_rate = float(df["Withdrawal Rate"].max() or 0) if "Withdrawal Rate" in df.columns else 0.0
+
+    avg_gap = 0.0
+    if "Portfolio Need" in df.columns:
+        avg_gap = float(df["Portfolio Need"].mean() or 0)
+    elif "Total Spending" in df.columns and "Total Non-Portfolio Income" in df.columns:
+        avg_gap = float((df["Total Spending"] - df["Total Non-Portfolio Income"]).clip(lower=0).mean() or 0)
+    monthly_gap = max(avg_gap, 0) / 12
+
+    if rtv_score >= 80 and unmet_need <= 0 and ending_balance > 0:
+        score_pill = "✓ Strong"
+        score_title = f"Yes — retiring at {retire_age} looks workable."
+        score_copy = f"Your plan appears to last through age {end_age} with a solid cushion. A few small improvements could make it even more comfortable."
+        status_short = "Yes"
+        status_pill = "Based on your plan"
+        longevity_value = f"To age {end_age}+"
+        longevity_pill = "Lasts the whole plan"
+    elif rtv_score >= 65 and unmet_need <= 0:
+        score_pill = "⚠ Close"
+        score_title = f"Retiring at {retire_age} may work, but review the cushion."
+        score_copy = "Your plan has some positive signs, but the margin is thinner. Spending, Social Security timing, or retirement age may deserve another test."
+        status_short = "Maybe"
+        status_pill = "Needs review"
+        longevity_value = f"To age {end_age}"
+        longevity_pill = "Watch the cushion"
+    else:
+        score_pill = "⚠ Needs work"
+        score_title = f"Retiring at {retire_age} needs more adjustment."
+        score_copy = "The current blueprint may need lower spending, more income, more savings, or a later retirement age before it looks comfortable."
+        status_short = "Not yet"
+        status_pill = "Needs changes"
+        longevity_value = "At risk"
+        longevity_pill = "Runs short risk"
+
+    if income_coverage >= 0.70:
+        income_label, income_class = "Strong", "rb-pill-green"
+    elif income_coverage >= 0.40:
+        income_label, income_class = "Moderate", "rb-pill-yellow"
+    else:
+        income_label, income_class = "Low", "rb-pill-red"
+
+    if max_withdrawal_rate <= 0.04:
+        spending_label, spending_class = "Healthy", "rb-pill-green"
+    elif max_withdrawal_rate <= 0.06:
+        spending_label, spending_class = "Watch", "rb-pill-yellow"
+    else:
+        spending_label, spending_class = "High", "rb-pill-red"
+
+    healthcare_gap_years = max(0, min(65, end_age) - retire_age) if retire_age else 0
+    if healthcare_gap_years <= 0:
+        healthcare_label, healthcare_class = "Covered", "rb-pill-green"
+    elif healthcare_gap_years <= 5:
+        healthcare_label, healthcare_class = "Worth a look", "rb-pill-yellow"
+    else:
+        healthcare_label, healthcare_class = "High gap", "rb-pill-red"
+
+    tax_pressure = 0.0
+    if "Estimated Federal Tax" in df.columns and "Total Spending" in df.columns:
+        tax_pressure = float(df["Estimated Federal Tax"].sum() or 0) / max(float(df["Total Spending"].sum() or 0), 1)
+    elif "Estimated Tax" in df.columns and "Total Spending" in df.columns:
+        tax_pressure = float(df["Estimated Tax"].sum() or 0) / max(float(df["Total Spending"].sum() or 0), 1)
+    if tax_pressure >= 0.18:
+        tax_label, tax_class = "Review", "rb-pill-yellow"
+    elif tax_pressure > 0:
+        tax_label, tax_class = "Manageable", "rb-pill-green"
+    else:
+        tax_label, tax_class = "Simplified", "rb-pill-blue"
+
+    if max_withdrawal_rate > 0.06 or rtv_score < 70:
+        market_label, market_class = "High risk", "rb-pill-red"
+    elif max_withdrawal_rate > 0.045:
+        market_label, market_class = "Moderate", "rb-pill-yellow"
+    else:
+        market_label, market_class = "Lower", "rb-pill-green"
+
+    summary_text = (
+        f"You told us you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
+        f"After Social Security and other income, your savings may need to cover roughly <b>{money(monthly_gap)}/month</b>. "
+        f"The good news: your projected balance at age <b>{end_age}</b> is about <b>{compact_money(ending_balance)}</b>. "
+        "The main thing to check next is what happens if the market has a few bad years right after you retire."
+    )
+
+    st.markdown(f"""
+    <div class="rb-blueprint-mock-hero">
+      <div class="rb-blueprint-mock-icon">📊</div>
+      <div>
+        <div class="rb-blueprint-mock-kicker-pill">Planner Section</div>
+        <div class="rb-blueprint-mock-title">Blueprint Dashboard</div>
+        <div class="rb-blueprint-mock-sub">Review your blueprint outcome, year-by-year trends, and the key retirement metrics that show whether your plan is on track.</div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    with st.expander("💬 What this page means: Dashboard", expanded=False):
+        st.write("This page turns the retirement math into plain English. It shows whether your plan appears workable, which numbers matter most, and what to review next.")
+
+    st.caption("Tax estimates now include taxable Social Security when provisional income exceeds IRS thresholds. Roth and cash withdrawals are modeled as tax-free; taxable brokerage is still simplified until the capital-gains phase.")
+
+    st.markdown(f"""
+    <div class="rb-score-banner">
+      <div class="rb-score-badge"><div class="rb-score-badge-num">{int(rtv_score)}</div><div class="rb-score-badge-label">OUT OF 100</div></div>
+      <div>
+        <div class="rb-score-banner-pill">{xml_escape(score_pill)}</div>
+        <div class="rb-score-banner-title">{xml_escape(score_title)}</div>
+        <div class="rb-score-banner-copy">{xml_escape(score_copy)}</div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<div class="rb-dashboard-section-kicker">The 4 numbers that matter most</div>', unsafe_allow_html=True)
+    st.markdown(f"""
+    <div class="rb-card-grid">
+      <div class="rb-card">
+        <div class="rb-card-label">Can I retire at {retire_age}?</div>
+        <div class="rb-card-value" style="color:#15803D;">{xml_escape(status_short)}</div>
+        <div class="rb-kpi-pill">{xml_escape(status_pill)}</div>
+        <div class="rb-card-note">Your savings and income vs. when you want to stop working.</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-label">Will my money last?</div>
+        <div class="rb-card-value" style="color:#15803D;">{xml_escape(longevity_value)}</div>
+        <div class="rb-kpi-pill">{xml_escape(longevity_pill)}</div>
+        <div class="rb-card-note">Whether your money outlasts your plan, or runs out early.</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-label">Money left at the end</div>
+        <div class="rb-card-value">{compact_money(ending_balance)}</div>
+        <div class="rb-kpi-pill">Cushion at age {end_age}</div>
+        <div class="rb-card-note">An estimated leftover balance — your safety margin.</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-label">Monthly gap to cover</div>
+        <div class="rb-card-value" style="color:#EA580C;">{money(monthly_gap)}</div>
+        <div class="rb-kpi-pill">From your savings</div>
+        <div class="rb-card-note">After Social Security and income, this comes from savings each month.</div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div class="rb-dashboard-explain rb-dashboard-explain-top">
+      <div class="rb-explain-title">💬 What this means, in plain English</div>
+      <div class="rb-explain-copy">{summary_text}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div class="rb-health-timeline-grid">
+      <div class="rb-panel-card">
+        <div class="rb-panel-title">Your Retirement Health Check</div>
+        <div class="rb-panel-sub">Quick checks on the parts of your plan that matter most.</div>
+        <div class="rb-health-row"><div class="rb-health-icon">💰</div><div><div class="rb-health-title">Income coverage</div><div class="rb-health-copy">How much of your spending is covered by Social Security & pensions</div></div><div class="rb-health-pill {income_class}">{income_label}</div></div>
+        <div class="rb-health-row"><div class="rb-health-icon">📉</div><div><div class="rb-health-title">Spending rate</div><div class="rb-health-copy">How fast you’re drawing down savings — lower is safer</div></div><div class="rb-health-pill {spending_class}">{spending_label}</div></div>
+        <div class="rb-health-row"><div class="rb-health-icon">🏥</div><div><div class="rb-health-title">Healthcare gap</div><div class="rb-health-copy">Covering health costs before Medicare starts at 65</div></div><div class="rb-health-pill {healthcare_class}">{healthcare_label}</div></div>
+        <div class="rb-health-row"><div class="rb-health-icon">🧾</div><div><div class="rb-health-title">Tax pressure</div><div class="rb-health-copy">How much of your withdrawals may go to taxes</div></div><div class="rb-health-pill {tax_class}">{tax_label}</div></div>
+        <div class="rb-health-row"><div class="rb-health-icon">📊</div><div><div class="rb-health-title">Market timing risk</div><div class="rb-health-copy">Risk of a bad market right when you retire</div></div><div class="rb-health-pill {market_class}">{market_label}</div></div>
+      </div>
+      <div class="rb-panel-card">
+        <div class="rb-panel-title">Your Money Timeline</div>
+        <div class="rb-panel-sub">The key moments ahead in your plan.</div>
+        <div class="rb-timeline-row"><div class="rb-timeline-age">Age {current_age}</div><div><div class="rb-timeline-title">Where you are now</div><div class="rb-timeline-copy">Still saving</div></div></div>
+        <div class="rb-timeline-row"><div class="rb-timeline-age">{retire_age}</div><div><div class="rb-timeline-title">You retire</div><div class="rb-timeline-copy">Start drawing from savings; healthcare costs begin</div></div></div>
+        <div class="rb-timeline-row"><div class="rb-timeline-age">{ss_age}</div><div><div class="rb-timeline-title">Social Security starts</div><div class="rb-timeline-copy">Your monthly gap shrinks as Social Security income begins</div></div></div>
+        <div class="rb-timeline-row"><div class="rb-timeline-age">{rmd_age}</div><div><div class="rb-timeline-title">Required withdrawals begin</div><div class="rb-timeline-copy">The IRS requires minimum withdrawals from many pre-tax retirement accounts</div></div></div>
+        <div class="rb-timeline-row"><div class="rb-timeline-age">{end_age}</div><div><div class="rb-timeline-title">End of plan</div><div class="rb-timeline-copy">~{compact_money(ending_balance)} projected to remain</div></div></div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 def render_basic_blueprint_dashboard():
     snap = calculate_basic_blueprint_snapshot()
     st.markdown("""
@@ -8695,6 +8876,8 @@ if active_page == PAGE_NAMES[6]:
         ending = df["End Total"].iloc[-1]
         depleted = df["Unmet Need"].sum() > 0 or ending <= 0 or df["Age"].iloc[-1] < st.session_state.end_age
         rtv_score, rtv_label, rtv_reasons = calculate_rtv_score(df)
+
+        render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label)
 
         render_dashboard_close_to_mock(df, rtv_score, rtv_label, rtv_reasons)
 
@@ -10239,6 +10422,172 @@ div[data-testid="stDataFrame"] {
 /* Sidebar cleanup: avoid oversized hover-tooltip feel */
 section[data-testid="stSidebar"] button {
     overflow: hidden !important;
+}
+
+
+
+/* Premium Blueprint Dashboard mockup section */
+.rb-blueprint-mock-hero {
+    display:flex;
+    gap:14px;
+    align-items:flex-start;
+    border:1px solid #C7E3FF;
+    border-radius:22px;
+    background:linear-gradient(135deg,#F8FBFF 0%,#FFFFFF 62%,#ECFEFF 100%);
+    padding:20px 22px;
+    margin:8px 0 18px 0;
+    box-shadow:0 12px 30px rgba(15,23,42,.055);
+}
+.rb-blueprint-mock-icon {
+    width:48px;
+    height:48px;
+    border-radius:14px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#E0F2FE;
+    font-size:1.45rem;
+    flex:0 0 auto;
+}
+.rb-blueprint-mock-kicker-pill {
+    display:inline-flex;
+    align-items:center;
+    border-radius:999px;
+    padding:4px 10px;
+    background:#DBEAFE;
+    color:#1D4ED8;
+    font-size:.76rem;
+    font-weight:900;
+    margin-bottom:8px;
+}
+.rb-blueprint-mock-title {
+    color:#0F172A;
+    font-size:1.45rem;
+    font-weight:950;
+    letter-spacing:-.03em;
+    margin-bottom:4px;
+}
+.rb-blueprint-mock-sub {
+    color:#64748B;
+    line-height:1.45;
+    max-width:850px;
+}
+.rb-score-banner {
+    display:flex;
+    gap:18px;
+    align-items:center;
+    border:1px solid #BBF7D0;
+    border-radius:22px;
+    background:linear-gradient(135deg,#ECFDF5 0%,#F0FDFA 100%);
+    padding:22px 24px;
+    margin:18px 0 20px 0;
+    box-shadow:0 14px 30px rgba(16,185,129,.10);
+}
+.rb-score-badge {
+    width:74px;
+    height:74px;
+    border-radius:18px;
+    background:linear-gradient(135deg,#22C55E,#059669);
+    color:#FFFFFF;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    box-shadow:0 14px 24px rgba(5,150,105,.25);
+    flex:0 0 auto;
+}
+.rb-score-badge-num { font-size:1.8rem; font-weight:950; line-height:1; }
+.rb-score-badge-label { font-size:.55rem; font-weight:900; letter-spacing:.05em; margin-top:4px; }
+.rb-score-banner-pill {
+    display:inline-flex;
+    border-radius:999px;
+    padding:4px 10px;
+    background:#DCFCE7;
+    color:#15803D;
+    font-size:.75rem;
+    font-weight:900;
+    margin-bottom:7px;
+}
+.rb-score-banner-title {
+    color:#0F172A;
+    font-size:1.25rem;
+    font-weight:950;
+    letter-spacing:-.02em;
+    margin-bottom:4px;
+}
+.rb-score-banner-copy { color:#475569; line-height:1.5; }
+.rb-dashboard-section-kicker {
+    color:#2563EB;
+    font-size:.78rem;
+    font-weight:950;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    margin:20px 0 10px 3px;
+}
+.rb-health-timeline-grid {
+    display:grid;
+    grid-template-columns: 1.08fr .92fr;
+    gap:18px;
+    margin:18px 0 20px 0;
+}
+.rb-panel-card {
+    background:#FFFFFF;
+    border:1px solid #E5E7EB;
+    border-radius:22px;
+    padding:20px 22px;
+    box-shadow:0 10px 26px rgba(15,23,42,.055);
+}
+.rb-panel-title {
+    color:#0F172A;
+    font-size:1.15rem;
+    font-weight:950;
+    margin-bottom:4px;
+}
+.rb-panel-sub { color:#64748B; font-size:.9rem; margin-bottom:16px; }
+.rb-health-row {
+    display:grid;
+    grid-template-columns: 42px 1fr auto;
+    gap:12px;
+    align-items:center;
+    padding:12px 0;
+    border-top:1px solid #F1F5F9;
+}
+.rb-health-row:first-of-type { border-top:0; }
+.rb-health-icon {
+    width:34px;
+    height:34px;
+    border-radius:10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#F8FAFC;
+    font-size:1rem;
+}
+.rb-health-title { color:#0F172A; font-weight:900; }
+.rb-health-copy { color:#64748B; font-size:.86rem; line-height:1.35; }
+.rb-health-pill {
+    border-radius:999px;
+    padding:5px 10px;
+    font-weight:900;
+    font-size:.72rem;
+    white-space:nowrap;
+}
+.rb-pill-green { background:#DCFCE7; color:#15803D; }
+.rb-pill-yellow { background:#FEF3C7; color:#B45309; }
+.rb-pill-red { background:#FEE2E2; color:#B91C1C; }
+.rb-pill-blue { background:#DBEAFE; color:#1D4ED8; }
+.rb-timeline-row {
+    display:grid;
+    grid-template-columns: 52px 1fr;
+    gap:12px;
+    padding:12px 0;
+}
+.rb-timeline-age { color:#2563EB; font-weight:950; }
+.rb-timeline-title { color:#0F172A; font-weight:900; }
+.rb-timeline-copy { color:#64748B; font-size:.86rem; line-height:1.35; }
+@media (max-width: 900px) {
+    .rb-score-banner { align-items:flex-start; }
+    .rb-health-timeline-grid { grid-template-columns:1fr; }
 }
 
 </style>
