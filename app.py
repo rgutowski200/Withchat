@@ -7887,6 +7887,7 @@ def _set_onboard_defaults():
         "onboard_current_age": int(st.session_state.get("current_age", 0) or 0) or 55,
         "onboard_current_income": int(st.session_state.get("current_annual_income", 0) or 0),
         "onboard_has_spouse": bool(st.session_state.get("has_spouse", False)),
+        "onboard_spouse_name": str(st.session_state.get("spouse_name", "") or ""),
         "onboard_spouse_age": int(st.session_state.get("spouse_age", 0) or 0) or 55,
         "onboard_spouse_retire_age": int(st.session_state.get("spouse_retire_age", 0) or 0) or int(st.session_state.get("retire_age", 0) or 62),
         "onboard_spouse_ss": int(st.session_state.get("spouse_ss", 0) or 0),
@@ -7919,29 +7920,38 @@ def _onboard_steps():
     steps = [
         "name",
         "current_age",
-        "current_income",
+        "retire_age",
         "spouse",
     ]
     if bool(st.session_state.get("onboard_has_spouse", False)):
         steps.extend([
+            "spouse_name",
             "spouse_age",
             "spouse_retire_age",
-            "spouse_social_security",
-            "spouse_ss_age",
         ])
     steps.extend([
-        "retire_age",
         "savings",
         "annual_savings",
         "retirement_spending",
         "social_security",
         "ss_age",
+    ])
+    if bool(st.session_state.get("onboard_has_spouse", False)):
+        steps.extend([
+            "spouse_social_security",
+            "spouse_ss_age",
+        ])
+    steps.extend([
         "other_income",
         "risk_level",
         "review",
     ])
     return steps
 
+
+
+def _onboard_spouse_name():
+    return str(st.session_state.get("onboard_spouse_name", "") or "").strip() or "your spouse or partner"
 
 
 def _parse_money_value(value, default=0):
@@ -7988,8 +7998,8 @@ def _persist_onboard_step(step_id):
     step_keys = {
         "name": ["onboard_name"],
         "current_age": ["onboard_current_age"],
-        "current_income": ["onboard_current_income"],
         "spouse": ["onboard_has_spouse"],
+        "spouse_name": ["onboard_spouse_name"],
         "spouse_age": ["onboard_spouse_age"],
         "spouse_retire_age": ["onboard_spouse_retire_age"],
         "spouse_social_security": ["onboard_spouse_ss"],
@@ -8041,10 +8051,9 @@ def _validate_onboard_step(step_id):
         if age < 18 or age > 100:
             return f"Thanks, {first}. Please enter an age between 18 and 100."
 
-    if step_id == "current_income":
-        income = _onboard_money("onboard_current_income", 0)
-        if income < 0:
-            return "Please enter zero or a positive income estimate."
+    if step_id == "spouse_name" and bool(st.session_state.get("onboard_has_spouse", False)):
+        if not str(st.session_state.get("onboard_spouse_name", "") or "").strip():
+            return "Please enter your spouse or partner’s first name so I can personalize the rest of the questions."
 
     if step_id == "spouse_age" and bool(st.session_state.get("onboard_has_spouse", False)):
         age = int(st.session_state.get("onboard_spouse_age", 0) or 0)
@@ -8121,6 +8130,7 @@ def _apply_first_blueprint_answers():
 
     updates = {
         "first_name": _onboard_first_name(),
+        "spouse_name": _onboard_spouse_name() if has_spouse else "",
         "current_annual_income": int(round(_onboard_money("onboard_current_income", 0))),
         "current_age": current_age,
         "retire_age": retire_age,
@@ -8241,7 +8251,7 @@ def render_first_blueprint_card_wizard():
     with st.container(border=True):
         if step_id == "name":
             _onboard_card_header(
-                "First, what’s your name?",
+                "Welcome — let’s build your first blueprint. What’s your first name?",
                 "This helps the app make the questions and blueprint feel more personal."
             )
             st.text_input("First name", key="onboard_name", placeholder="Example: Ron")
@@ -8253,17 +8263,10 @@ def render_first_blueprint_card_wizard():
             )
             st.number_input("Current age", min_value=18, max_value=100, step=1, key="onboard_current_age")
 
-        elif step_id == "current_income":
-            _onboard_card_header(
-                f"Thanks, {first}. About how much do you earn per year before taxes?",
-                "A close estimate is completely fine. This gives us context for savings and retirement readiness."
-            )
-            st.text_input("Current yearly income before taxes", value=_money_text_default("onboard_current_income", 0), key="onboard_current_income_text", placeholder="Example: 120,000")
-
         elif step_id == "spouse":
             _onboard_card_header(
-                f"Should we build this blueprint just for you, {first}, or include a spouse or partner too?",
-                "Including a spouse or partner can change Social Security, spending, taxes, and how long the money needs to last."
+                f"Thanks, {first}. Are you planning retirement just for yourself, or should we include a spouse or partner too?",
+                "Including a spouse or partner can make the blueprint more accurate for your household."
             )
             choice = st.radio(
                 "Planning type",
@@ -8274,54 +8277,79 @@ def render_first_blueprint_card_wizard():
             )
             st.session_state.onboard_has_spouse = choice == "Include my spouse / partner"
 
-        elif step_id == "spouse_age":
+        elif step_id == "spouse_name":
             _onboard_card_header(
-                "Great — what is your spouse or partner’s age?",
+                "Great — what’s your spouse or partner’s first name?",
+                "I’ll use their name in the next few questions so this feels less like a form and more like a real plan."
+            )
+            st.text_input("Spouse / partner first name", key="onboard_spouse_name", placeholder="Example: Lisa")
+
+        elif step_id == "spouse_age":
+            spouse = _onboard_spouse_name()
+            _onboard_card_header(
+                f"Thanks. How old is {spouse} today?",
                 "This helps the blueprint estimate timing for retirement income and how long the household plan may need to last."
             )
             st.number_input("Spouse / partner current age", min_value=18, max_value=100, step=1, key="onboard_spouse_age")
 
         elif step_id == "spouse_retire_age":
+            spouse = _onboard_spouse_name()
             _onboard_card_header(
-                "What age would your spouse or partner like to retire?",
+                f"What age would {spouse} like to retire?",
                 "No pressure — this is just the first age we’ll test."
             )
             st.number_input("Spouse / partner retirement age", min_value=18, max_value=100, step=1, key="onboard_spouse_retire_age")
 
         elif step_id == "spouse_social_security":
+            spouse = _onboard_spouse_name()
             _onboard_card_header(
-                "Do they have a Social Security estimate too?",
+                f"Does {spouse} expect Social Security too?",
                 "A rough monthly estimate is fine. If you are not sure, you can enter 0 and update it later."
             )
             st.text_input("Estimated spouse / partner Social Security per month", value=_money_text_default("onboard_spouse_ss", 0), key="onboard_spouse_ss_text", placeholder="Example: 2,000")
 
         elif step_id == "spouse_ss_age":
+            spouse = _onboard_spouse_name()
             _onboard_card_header(
-                "What age do you think they’ll start Social Security?",
+                f"What age do you think {spouse} will start Social Security?",
                 "Most people can start between 62 and 70. You can test different ages later."
             )
             st.number_input("Spouse / partner Social Security start age", min_value=62, max_value=70, step=1, key="onboard_spouse_ss_age")
 
         elif step_id == "retire_age":
             _onboard_card_header(
-                f"What age would you like to retire, {first}?",
-                "No pressure — this is just the first retirement age we’ll test."
+                f"At what age would you like to retire, {first}?",
+                "No pressure — this is just the first age we’ll test."
             )
             st.number_input("Target retirement age", min_value=18, max_value=100, step=1, key="onboard_retire_age")
 
         elif step_id == "savings":
+            spouse = _onboard_spouse_name()
+            if bool(st.session_state.get("onboard_has_spouse", False)):
+                title = f"About how much do you and {spouse} have saved for retirement today, combined?"
+                label = "Combined retirement savings today"
+            else:
+                title = "About how much do you have saved for retirement today?"
+                label = "Total retirement savings today"
             _onboard_card_header(
-                "About how much do you have saved for retirement today?",
-                "A close estimate is totally fine. We’ll split it 80% traditional and 20% Roth for the first draft, and you can refine that later."
+                title,
+                "A close estimate is totally fine. Include retirement accounts, savings, and investment accounts you want this plan to consider. You can break this down later in the detailed version."
             )
-            st.text_input("Total retirement savings today", value=_money_text_default("onboard_total_savings", 0), key="onboard_total_savings_text", placeholder="Example: 850,000")
+            st.text_input(label, value=_money_text_default("onboard_total_savings", 0), key="onboard_total_savings_text", placeholder="Example: 850,000")
 
         elif step_id == "annual_savings":
+            spouse = _onboard_spouse_name()
+            if bool(st.session_state.get("onboard_has_spouse", False)):
+                title = f"How much do you and {spouse} contribute to your retirement accounts each year, combined?"
+                label = "Combined yearly retirement contributions"
+            else:
+                title = "How much do you contribute to your retirement accounts each year?"
+                label = "Yearly retirement contributions"
             _onboard_card_header(
-                "How much do you expect to save each year before retirement?",
-                "Include 401(k), IRA, brokerage savings, and employer match if you want it reflected in the first blueprint."
+                title,
+                "Include 401(k), IRA, Roth, employer match, and any other retirement savings. A close estimate is fine."
             )
-            st.text_input("Yearly retirement savings", value=_money_text_default("onboard_annual_savings", 0), key="onboard_annual_savings_text", placeholder="Example: 25,000")
+            st.text_input(label, value=_money_text_default("onboard_annual_savings", 0), key="onboard_annual_savings_text", placeholder="Example: 25,000")
 
         elif step_id == "retirement_spending":
             _onboard_card_header(
@@ -8346,8 +8374,8 @@ def render_first_blueprint_card_wizard():
 
         elif step_id == "other_income":
             _onboard_card_header(
-                "Will you have any other monthly retirement income?",
-                "This could be a pension, rental income, part-time work, or anything else. Enter 0 if none."
+                "Will you have any other retirement income, like a pension, rental income, part-time work, or anything else?",
+                "Enter the monthly amount you expect. If none, enter 0."
             )
             st.text_input("Other retirement income per month", value=_money_text_default("onboard_other_income", 0), key="onboard_other_income_text", placeholder="Example: 500")
 
