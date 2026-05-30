@@ -5626,7 +5626,8 @@ def build_pdf_report(df):
         for reason in rtv_reasons[:5]:
             story.append(Paragraph(f"- {reason}", body))
 
-    story.append(Paragraph("<b>Educational purposes only:</b> This report is for general education and planning discussion only. It is not financial, tax, legal, insurance, or investment advice. Users should verify assumptions and consult qualified professionals before making retirement, tax, insurance, or investment decisions.", small))
+    story.append(Paragraph("<b>Educational purposes only:</b> This report is for general education and planning discussion only. It is not financial, tax, legal, insurance, Social Security, healthcare, retirement, or investment advice. Users should verify assumptions and consult qualified professionals before making retirement, tax, insurance, investment, healthcare, Social Security, or legal decisions.", small))
+    story.append(Paragraph(f"<b>{APP_COPYRIGHT_NOTICE}</b> This report and app content are for the user's personal planning use only and may not be copied, resold, redistributed, or used to create a competing product without written permission.", small))
     story.append(PageBreak())
 
     # Assumptions
@@ -5862,7 +5863,7 @@ def build_pdf_report(df):
         footer_logo_w = 0.95 * inch
         footer_logo_h = footer_logo_w * APP_LOGO_ASPECT
         canvas.drawImage(get_logo_image_reader(), 0.55 * inch, 0.14 * inch, width=footer_logo_w, height=footer_logo_h, preserveAspectRatio=True, mask='auto')
-        canvas.drawString(1.60 * inch, 0.32 * inch, "Retirement Blueprint 101 - Educational Planning Report")
+        canvas.drawString(1.60 * inch, 0.32 * inch, f"Retirement Blueprint 101 - Educational Planning Report | {APP_COPYRIGHT_NOTICE}")
         canvas.drawRightString(7.95 * inch, 0.32 * inch, f"Page {doc.page}")
         canvas.restoreState()
 
@@ -7371,6 +7372,101 @@ def render_suggested_spending_target_tool():
     st.divider()
 
 
+
+# -----------------------------
+# Legal / disclosure helpers
+# -----------------------------
+APP_COPYRIGHT_NOTICE = "© 2026 Retirement Blueprint 101. All rights reserved."
+APP_LEGAL_SHORT = "Educational planning tool only. Not financial, tax, legal, investment, insurance, Social Security, healthcare, or retirement advice."
+
+
+def legal_disclaimer_html(compact: bool = False) -> str:
+    if compact:
+        return f"""
+        <div style="border:1px solid #E2E8F0;border-radius:16px;padding:14px 16px;background:#F8FAFC;color:#475569;font-size:.9rem;line-height:1.45;margin-top:24px;">
+          <b>{APP_COPYRIGHT_NOTICE}</b><br/>
+          {APP_LEGAL_SHORT} Results are estimates based on the information entered and assumptions selected. No result is a guarantee.
+        </div>
+        """
+
+    return f"""
+    <div class="rb-insight-card" style="margin-top:18px;">
+      <div class="rb-insight-kicker">Legal & Important Disclaimers</div>
+      <div class="rb-insight-title">Please use this as a planning guide, not professional advice.</div>
+      <div class="rb-insight-copy">
+        Retirement Blueprint 101 is designed to help people understand retirement planning in plain English. It provides educational estimates based on the information entered and the assumptions selected.
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px;">
+        <div class="rb-card" style="min-height:auto;"><b>Not financial advice</b><br/><span class="rb-muted">This app does not provide financial, investment, tax, legal, insurance, Social Security, healthcare, or retirement advice.</span></div>
+        <div class="rb-card" style="min-height:auto;"><b>No guarantees</b><br/><span class="rb-muted">Markets, inflation, taxes, healthcare costs, Social Security rules, and personal circumstances can change.</span></div>
+        <div class="rb-card" style="min-height:auto;"><b>No advisor relationship</b><br/><span class="rb-muted">Using this app does not create a financial advisor, fiduciary, attorney, tax professional, planner, or client relationship.</span></div>
+        <div class="rb-card" style="min-height:auto;"><b>Check with professionals</b><br/><span class="rb-muted">Before making retirement, tax, investment, insurance, Social Security, healthcare, or legal decisions, review your plan with qualified professionals.</span></div>
+      </div>
+      <div style="margin-top:16px;color:#475569;line-height:1.55;">
+        <b>{APP_COPYRIGHT_NOTICE}</b> The app name, logo, text, reports, interface design, and educational content are intended for personal use only and may not be copied, resold, redistributed, or used to create a competing product without written permission.
+      </div>
+    </div>
+    """
+
+
+def render_legal_footer():
+    st.markdown(legal_disclaimer_html(compact=True), unsafe_allow_html=True)
+    f1, f2, f3 = st.columns([1, 1, 4])
+    with f1:
+        if st.button("Legal", key=f"footer_legal_{active_page}"):
+            go_to_page("Legal / Disclaimers")
+    with f2:
+        if st.button("Resources", key=f"footer_resources_{active_page}"):
+            go_to_page("Resources")
+
+
+def render_legal_page():
+    render_page_shell("Legal, Disclaimers & Copyright", "Plain-English legal notes for Retirement Blueprint 101.", "⚖️")
+
+    st.markdown(legal_disclaimer_html(compact=False), unsafe_allow_html=True)
+
+    st.subheader("Educational use only")
+    st.write("""
+Retirement Blueprint 101 is an educational planning tool. It helps users organize assumptions and understand possible retirement outcomes. It does not recommend that any person retire at a specific age, buy or sell investments, choose a specific account strategy, file taxes a certain way, claim Social Security at a specific age, buy insurance, relocate, or make legal decisions.
+""")
+
+    st.subheader("No professional advice or advisor relationship")
+    st.write("""
+The app is not a registered investment adviser, broker-dealer, CPA firm, law firm, insurance agency, Social Security adviser, healthcare adviser, or fiduciary financial planner. Using the app, saving a blueprint, downloading a report, or asking the AI coach a question does not create a client, advisor, fiduciary, attorney-client, tax professional, or planner relationship.
+""")
+
+    st.subheader("Estimates, assumptions, and accuracy")
+    st.write("""
+All projections are estimates. Results depend on the numbers entered by the user, including savings, spending, income, tax assumptions, market-return assumptions, inflation, retirement age, Social Security timing, and healthcare assumptions. Small changes can materially change the results. Tax laws, Social Security rules, Medicare rules, investment returns, inflation, cost of living, and personal circumstances may change over time.
+""")
+
+    st.subheader("Tax, Social Security, healthcare, and RMD estimates")
+    st.write("""
+Tax, Social Security, healthcare, and required minimum distribution calculations are simplified planning estimates. They may not reflect every deduction, credit, state tax, local tax, capital-gains rule, Medicare premium rule, IRMAA surcharge, ACA subsidy rule, pension rule, spousal benefit, survivor benefit, or account-specific restriction. Users should verify details with qualified professionals and official sources before making decisions.
+""")
+
+    st.subheader("Privacy and data")
+    st.write("""
+Users should not enter Social Security numbers, bank account numbers, brokerage account numbers, passwords, medical records, or other highly sensitive information into the planner. Account information and saved blueprints are used to help the user save, reload, and compare plans. Users are responsible for keeping their login information secure.
+""")
+
+    st.subheader("AI coach limitations")
+    st.write("""
+AI-generated explanations may be incomplete, outdated, or incorrect. They are intended to help explain concepts in plain English, not to make decisions for the user. Users should verify important information before acting on it.
+""")
+
+    st.subheader("Copyright and permitted use")
+    st.write(f"""
+{APP_COPYRIGHT_NOTICE} The Retirement Blueprint 101 name, logo, app design, report design, text, educational explanations, and user interface are protected by copyright and other applicable intellectual-property rights. Users may download reports for personal planning use. Users may not copy, resell, redistribute, modify, scrape, reverse engineer, or use the app, reports, or branding to build a competing product without written permission.
+""")
+
+    st.subheader("Limitation of responsibility")
+    st.write("""
+Retirement decisions can have major financial, tax, legal, healthcare, and lifestyle consequences. Users are responsible for reviewing their assumptions, checking results, and consulting qualified professionals before making decisions. Retirement Blueprint 101 is not responsible for decisions made based on estimates, projections, AI-generated content, or reports produced by the app.
+""")
+
+    st.warning(APP_LEGAL_SHORT)
+
 # -----------------------------
 # App navigation
 # -----------------------------
@@ -7393,6 +7489,7 @@ PAGE_NAMES = [
     "Retirement Age Optimizer",
     "Resources",
     "Help / Instructions",
+    "Legal / Disclaimers",
 ]
 
 PAGE_ICONS = {
@@ -7414,6 +7511,7 @@ PAGE_ICONS = {
     "Retirement Age Optimizer": "🎯",
     "Resources": "📚",
     "Help / Instructions": "❓",
+    "Legal / Disclaimers": "⚖️",
 }
 
 NAV_LABELS = {
@@ -7435,6 +7533,7 @@ NAV_LABELS = {
     "Retirement Age Optimizer": "Age Optimizer",
     "Resources": "Resources",
     "Help / Instructions": "Help",
+    "Legal / Disclaimers": "Legal",
 }
 
 
@@ -7550,6 +7649,7 @@ def render_navigation():
             "AI Retirement Coach",
             "Resources",
                     "Help / Instructions",
+                    "Legal / Disclaimers",
         ]
 
         for page_name in ordered_pages:
@@ -12408,8 +12508,12 @@ section[data-testid="stSidebar"] button {
 
         story.append(Spacer(1, 0.15 * inch))
         story.append(para(
-            "Important: This report is an educational estimate. It is not financial, tax, legal, investment, or insurance advice. "
-            "Before making retirement decisions, validate assumptions with qualified financial, tax, and legal professionals.",
+            "Important: This report is an educational estimate. It is not financial, tax, legal, investment, insurance, Social Security, healthcare, or retirement advice. "
+            "Before making retirement decisions, validate assumptions with qualified financial, tax, legal, insurance, and healthcare professionals.",
+            "RBSmall",
+        ))
+        story.append(para(
+            f"{APP_COPYRIGHT_NOTICE} This report and app content are for personal planning use only and may not be copied, resold, redistributed, or used to create a competing product without written permission.",
             "RBSmall",
         ))
 
@@ -12420,7 +12524,7 @@ section[data-testid="stSidebar"] button {
             footer_logo_w = 0.90 * inch
             footer_logo_h = footer_logo_w * APP_LOGO_ASPECT
             canvas.drawImage(get_logo_image_reader(), 0.45 * inch, 0.12 * inch, width=footer_logo_w, height=footer_logo_h, preserveAspectRatio=True, mask='auto')
-            canvas.drawString(1.42 * inch, 0.28 * inch, "Retirement Blueprint 101")
+            canvas.drawString(1.42 * inch, 0.28 * inch, f"Retirement Blueprint 101 | {APP_COPYRIGHT_NOTICE}")
             canvas.drawRightString(8.05 * inch, 0.28 * inch, f"Page {doc_obj.page}")
             canvas.restoreState()
 
@@ -13983,6 +14087,11 @@ if active_page == "Resources":
 
 
 
+if active_page == "Legal / Disclaimers":
+    render_legal_page()
+
+
+
 if active_page == "Help / Instructions":
     render_page_shell("How to Use This", "Learn what each section does, how to interpret your results, and the best order to use the planner.", "❓")
     page_help(
@@ -14040,3 +14149,7 @@ Income examples:
 All defaults start at zero so this can be shared with anyone.
 """)
     st.warning("Educational planning tool only. Not financial, tax, legal, investment, or insurance advice.")
+
+
+# Global app legal footer
+render_legal_footer()
