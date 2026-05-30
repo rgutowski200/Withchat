@@ -8623,21 +8623,6 @@ def render_dashboard_close_to_mock(df, rtv_score, rtv_label, rtv_reasons):
     </div>
     """, unsafe_allow_html=True)
 
-    # Roadmap
-    st.markdown("""
-    <div class="rb-roadmap-v2">
-      <div class="rb-roadmap-v2-title">Your Roadmap to a Confident Retirement</div>
-      <div class="rb-roadmap-steps">
-        <div class="rb-roadmap-step done"><div class="rb-roadmap-num">1</div><div class="rb-roadmap-step-title">Enter Your Numbers</div><div class="rb-roadmap-step-copy">Start your blueprint</div></div>
-        <div class="rb-roadmap-step done"><div class="rb-roadmap-num">2</div><div class="rb-roadmap-step-title">Get Your Score</div><div class="rb-roadmap-step-copy">See where you stand</div></div>
-        <div class="rb-roadmap-step"><div class="rb-roadmap-num">3</div><div class="rb-roadmap-step-title">See When You Can Retire</div><div class="rb-roadmap-step-copy">Find your best retirement age</div></div>
-        <div class="rb-roadmap-step"><div class="rb-roadmap-num">4</div><div class="rb-roadmap-step-title">Compare Better Options</div><div class="rb-roadmap-step-copy">Explore scenarios and strategies</div></div>
-        <div class="rb-roadmap-step"><div class="rb-roadmap-num">5</div><div class="rb-roadmap-step-title">Take Action</div><div class="rb-roadmap-step-copy">Build your action plan</div></div>
-        <div class="rb-roadmap-step"><div class="rb-roadmap-num">6</div><div class="rb-roadmap-step-title">Create Your Plan</div><div class="rb-roadmap-step-copy">Get your full report</div></div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
-
     # KPI cards
     c1, c2, c3, c4 = st.columns(4)
     with c1:
