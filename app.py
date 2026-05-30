@@ -3647,14 +3647,30 @@ def render_retirement_age_optimizer_page():
         )
 
         why_rows = [
-            ["Does the money last?", recommended["Plan Status"], f"The app checks whether the money appears to last through age {planning_age}. At this tested age, the projection shows {money(recommended['Ending Portfolio'])} left."],
-            ["Breathing room", money(recommended["Safety Cushion"]), f"This is how much the ending balance is above your comfort cushion of {money(opt['safety_target'])}. More breathing room usually means less stress."],
-            ["Savings pressure", pct(recommended["Max Withdrawal Rate"]), "This is the highest yearly pull from savings. Lower pressure usually gives the plan more wiggle room."],
-            ["Income help", pct(recommended["Avg Income Coverage"]), "This shows how much spending is covered by Social Security, pension, or other income before touching savings."],
-            ["Years before Medicare", f"{int(recommended['Healthcare Gap Years'])} years", "Retiring before 65 can mean paying for health insurance before Medicare starts."],
-            ["Years before Social Security", f"{int(recommended['Years Until Social Security'])} years", "Before Social Security starts, savings may have to do more of the heavy lifting."],
+            ("Does the money last?", recommended["Plan Status"], f"The app checks whether your money appears to last through age {planning_age}. At this tested age, the projection shows {money(recommended['Ending Portfolio'])} left."),
+            ("Breathing room", money(recommended["Safety Cushion"]), f"This is the amount above your comfort cushion of {money(opt['safety_target'])}. More breathing room usually means the plan has more room for surprises."),
+            ("Savings pressure", pct(recommended["Max Withdrawal Rate"]), "This is the biggest yearly pull from your savings. Lower pressure usually gives your plan more wiggle room."),
+            ("Income help", pct(recommended["Avg Income Coverage"]), "This shows how much of your spending is covered by Social Security, pension, or other income before using savings."),
+            ("Years before Medicare", f"{int(recommended['Healthcare GapYears']) if 'Healthcare GapYears' in recommended else int(recommended['Healthcare Gap Years'])} years", "Retiring before 65 can mean paying for health insurance before Medicare starts."),
+            ("Years before Social Security", f"{int(recommended['Years Until Social Security'])} years", "Before Social Security starts, your savings may need to carry more of the load."),
         ]
-        st.dataframe(pd.DataFrame(why_rows, columns=["What we checked", "Result", "Plain-English meaning"]), use_container_width=True, hide_index=True)
+
+        why_cards = []
+        for label, result, meaning in why_rows:
+            why_cards.append(f"""
+            <div style="border:1px solid #E2E8F0;border-radius:16px;padding:16px 18px;background:#FFFFFF;box-shadow:0 8px 22px rgba(15,23,42,.045);">
+              <div style="font-size:.78rem;font-weight:900;color:#2563EB;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;">{label}</div>
+              <div style="font-size:1.35rem;font-weight:900;color:#0F172A;margin-bottom:8px;">{result}</div>
+              <div style="font-size:1rem;line-height:1.55;color:#475569;white-space:normal;">{meaning}</div>
+            </div>
+            """)
+
+        st.markdown(
+            """
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:12px;margin-bottom:18px;">
+            """ + "".join(why_cards) + "</div>",
+            unsafe_allow_html=True,
+        )
 
         st.markdown("### Plain-English takeaway")
         if int(earliest["Retirement Age"]) < int(recommended["Retirement Age"]):
