@@ -7959,8 +7959,10 @@ if active_page == PAGE_NAMES[0]:
           </div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("Start My Blueprint", use_container_width=True, key="next_start_guided"):
-            go_to_page("Guided Questions")
+
+    st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
+    if st.button("Start My Blueprint", type="primary", use_container_width=True, key="home_big_start_before_premium"):
+        go_to_page("Guided Questions")
 
     st.markdown("### Premium Retirement Tools")
     st.caption("Once the basics are entered, these tools help compare retirement ages, reduce risk, plan withdrawals, and create a fuller retirement blueprint.")
