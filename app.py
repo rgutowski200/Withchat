@@ -7852,8 +7852,8 @@ def render_guided_progress(current_step: int):
         (1, "Start Blueprint", "Enter core numbers"),
         (2, "Spending Plan", "Estimate spending"),
         (3, "Income Plan", "Add income sources"),
-        (4, "Retirement Dashboard", "Review results"),
-        (5, "Improve / Upgrade", "Test better options"),
+        (4, "Review Inputs", "Check your answers"),
+        (5, "Retirement Dashboard", "See your results"),
     ]
 
     html = ['<div class="rb-progress-wrap">']
