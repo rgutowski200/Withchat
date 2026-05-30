@@ -7928,6 +7928,79 @@ def _onboard_steps():
     return steps
 
 
+
+def _parse_money_value(value, default=0):
+    """Parse user-friendly money input like 850000, $850,000, or 850,000."""
+    try:
+        if value is None:
+            return float(default or 0)
+        if isinstance(value, (int, float)):
+            return float(value)
+        cleaned = str(value).strip().replace("$", "").replace(",", "")
+        cleaned = cleaned.replace(" ", "")
+        if cleaned in ["", ".", "-"]:
+            return float(default or 0)
+        return float(cleaned)
+    except Exception:
+        return float(default or 0)
+
+
+def _money_text_default(base_key, fallback=0):
+    text_key = f"{base_key}_text"
+    if text_key in st.session_state and str(st.session_state.get(text_key, "") or "").strip() != "":
+        return str(st.session_state.get(text_key, ""))
+    value = st.session_state.get(base_key, fallback)
+    try:
+        return f"{int(float(value or 0)):,}"
+    except Exception:
+        return str(fallback or 0)
+
+
+def _onboard_money(base_key, fallback=0):
+    text_key = f"{base_key}_text"
+    if text_key in st.session_state:
+        value = _parse_money_value(st.session_state.get(text_key), fallback)
+        st.session_state[base_key] = int(round(value))
+        return value
+    return _parse_money_value(st.session_state.get(base_key, fallback), fallback)
+
+
+def _persist_onboard_step(step_id):
+    """Keep a durable copy of each onboarding answer before moving to the next card."""
+    if "first_blueprint_answers" not in st.session_state:
+        st.session_state.first_blueprint_answers = {}
+
+    step_keys = {
+        "name": ["onboard_name"],
+        "current_age": ["onboard_current_age"],
+        "current_income": ["onboard_current_income"],
+        "spouse": ["onboard_has_spouse"],
+        "spouse_age": ["onboard_spouse_age"],
+        "spouse_retire_age": ["onboard_spouse_retire_age"],
+        "spouse_social_security": ["onboard_spouse_ss"],
+        "spouse_ss_age": ["onboard_spouse_ss_age"],
+        "retire_age": ["onboard_retire_age"],
+        "savings": ["onboard_total_savings"],
+        "annual_savings": ["onboard_annual_savings"],
+        "retirement_spending": ["onboard_monthly_spending"],
+        "social_security": ["onboard_user_ss"],
+        "ss_age": ["onboard_ss_age"],
+        "other_income": ["onboard_other_income"],
+        "risk_level": ["onboard_risk_level"],
+    }
+
+    # Pull text money fields into the calculator fields first.
+    for key in [
+        "onboard_current_income", "onboard_spouse_ss", "onboard_total_savings",
+        "onboard_annual_savings", "onboard_monthly_spending", "onboard_user_ss",
+        "onboard_other_income",
+    ]:
+        if f"{key}_text" in st.session_state:
+            st.session_state[key] = int(round(_onboard_money(key, st.session_state.get(key, 0))))
+
+    for key in step_keys.get(step_id, []):
+        st.session_state.first_blueprint_answers[key] = st.session_state.get(key)
+
 def _risk_to_growth_return(risk_level):
     """Convert the plain-English onboarding risk choice into a starting return assumption.
 
@@ -7954,7 +8027,7 @@ def _validate_onboard_step(step_id):
             return f"Thanks, {first}. Please enter an age between 18 and 100."
 
     if step_id == "current_income":
-        income = float(st.session_state.get("onboard_current_income", 0) or 0)
+        income = _onboard_money("onboard_current_income", 0)
         if income < 0:
             return "Please enter zero or a positive income estimate."
 
@@ -7976,22 +8049,22 @@ def _validate_onboard_step(step_id):
             return "Your spouse/partner retirement age should be higher than their current age."
 
     if step_id == "savings":
-        savings = float(st.session_state.get("onboard_total_savings", 0) or 0)
+        savings = _onboard_money("onboard_total_savings", 0)
         if savings < 0:
             return "Please enter zero or a positive savings estimate."
 
     if step_id == "annual_savings":
-        savings = float(st.session_state.get("onboard_annual_savings", 0) or 0)
+        savings = _onboard_money("onboard_annual_savings", 0)
         if savings < 0:
             return "Please enter zero or a positive yearly savings estimate."
 
     if step_id == "retirement_spending":
-        monthly = float(st.session_state.get("onboard_monthly_spending", 0) or 0)
+        monthly = _onboard_money("onboard_monthly_spending", 0)
         if monthly <= 0:
             return "Please enter an estimated monthly retirement spending amount."
 
     if step_id in ["social_security", "spouse_social_security"]:
-        amount = float(st.session_state.get("onboard_user_ss" if step_id == "social_security" else "onboard_spouse_ss", 0) or 0)
+        amount = _onboard_money("onboard_user_ss" if step_id == "social_security" else "onboard_spouse_ss", 0)
         if amount < 0:
             return "Please enter zero or a positive Social Security estimate."
 
@@ -8002,7 +8075,7 @@ def _validate_onboard_step(step_id):
             return "Social Security start age should usually be between 62 and 70."
 
     if step_id == "other_income":
-        amount = float(st.session_state.get("onboard_other_income", 0) or 0)
+        amount = _onboard_money("onboard_other_income", 0)
         if amount < 0:
             return "Please enter zero or a positive other-income estimate."
 
@@ -8013,16 +8086,16 @@ def _apply_first_blueprint_answers():
     current_age = int(st.session_state.get("onboard_current_age", 55) or 55)
     retire_age = int(st.session_state.get("onboard_retire_age", 62) or 62)
     plan_age = 90
-    total_savings = int(st.session_state.get("onboard_total_savings", 0) or 0)
-    annual_savings = int(st.session_state.get("onboard_annual_savings", 0) or 0)
-    monthly_spending = int(st.session_state.get("onboard_monthly_spending", 0) or 0)
+    total_savings = int(round(_onboard_money("onboard_total_savings", 0)))
+    annual_savings = int(round(_onboard_money("onboard_annual_savings", 0)))
+    monthly_spending = int(round(_onboard_money("onboard_monthly_spending", 0)))
     ss_age = int(st.session_state.get("onboard_ss_age", 62) or 62)
-    user_ss_monthly = int(st.session_state.get("onboard_user_ss", 0) or 0)
-    other_income_monthly = int(st.session_state.get("onboard_other_income", 0) or 0)
+    user_ss_monthly = int(round(_onboard_money("onboard_user_ss", 0)))
+    other_income_monthly = int(round(_onboard_money("onboard_other_income", 0)))
     has_spouse = bool(st.session_state.get("onboard_has_spouse", False))
     spouse_age = int(st.session_state.get("onboard_spouse_age", 0) or 0) if has_spouse else 0
     spouse_retire_age = int(st.session_state.get("onboard_spouse_retire_age", retire_age) or retire_age) if has_spouse else 0
-    spouse_ss_monthly = int(st.session_state.get("onboard_spouse_ss", 0) or 0) if has_spouse else 0
+    spouse_ss_monthly = int(round(_onboard_money("onboard_spouse_ss", 0))) if has_spouse else 0
     spouse_ss_age = int(st.session_state.get("onboard_spouse_ss_age", 62) or 62) if has_spouse else 62
     risk_level = str(st.session_state.get("onboard_risk_level", "Balanced") or "Balanced")
     growth_return = _risk_to_growth_return(risk_level)
@@ -8033,7 +8106,7 @@ def _apply_first_blueprint_answers():
 
     updates = {
         "first_name": _onboard_first_name(),
-        "current_annual_income": int(st.session_state.get("onboard_current_income", 0) or 0),
+        "current_annual_income": int(round(_onboard_money("onboard_current_income", 0))),
         "current_age": current_age,
         "retire_age": retire_age,
         "end_age": plan_age,
@@ -8170,7 +8243,7 @@ def render_first_blueprint_card_wizard():
                 f"Thanks, {first}. About how much do you earn per year before taxes?",
                 "A close estimate is completely fine. This gives us context for savings and retirement readiness."
             )
-            st.number_input("Current yearly income before taxes", min_value=0, step=1000, format="%d", key="onboard_current_income")
+            st.text_input("Current yearly income before taxes", value=_money_text_default("onboard_current_income", 0), key="onboard_current_income_text", placeholder="Example: 120,000")
 
         elif step_id == "spouse":
             _onboard_card_header(
@@ -8205,7 +8278,7 @@ def render_first_blueprint_card_wizard():
                 "Do they have a Social Security estimate too?",
                 "A rough monthly estimate is fine. If you are not sure, you can enter 0 and update it later."
             )
-            st.number_input("Estimated spouse / partner Social Security per month", min_value=0, step=100, format="%d", key="onboard_spouse_ss")
+            st.text_input("Estimated spouse / partner Social Security per month", value=_money_text_default("onboard_spouse_ss", 0), key="onboard_spouse_ss_text", placeholder="Example: 2,000")
 
         elif step_id == "spouse_ss_age":
             _onboard_card_header(
@@ -8226,28 +8299,28 @@ def render_first_blueprint_card_wizard():
                 "About how much do you have saved for retirement today?",
                 "A close estimate is totally fine. We’ll split it 80% traditional and 20% Roth for the first draft, and you can refine that later."
             )
-            st.number_input("Total retirement savings today", min_value=0, step=5000, format="%d", key="onboard_total_savings")
+            st.text_input("Total retirement savings today", value=_money_text_default("onboard_total_savings", 0), key="onboard_total_savings_text", placeholder="Example: 850,000")
 
         elif step_id == "annual_savings":
             _onboard_card_header(
                 "How much do you expect to save each year before retirement?",
                 "Include 401(k), IRA, brokerage savings, and employer match if you want it reflected in the first blueprint."
             )
-            st.number_input("Yearly retirement savings", min_value=0, step=1000, format="%d", key="onboard_annual_savings")
+            st.text_input("Yearly retirement savings", value=_money_text_default("onboard_annual_savings", 0), key="onboard_annual_savings_text", placeholder="Example: 25,000")
 
         elif step_id == "retirement_spending":
             _onboard_card_header(
                 f"In retirement, about how much would you like to spend each month, {first}?",
                 "Think of this as the lifestyle number you want to test first. You can adjust it later."
             )
-            st.number_input("Monthly retirement spending", min_value=0, step=250, format="%d", key="onboard_monthly_spending")
+            st.text_input("Monthly retirement spending", value=_money_text_default("onboard_monthly_spending", 8000), key="onboard_monthly_spending_text", placeholder="Example: 8,000")
 
         elif step_id == "social_security":
             _onboard_card_header(
                 "Do you have an estimate for your Social Security?",
                 "Use a monthly estimate. If you are not sure yet, you can enter 0 and update it later."
             )
-            st.number_input("Estimated Social Security per month", min_value=0, step=100, format="%d", key="onboard_user_ss")
+            st.text_input("Estimated Social Security per month", value=_money_text_default("onboard_user_ss", 0), key="onboard_user_ss_text", placeholder="Example: 2,400")
 
         elif step_id == "ss_age":
             _onboard_card_header(
@@ -8261,7 +8334,7 @@ def render_first_blueprint_card_wizard():
                 "Will you have any other monthly retirement income?",
                 "This could be a pension, rental income, part-time work, or anything else. Enter 0 if none."
             )
-            st.number_input("Other retirement income per month", min_value=0, step=100, format="%d", key="onboard_other_income")
+            st.text_input("Other retirement income per month", value=_money_text_default("onboard_other_income", 0), key="onboard_other_income_text", placeholder="Example: 500")
 
         elif step_id == "risk_level":
             _onboard_card_header(
@@ -8293,8 +8366,8 @@ def render_first_blueprint_card_wizard():
                 f"Perfect, {first} — ready to build your first Retirement Blueprint?",
                 "After this, I’ll take you straight to the Retirement Dashboard so you can see your plain-English result."
             )
-            total_savings = float(st.session_state.get("onboard_total_savings", 0) or 0)
-            monthly_spending = float(st.session_state.get("onboard_monthly_spending", 0) or 0)
+            total_savings = _onboard_money("onboard_total_savings", 0)
+            monthly_spending = _onboard_money("onboard_monthly_spending", 0)
             st.markdown(
                 f"""
                 <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:10px;">
@@ -8318,10 +8391,13 @@ def render_first_blueprint_card_wizard():
     with next_col:
         if step_id == "review":
             if st.button("Build My First Blueprint", type="primary", use_container_width=True, key="onboard_build_blueprint"):
+                for _step in _onboard_steps():
+                    _persist_onboard_step(_step)
                 _apply_first_blueprint_answers()
                 st.rerun()
         else:
             if st.button("Next", type="primary", use_container_width=True, key="onboard_next"):
+                _persist_onboard_step(step_id)
                 error = _validate_onboard_step(step_id)
                 if error:
                     st.error(error)
@@ -9609,37 +9685,67 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
     income_coverage = float(df["Income Coverage Ratio"].mean() or 0) if "Income Coverage Ratio" in df.columns else 0.0
     max_withdrawal_rate = float(df["Withdrawal Rate"].max() or 0) if "Withdrawal Rate" in df.columns else 0.0
 
+    # Show the user's actual spending gap before portfolio withdrawals.
+    # This is more understandable than showing $0 when the portfolio is already depleted.
     avg_gap = 0.0
-    if "Portfolio Need" in df.columns:
-        avg_gap = float(df["Portfolio Need"].mean() or 0)
-    elif "Total Spending" in df.columns and "Total Non-Portfolio Income" in df.columns:
-        avg_gap = float((df["Total Spending"] - df["Total Non-Portfolio Income"]).clip(lower=0).mean() or 0)
+    retired_df = df[df["Age"] >= retire_age].copy() if "Age" in df.columns and retire_age else df.copy()
+    if "Total Spending" in retired_df.columns and "Total Non-Portfolio Income" in retired_df.columns and not retired_df.empty:
+        avg_gap = float((retired_df["Total Spending"] - retired_df["Total Non-Portfolio Income"]).clip(lower=0).mean() or 0)
+    elif "Portfolio Need" in retired_df.columns and not retired_df.empty:
+        avg_gap = float(retired_df["Portfolio Need"].mean() or 0)
     monthly_gap = max(avg_gap, 0) / 12
+
+    runout_age = None
+    try:
+        if "End Total" in df.columns:
+            runout_rows = df[df["End Total"] <= 0]
+            if not runout_rows.empty and "Age" in df.columns:
+                runout_age = int(runout_rows["Age"].iloc[0])
+    except Exception:
+        runout_age = None
 
     if rtv_score >= 80 and unmet_need <= 0 and ending_balance > 0:
         score_pill = "✓ Strong"
         score_title = f"Yes — retiring at {retire_age} looks workable."
         score_copy = f"Your plan appears to last through age {end_age} with a solid cushion. A few small improvements could make it even more comfortable."
         status_short = "Yes"
-        status_pill = "Based on your plan"
+        status_pill = "On track"
         longevity_value = f"To age {end_age}+"
         longevity_pill = "Lasts the whole plan"
-    elif rtv_score >= 65 and unmet_need <= 0:
-        score_pill = "⚠ Close"
+        dashboard_status_color = "#15803D"
+        dashboard_pill_bg = "#DCFCE7"
+        dashboard_pill_color = "#166534"
+        banner_border = "#BBF7D0"
+        banner_bg = "linear-gradient(135deg,#ECFDF5 0%,#F0FDFA 100%)"
+        badge_bg = "linear-gradient(135deg,#22C55E,#059669)"
+    elif rtv_score >= 65 and unmet_need <= 0 and ending_balance > 0:
+        score_pill = "⚠ Maybe"
         score_title = f"Retiring at {retire_age} may work, but review the cushion."
         score_copy = "Your plan has some positive signs, but the margin is thinner. Spending, Social Security timing, or retirement age may deserve another test."
         status_short = "Maybe"
         status_pill = "Needs review"
         longevity_value = f"To age {end_age}"
         longevity_pill = "Watch the cushion"
+        dashboard_status_color = "#B45309"
+        dashboard_pill_bg = "#FEF3C7"
+        dashboard_pill_color = "#92400E"
+        banner_border = "#FDE68A"
+        banner_bg = "linear-gradient(135deg,#FFFBEB 0%,#FEF3C7 100%)"
+        badge_bg = "linear-gradient(135deg,#F59E0B,#D97706)"
     else:
-        score_pill = "⚠ Needs work"
+        score_pill = "Needs help"
         score_title = f"Retiring at {retire_age} needs more adjustment."
-        score_copy = "The current blueprint may need lower spending, more income, more savings, or a later retirement age before it looks comfortable."
+        score_copy = "The current blueprint is showing a shortfall or very thin cushion. The biggest levers are usually saving more, lowering spending, adding income, or testing a later retirement age."
         status_short = "Not yet"
         status_pill = "Needs changes"
         longevity_value = "At risk"
-        longevity_pill = "Runs short risk"
+        longevity_pill = f"Runs out at {runout_age}" if runout_age else "Runs short risk"
+        dashboard_status_color = "#B91C1C"
+        dashboard_pill_bg = "#FEE2E2"
+        dashboard_pill_color = "#991B1B"
+        banner_border = "#FECACA"
+        banner_bg = "linear-gradient(135deg,#FEF2F2 0%,#FFF7ED 100%)"
+        badge_bg = "linear-gradient(135deg,#EF4444,#DC2626)"
 
     if income_coverage >= 0.70:
         income_label, income_class = "Strong", "rb-pill-green"
@@ -9682,12 +9788,28 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
     else:
         market_label, market_class = "Lower", "rb-pill-green"
 
-    summary_text = (
-        f"You told us you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
-        f"After Social Security and other income, your savings may need to cover roughly <b>{money(monthly_gap)}/month</b>. "
-        f"The good news: your projected balance at age <b>{end_age}</b> is about <b>{compact_money(ending_balance)}</b>. "
-        "The main thing to check next is what happens if the market has a few bad years right after you retire."
-    )
+    if unmet_need > 0 or ending_balance <= 0 or rtv_score < 60:
+        runout_phrase = f" The projection appears to run short around age <b>{runout_age}</b>." if runout_age else " The projection is showing a shortfall."
+        summary_text = (
+            f"You told us you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
+            f"After Social Security and other income, your plan may need about <b>{money(monthly_gap)}/month</b> from savings."
+            f"{runout_phrase} This does not mean retirement is impossible — it means the first blueprint needs changes. "
+            "Start by testing a later retirement age, lower spending, more yearly savings, or additional income."
+        )
+    elif rtv_score < 80:
+        summary_text = (
+            f"You told us you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
+            f"After Social Security and other income, your savings may need to cover roughly <b>{money(monthly_gap)}/month</b>. "
+            f"The projection still shows about <b>{compact_money(ending_balance)}</b> at age <b>{end_age}</b>, but the cushion may be thin. "
+            "The next step is to compare a few changes and stress test bad market years."
+        )
+    else:
+        summary_text = (
+            f"You told us you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
+            f"After Social Security and other income, your savings may need to cover roughly <b>{money(monthly_gap)}/month</b>. "
+            f"The good news: your projected balance at age <b>{end_age}</b> is about <b>{compact_money(ending_balance)}</b>. "
+            "The main thing to check next is what happens if the market has a few bad years right after you retire."
+        )
 
     st.markdown(f"""
     <div class="rb-blueprint-mock-hero">
@@ -9706,10 +9828,10 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
     st.caption("Tax estimates now include taxable Social Security when provisional income exceeds IRS thresholds. Roth and cash withdrawals are modeled as tax-free; taxable brokerage is still simplified until the capital-gains phase.")
 
     st.markdown(f"""
-    <div class="rb-score-banner">
-      <div class="rb-score-badge"><div class="rb-score-badge-num">{int(rtv_score)}</div><div class="rb-score-badge-label">OUT OF 100</div></div>
+    <div class="rb-score-banner" style="border-color:{banner_border};background:{banner_bg};">
+      <div class="rb-score-badge" style="background:{badge_bg};"><div class="rb-score-badge-num">{int(rtv_score)}</div><div class="rb-score-badge-label">OUT OF 100</div></div>
       <div>
-        <div class="rb-score-banner-pill">{xml_escape(score_pill)}</div>
+        <div class="rb-score-banner-pill" style="background:{dashboard_pill_bg};color:{dashboard_pill_color};">{xml_escape(score_pill)}</div>
         <div class="rb-score-banner-title">{xml_escape(score_title)}</div>
         <div class="rb-score-banner-copy">{xml_escape(score_copy)}</div>
       </div>
@@ -9721,26 +9843,26 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
     <div class="rb-card-grid">
       <div class="rb-card">
         <div class="rb-card-label">Can I retire at {retire_age}?</div>
-        <div class="rb-card-value" style="color:#15803D;">{xml_escape(status_short)}</div>
-        <div class="rb-kpi-pill">{xml_escape(status_pill)}</div>
+        <div class="rb-card-value" style="color:{dashboard_status_color};">{xml_escape(status_short)}</div>
+        <div class="rb-kpi-pill" style="background:{dashboard_pill_bg};color:{dashboard_pill_color};">{xml_escape(status_pill)}</div>
         <div class="rb-card-note">Your savings and income vs. when you want to stop working.</div>
       </div>
       <div class="rb-card">
         <div class="rb-card-label">Will my money last?</div>
-        <div class="rb-card-value" style="color:#15803D;">{xml_escape(longevity_value)}</div>
-        <div class="rb-kpi-pill">{xml_escape(longevity_pill)}</div>
+        <div class="rb-card-value" style="color:{dashboard_status_color};">{xml_escape(longevity_value)}</div>
+        <div class="rb-kpi-pill" style="background:{dashboard_pill_bg};color:{dashboard_pill_color};">{xml_escape(longevity_pill)}</div>
         <div class="rb-card-note">Whether your money outlasts your plan, or runs out early.</div>
       </div>
       <div class="rb-card">
         <div class="rb-card-label">Money Left at {end_age}</div>
-        <div class="rb-card-value" style="color:#15803D;">{money(ending_balance)}</div>
-        <div class="rb-kpi-pill">Projected</div>
+        <div class="rb-card-value" style="color:{'#15803D' if ending_balance > 0 and unmet_need <= 0 else '#B91C1C'};">{money(ending_balance)}</div>
+        <div class="rb-kpi-pill" style="background:{'#DCFCE7' if ending_balance > 0 and unmet_need <= 0 else '#FEE2E2'};color:{'#166534' if ending_balance > 0 and unmet_need <= 0 else '#991B1B'};">Projected</div>
         <div class="rb-card-note">Estimated balance at the end of the plan.</div>
       </div>
       <div class="rb-card">
         <div class="rb-card-label">Monthly Gap From Savings</div>
         <div class="rb-card-value">{money(monthly_gap)}</div>
-        <div class="rb-kpi-pill">Savings need</div>
+        <div class="rb-kpi-pill" style="background:{dashboard_pill_bg if rtv_score < 80 else '#DCFCE7'};color:{dashboard_pill_color if rtv_score < 80 else '#166534'};">Savings need</div>
         <div class="rb-card-note">Estimated monthly amount that needs to come from savings.</div>
       </div>
     </div>
