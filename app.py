@@ -8548,6 +8548,176 @@ def calculate_basic_blueprint_snapshot():
 
 def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
     """Premium-looking dashboard summary inspired by the requested mockup."""
+
+    # Local CSS for the premium dashboard mockup. This keeps the section styled even
+    # when the dashboard is rendered before other page-specific CSS blocks.
+    st.markdown("""
+    <style>
+/* Premium Blueprint Dashboard mockup section */
+.rb-blueprint-mock-hero {
+    display:flex;
+    gap:14px;
+    align-items:flex-start;
+    border:1px solid #C7E3FF;
+    border-radius:22px;
+    background:linear-gradient(135deg,#F8FBFF 0%,#FFFFFF 62%,#ECFEFF 100%);
+    padding:20px 22px;
+    margin:8px 0 18px 0;
+    box-shadow:0 12px 30px rgba(15,23,42,.055);
+}
+.rb-blueprint-mock-icon {
+    width:48px;
+    height:48px;
+    border-radius:14px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#E0F2FE;
+    font-size:1.45rem;
+    flex:0 0 auto;
+}
+.rb-blueprint-mock-kicker-pill {
+    display:inline-flex;
+    align-items:center;
+    border-radius:999px;
+    padding:4px 10px;
+    background:#DBEAFE;
+    color:#1D4ED8;
+    font-size:.76rem;
+    font-weight:900;
+    margin-bottom:8px;
+}
+.rb-blueprint-mock-title {
+    color:#0F172A;
+    font-size:1.45rem;
+    font-weight:950;
+    letter-spacing:-.03em;
+    margin-bottom:4px;
+}
+.rb-blueprint-mock-sub {
+    color:#64748B;
+    line-height:1.45;
+    max-width:850px;
+}
+.rb-score-banner {
+    display:flex;
+    gap:18px;
+    align-items:center;
+    border:1px solid #BBF7D0;
+    border-radius:22px;
+    background:linear-gradient(135deg,#ECFDF5 0%,#F0FDFA 100%);
+    padding:22px 24px;
+    margin:18px 0 20px 0;
+    box-shadow:0 14px 30px rgba(16,185,129,.10);
+}
+.rb-score-badge {
+    width:74px;
+    height:74px;
+    border-radius:18px;
+    background:linear-gradient(135deg,#22C55E,#059669);
+    color:#FFFFFF;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    box-shadow:0 14px 24px rgba(5,150,105,.25);
+    flex:0 0 auto;
+}
+.rb-score-badge-num { font-size:1.8rem; font-weight:950; line-height:1; }
+.rb-score-badge-label { font-size:.55rem; font-weight:900; letter-spacing:.05em; margin-top:4px; }
+.rb-score-banner-pill {
+    display:inline-flex;
+    border-radius:999px;
+    padding:4px 10px;
+    background:#DCFCE7;
+    color:#15803D;
+    font-size:.75rem;
+    font-weight:900;
+    margin-bottom:7px;
+}
+.rb-score-banner-title {
+    color:#0F172A;
+    font-size:1.25rem;
+    font-weight:950;
+    letter-spacing:-.02em;
+    margin-bottom:4px;
+}
+.rb-score-banner-copy { color:#475569; line-height:1.5; }
+.rb-dashboard-section-kicker {
+    color:#2563EB;
+    font-size:.78rem;
+    font-weight:950;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    margin:20px 0 10px 3px;
+}
+.rb-health-timeline-grid {
+    display:grid;
+    grid-template-columns: 1.08fr .92fr;
+    gap:18px;
+    margin:18px 0 20px 0;
+}
+.rb-panel-card {
+    background:#FFFFFF;
+    border:1px solid #E5E7EB;
+    border-radius:22px;
+    padding:20px 22px;
+    box-shadow:0 10px 26px rgba(15,23,42,.055);
+}
+.rb-panel-title {
+    color:#0F172A;
+    font-size:1.15rem;
+    font-weight:950;
+    margin-bottom:4px;
+}
+.rb-panel-sub { color:#64748B; font-size:.9rem; margin-bottom:16px; }
+.rb-health-row {
+    display:grid;
+    grid-template-columns: 42px 1fr auto;
+    gap:12px;
+    align-items:center;
+    padding:12px 0;
+    border-top:1px solid #F1F5F9;
+}
+.rb-health-row:first-of-type { border-top:0; }
+.rb-health-icon {
+    width:34px;
+    height:34px;
+    border-radius:10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#F8FAFC;
+    font-size:1rem;
+}
+.rb-health-title { color:#0F172A; font-weight:900; }
+.rb-health-copy { color:#64748B; font-size:.86rem; line-height:1.35; }
+.rb-health-pill {
+    border-radius:999px;
+    padding:5px 10px;
+    font-weight:900;
+    font-size:.72rem;
+    white-space:nowrap;
+}
+.rb-pill-green { background:#DCFCE7; color:#15803D; }
+.rb-pill-yellow { background:#FEF3C7; color:#B45309; }
+.rb-pill-red { background:#FEE2E2; color:#B91C1C; }
+.rb-pill-blue { background:#DBEAFE; color:#1D4ED8; }
+.rb-timeline-row {
+    display:grid;
+    grid-template-columns: 52px 1fr;
+    gap:12px;
+    padding:12px 0;
+}
+.rb-timeline-age { color:#2563EB; font-weight:950; }
+.rb-timeline-title { color:#0F172A; font-weight:900; }
+.rb-timeline-copy { color:#64748B; font-size:.86rem; line-height:1.35; }
+@media (max-width: 900px) {
+    .rb-score-banner { align-items:flex-start; }
+    .rb-health-timeline-grid { grid-template-columns:1fr; }
+}
+    </style>
+    """, unsafe_allow_html=True)
     current_age = int(st.session_state.get("current_age", 0) or 0)
     retire_age = int(st.session_state.get("retire_age", 0) or 0)
     end_age = int(st.session_state.get("end_age", 90) or 90)
