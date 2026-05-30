@@ -7739,7 +7739,6 @@ def render_guided_progress(current_step: int):
 
 
 if active_page == PAGE_NAMES[0]:
-    render_guided_progress(1)
     missing_items_home = required_missing()
 
     safe_df_home = pd.DataFrame()
@@ -8011,6 +8010,8 @@ if active_page == PAGE_NAMES[0]:
           </div>
         </div>
         """, unsafe_allow_html=True)
+
+        render_guided_progress(1)
 
     if not required_panel:
         st.success("Your blueprint has enough information to review the dashboard, action plan, confidence test, stress tests, and reports.")
