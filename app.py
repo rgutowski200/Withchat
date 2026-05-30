@@ -8087,31 +8087,21 @@ if active_page == PAGE_NAMES[0]:
           </div>
         </div>
 
+        <div style="background:#ffffff; border:1px solid #dbeafe; border-left:7px solid #2563eb; border-radius:22px; padding:22px 24px; margin-bottom:22px; box-shadow:0 14px 34px rgba(15,23,42,.06); display:grid; grid-template-columns:150px 1fr; gap:20px; align-items:center;">
+          <div style="font-size:3.4rem; font-weight:950; color:#2563eb; line-height:1;">67%</div>
+          <div>
+            <div style="font-size:1.35rem; font-weight:950; color:#0f172a; margin-bottom:6px;">of Americans say they worry more about running out of money in retirement than death.</div>
+            <div class="rb-muted" style="font-size:1.02rem; line-height:1.5;">That fear is exactly why Retirement Blueprint 101 exists: to turn the numbers into plain-English answers before you make one of life’s biggest decisions.</div>
+            <div style="font-size:.78rem; color:#64748b; margin-top:9px;">Source: Allianz Life 2026 Annual Retirement Study</div>
+          </div>
+        </div>
+
         <div style="background:linear-gradient(135deg,#eff6ff,#f8fafc,#ecfdf5); border:1px solid #bfdbfe; border-left:7px solid #2563eb; border-radius:22px; padding:22px 24px; margin-bottom:22px; box-shadow:0 14px 34px rgba(15,23,42,.06);">
           <div style="font-size:.82rem; font-weight:950; color:#2563eb; letter-spacing:.12em; text-transform:uppercase; margin-bottom:8px;">Built for real people — not just financial pros</div>
           <div style="font-size:1.45rem; font-weight:950; color:#0f172a; margin-bottom:8px;">You do not need to read complicated charts or know financial jargon.</div>
           <div style="color:#475569; font-size:1.05rem; line-height:1.55; max-width:1050px;">
             Most people are not retirement experts, and they should not have to be. This app explains your plan in everyday language,
             so you can understand what the numbers mean, where the risks are, and which changes could improve your retirement confidence.
-          </div>
-        </div>
-
-        <div style="display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:16px; margin-bottom: 22px;">
-          <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:20px; padding:20px; box-shadow:0 12px 28px rgba(15,23,42,.06);">
-            <div style="font-size:2.4rem; font-weight:950; color:#2563eb; line-height:1;">67%</div>
-            <div style="font-weight:900; color:#0f172a; margin-top:8px;">worry more about running out of money than death</div>
-            <div class="rb-muted" style="margin-top:8px;">That fear is exactly what this app is built to help people test in plain English.</div>
-            <div style="font-size:.78rem; color:#64748b; margin-top:10px;">Source: Allianz Life 2026 Annual Retirement Study</div>
-          </div>
-          <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:20px; padding:20px; box-shadow:0 12px 28px rgba(15,23,42,.06);">
-            <div style="font-size:2.4rem; font-weight:950; color:#16a34a; line-height:1;">3</div>
-            <div style="font-weight:900; color:#0f172a; margin-top:8px;">big questions answered</div>
-            <div class="rb-muted" style="margin-top:8px;">Can I retire? Will my money last? What should I change first?</div>
-          </div>
-          <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:20px; padding:20px; box-shadow:0 12px 28px rgba(15,23,42,.06);">
-            <div style="font-size:2.4rem; font-weight:950; color:#0f172a; line-height:1;">1</div>
-            <div style="font-weight:900; color:#0f172a; margin-top:8px;">personal blueprint</div>
-            <div class="rb-muted" style="margin-top:8px;">A simple plan you can save, compare, improve, and turn into a report.</div>
           </div>
         </div>
 
