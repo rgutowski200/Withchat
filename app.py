@@ -8615,52 +8615,7 @@ def render_dashboard_close_to_mock(df, rtv_score, rtv_label, rtv_reasons):
         money_left_note = "Estimated balance at the end of the plan."
         money_left_class = "rb-kpi-value green"
 
-    # Header
-    st.markdown(f"""
-    <div class="rb-saas-hero">
-      <div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # KPI cards
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.markdown(f"""
-        <div class="rb-kpi-card-v2">
-          <div class="rb-kpi-label">Blueprint Score</div>
-          <div class="rb-kpi-value">{int(rtv_score)}</div>
-          <div class="rb-kpi-pill">{rtv_label}</div>
-          <div class="rb-kpi-note">A few improvements can increase confidence.</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with c2:
-        st.markdown(f"""
-        <div class="rb-kpi-card-v2">
-          <div class="rb-kpi-label">Current Target Age</div>
-          <div class="rb-kpi-value">{chosen_age}</div>
-          <div class="rb-kpi-pill">Current target</div>
-          <div class="rb-kpi-note">Shows whether your target retirement age appears realistic.</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with c3:
-        st.markdown(f"""
-        <div class="rb-kpi-card-v2">
-          <div class="rb-kpi-label">Money Left at {planning_age}</div>
-          <div class="{money_left_class}">{money(ending)}</div>
-          <div class="rb-kpi-pill">{money_left_pill}</div>
-          <div class="rb-kpi-note">{money_left_note}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with c4:
-        st.markdown(f"""
-        <div class="rb-kpi-card-v2">
-          <div class="rb-kpi-label">Monthly Gap From Savings</div>
-          <div class="rb-kpi-value">{monthly_gap}</div>
-          <div class="rb-kpi-pill">Savings need</div>
-          <div class="rb-kpi-note">Estimated monthly amount that needs to come from savings.</div>
-        </div>
-        """, unsafe_allow_html=True)
+    # Top KPI card row removed per design preference.
 
     # Next step and chart
     try:
