@@ -7892,12 +7892,6 @@ if active_page == PAGE_NAMES[0]:
     </div>
     """, unsafe_allow_html=True)
 
-    if not user:
-        btn_left, btn_right = st.columns([4, 1.25])
-        with btn_right:
-            if st.button("Sign In / Create Account", use_container_width=True, key="open_home_auth"):
-                st.session_state.show_auth_form = True
-                st.rerun()
 
     if safe_can_run_home:
         st.markdown("""
