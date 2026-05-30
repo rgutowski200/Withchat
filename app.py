@@ -10268,7 +10268,7 @@ if active_page == PAGE_NAMES[6]:
     render_guided_progress(4)
     if st.session_state.get("dashboard_focus"):
         focus_label = st.session_state.get("dashboard_focus")
-        st.info(f"Opened from Premium Retirement Tools: **{focus_label}**. Use the premium tool buttons below or open advanced dashboard details.")
+        st.info(f"Opened from Premium Retirement Tools: **{focus_label}**. I brought the related tool area into view below the main dashboard summary.")
         if st.button("Clear premium tool note", key="clear_dashboard_focus"):
             st.session_state.dashboard_focus = ""
             st.rerun()
@@ -10290,6 +10290,39 @@ if active_page == PAGE_NAMES[6]:
         render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label)
 
         render_dashboard_close_to_mock(df, rtv_score, rtv_label, rtv_reasons)
+
+        dashboard_focus_label = st.session_state.get("dashboard_focus", "")
+        if dashboard_focus_label:
+            st.markdown("### Premium tool opened")
+            st.caption("This is the section connected to the button you clicked.")
+            if dashboard_focus_label == "2-Bucket Strategy":
+                st.subheader("2-Bucket Strategy")
+                section_note("This shows how much may belong in a safer short-term bucket versus a longer-term growth bucket.")
+                render_three_bucket_strategy(df)
+                st.divider()
+            elif dashboard_focus_label == "Scenario Comparison":
+                st.subheader("Scenario Comparison")
+                section_note("This lets you compare different retirement ages and see how the score, ending balance, and withdrawal pressure change.")
+                render_scenario_comparison_panel()
+                st.divider()
+            elif dashboard_focus_label == "Roth Conversion Explorer":
+                st.subheader("Roth Conversion Explorer")
+                section_note("This helps you review whether moving some pre-tax retirement money to Roth might affect taxes and future flexibility. It is educational only.")
+                rcol1, rcol2 = st.columns(2)
+                with rcol1:
+                    st.metric("Annual Roth Conversion Tested", money(float(st.session_state.get("annual_conversion", 0) or 0)))
+                with rcol2:
+                    st.metric("Traditional / Roth Balance", f"{money(float(st.session_state.get('traditional', 0) or 0))} / {money(float(st.session_state.get('roth', 0) or 0))}")
+                rr1, rr2 = st.columns(2)
+                with rr1:
+                    if st.button("Edit Roth Conversion Amount", use_container_width=True, key="dashboard_focus_edit_roth_conversion"):
+                        go_to_page("Guided Questions")
+                with rr2:
+                    if st.button("Review Tax Impact in Projection", use_container_width=True, key="dashboard_focus_review_roth_projection"):
+                        st.session_state.projection_focus = "Tax-Aware Withdrawal Plan"
+                        go_to_page("Projection Table")
+                st.warning("Educational purposes only. Roth conversions can create taxes today and should be reviewed with a qualified tax or financial professional.")
+                st.divider()
 
         # Plain-English explanation directly under the Retirement Dashboard cards.
         retirement_dashboard_reason_bits = []
@@ -10453,7 +10486,7 @@ if active_page == PAGE_NAMES[6]:
 
 
 
-        with st.expander("Advanced Dashboard Details", expanded=False):
+        with st.expander("Advanced Dashboard Details", expanded=bool(st.session_state.get("dashboard_focus"))):
             summary_dashboard = {
                 "traditional": float(st.session_state.traditional),
                 "roth": float(st.session_state.roth),
