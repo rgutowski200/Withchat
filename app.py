@@ -8346,12 +8346,17 @@ def _apply_first_blueprint_answers():
 
 
 def _onboard_card_header(title, subtitle=None):
+    """Render the question header inside the current onboarding card.
+
+    Keep this lightweight so each step feels like one clean card: question,
+    helper text, input, then Next.
+    """
     st.markdown(
         f"""
-        <div class="rb-insight-card" style="margin-top:10px;margin-bottom:18px;">
+        <div style="padding:4px 2px 14px 2px;">
           <div class="rb-insight-kicker">Let’s build your first blueprint</div>
-          <div class="rb-insight-title">{title}</div>
-          {f'<div class="rb-insight-copy">{subtitle}</div>' if subtitle else ''}
+          <div class="rb-insight-title" style="margin-bottom:8px;">{title}</div>
+          {f'<div class="rb-insight-copy" style="margin-bottom:0;">{subtitle}</div>' if subtitle else ''}
         </div>
         """,
         unsafe_allow_html=True,
@@ -8374,7 +8379,7 @@ def render_first_blueprint_card_wizard():
         f"""
         <div class="rb-insight-card" style="margin-top:10px;margin-bottom:18px;">
           <div class="rb-insight-kicker">Welcome</div>
-          <div class="rb-insight-title">We’ll build your first retirement blueprint one simple question at a time.</div>
+          <div class="rb-insight-title">Let’s build your first retirement blueprint together — one simple question at a time.</div>
           <div class="rb-insight-copy">Use your best estimate today. You can update every answer later.</div>
           <div style="margin-top:14px;background:#E5E7EB;border-radius:999px;height:12px;overflow:hidden;">
             <div style="width:{progress_pct}%;height:12px;background:linear-gradient(135deg,#2563EB,#14B8A6);"></div>
@@ -8388,8 +8393,8 @@ def render_first_blueprint_card_wizard():
     with st.container(border=True):
         if step_id == "name":
             _onboard_card_header(
-                "Welcome — let’s build your first blueprint. What’s your first name?",
-                "This helps the app make the questions and blueprint feel more personal."
+                "First, what should we call you?",
+                "This helps make the next questions feel more personal."
             )
             st.text_input("First name", key="onboard_name", placeholder="Example: Ron")
 
