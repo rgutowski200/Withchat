@@ -822,11 +822,41 @@ def inject_app_styles():
     }
 
     .rb-hero-subtitle {
-        max-width: 900px;
+        max-width: 980px;
         color: #64748b;
-        font-size: 0.98rem;
-        line-height: 1.45;
+        font-size: 1.02rem;
+        line-height: 1.55;
         margin: 0;
+    }
+
+    .rb-hero-kicker {
+        display: inline-block;
+        margin-bottom: 8px;
+        color: #2563EB;
+        font-size: 0.82rem;
+        font-weight: 900;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+    }
+
+    .rb-hero-pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+    }
+
+    .rb-hero-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid #DBEAFE;
+        background: #F8FBFF;
+        color: #1E3A8A;
+        font-weight: 800;
+        font-size: .92rem;
     }
 
     .rb-account-chip {
@@ -1858,17 +1888,20 @@ def render_auth_form():
                 st.error(f"Login failed: {e}")
 
 
-
-user = auth_box()
-
-# Account controls
-# Keep sign-in visible at the very top so users can save and reload blueprints.
-acct_left, acct_right = st.columns([5.5, 1.4])
-with acct_right:
-    if user:
-        user_email = getattr(user, "email", "Signed in")
-        st.caption(f"Signed in as {user_email}")
-        if st.button("Sign out", use_container_width=True, key="top_sign_out"):
+def render_sidebar_auth_controls():
+    if st.session_state.user:
+        user_email = getattr(st.session_state.user, "email", "Signed in")
+        st.markdown(
+            f"""
+            <div style="border:1px solid #DBEAFE;border-radius:18px;padding:14px;background:linear-gradient(180deg,#F8FBFF,#EEF6FF);margin-bottom:14px;">
+              <div style="font-size:.8rem;font-weight:900;color:#2563EB;letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;">Account</div>
+              <div style="font-weight:900;color:#0F172A;margin-bottom:4px;">Signed in</div>
+              <div style="color:#64748B;font-size:.88rem;word-break:break-word;">{user_email}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        if st.button("Sign out", use_container_width=True, key="sidebar_sign_out"):
             try:
                 supabase.auth.sign_out()
             except Exception:
@@ -1877,21 +1910,63 @@ with acct_right:
             st.session_state.show_auth_form = False
             st.rerun()
     else:
-        if st.button("Sign In / Create Account", use_container_width=True, key="top_open_auth"):
+        st.markdown(
+            """
+            <div style="border:1px solid #DBEAFE;border-radius:18px;padding:14px;background:linear-gradient(180deg,#F8FBFF,#EEF6FF);margin-bottom:10px;">
+              <div style="font-size:.8rem;font-weight:900;color:#2563EB;letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;">Save your plan</div>
+              <div style="font-weight:900;color:#0F172A;margin-bottom:6px;">Sign in to save blueprints</div>
+              <div style="color:#64748B;font-size:.88rem;line-height:1.4;">Create an account to save your retirement plan and come back later.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        if st.button("Sign In / Create Account", use_container_width=True, key="sidebar_open_auth"):
             st.session_state.show_auth_form = not st.session_state.get("show_auth_form", False)
 
-if not user and st.session_state.get("show_auth_form"):
-    render_auth_form()
+        if st.session_state.get("show_auth_form", False):
+            mode = st.radio("Account action", ["Login", "Create Account"], key="sidebar_auth_mode", horizontal=True)
+            email = st.text_input("Email", key="sidebar_auth_email")
+            password = st.text_input("Password", type="password", key="sidebar_auth_password")
+            action_clicked = st.button(mode, use_container_width=True, key="sidebar_auth_submit")
+
+            if action_clicked:
+                if not email or not password:
+                    st.error("Enter both email and password.")
+                elif mode == "Create Account":
+                    try:
+                        supabase.auth.sign_up({"email": email, "password": password})
+                        st.success("Account created. Check email if confirmation is required, then log in.")
+                    except Exception as e:
+                        st.error(f"Create account failed: {e}")
+                else:
+                    try:
+                        res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+                        st.session_state.user = res.user
+                        st.session_state.show_auth_form = False
+                        st.success("Logged in.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Login failed: {e}")
+
+
+user = auth_box()
 
 # Header / hero area
+
 hero_left = st.container()
 
 with hero_left:
     st.markdown("""
     <div class="rb-hero" style="margin-top: 8px; margin-bottom: 10px;">
       <div>
+        <div class="rb-hero-kicker">Plain-English Retirement Planning</div>
         <div class="rb-hero-title">Retirement Blueprint 101</div>
-        <p class="rb-hero-subtitle">See when you can retire, how long your money may last, and what to improve before you make the leap.</p>
+        <p class="rb-hero-subtitle">Simple retirement guidance for everyday people. See when you can retire, how long your money may last, and what to improve first — without needing to decode complicated charts or financial jargon.</p>
+        <div class="rb-hero-pill-row">
+          <span class="rb-hero-pill">Simple answers</span>
+          <span class="rb-hero-pill">Plain-English explanations</span>
+          <span class="rb-hero-pill">No chart-reading required</span>
+        </div>
       </div>
     </div>
     """, unsafe_allow_html=True)
@@ -7381,13 +7456,14 @@ def render_navigation():
     with st.sidebar:
         st.markdown(
             f"""
-            <div style="padding:10px 2px 16px 2px;">
+            <div style="padding:10px 2px 10px 2px;">
               <img src="{logo_data_uri()}" alt="Retirement Blueprint 101 logo" style="width:100%; max-width:220px; height:auto; display:block; margin-bottom:10px;" />
             </div>
             """,
             unsafe_allow_html=True,
         )
 
+        render_sidebar_auth_controls()
         st.caption("PLAN SECTIONS")
 
         ordered_pages = [
