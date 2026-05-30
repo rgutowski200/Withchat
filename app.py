@@ -7880,18 +7880,6 @@ if active_page == PAGE_NAMES[0]:
         status_note = "You can still use the planner, but saved blueprints require an account." if not user else "Complete the required fields below to unlock projections and recommendations."
         required_panel = ", ".join(missing_items_home) if missing_items_home else "Review Start My Blueprint and Spending Plan."
 
-    st.markdown(f"""
-    <div class="rb-banner">
-      <div class="rb-banner-left">
-        <div class="rb-info-dot">i</div>
-        <div>
-          <div class="rb-banner-title">{status_title}</div>
-          <div class="rb-muted">{status_note}</div>
-        </div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
-
     st.markdown("""
     <div class="rb-insight-card" style="margin-top: 10px; margin-bottom: 22px;">
       <div class="rb-insight-kicker">Plain-English Retirement Planning</div>
