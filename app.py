@@ -1831,27 +1831,8 @@ def render_auth_form():
 
 user = auth_box()
 
-# Account controls
-# Keep sign-in visible at the very top so users can save and reload blueprints.
-acct_left, acct_right = st.columns([5.5, 1.4])
-with acct_right:
-    if user:
-        user_email = getattr(user, "email", "Signed in")
-        st.caption(f"Signed in as {user_email}")
-        if st.button("Sign out", use_container_width=True, key="top_sign_out"):
-            try:
-                supabase.auth.sign_out()
-            except Exception:
-                pass
-            st.session_state.user = None
-            st.session_state.show_auth_form = False
-            st.rerun()
-    else:
-        if st.button("Sign In / Create Account", use_container_width=True, key="top_open_auth"):
-            st.session_state.show_auth_form = not st.session_state.get("show_auth_form", False)
-
-if not user and st.session_state.get("show_auth_form"):
-    render_auth_form()
+# Account controls now live in the sidebar and Saved Blueprints page.
+# This keeps the Home page focused on the value of the planner instead of a floating sign-in button.
 
 # Header / hero area
 hero_left = st.container()
@@ -1869,6 +1850,8 @@ with hero_left:
     </div>
     """, unsafe_allow_html=True)
 
+if not user and st.session_state.get("show_auth_form"):
+    render_auth_form()
 
 
 def money(x):
@@ -7359,6 +7342,26 @@ def render_navigation():
         </div>
         """, unsafe_allow_html=True)
 
+        # Small account area: useful, but not distracting from the Home page.
+        current_user = st.session_state.get("user")
+        if current_user:
+            user_email = getattr(current_user, "email", "Signed in")
+            st.caption(f"Signed in as {user_email}")
+            if st.button("Sign out", key="sidebar_sign_out", use_container_width=True):
+                try:
+                    supabase.auth.sign_out()
+                except Exception:
+                    pass
+                st.session_state.user = None
+                st.session_state.show_auth_form = False
+                st.rerun()
+        else:
+            st.caption("Sign in to save your plan")
+            if st.button("Sign in", key="sidebar_sign_in", use_container_width=True):
+                st.session_state.show_auth_form = True
+                st.rerun()
+
+        st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
         st.caption("PLAN SECTIONS")
 
         ordered_pages = [
@@ -11611,7 +11614,19 @@ section[data-testid="stSidebar"] button {
         return data
 
     if not user:
-        st.info("Log in to save and load retirement scenarios.")
+        st.markdown("""
+        <div class="rb-insight-card" style="margin-top: 10px; margin-bottom: 20px;">
+          <div class="rb-insight-kicker">Save Your Blueprint</div>
+          <div class="rb-insight-title">Create a free account to save your retirement blueprint.</div>
+          <div class="rb-insight-copy">
+            You can use the planner without signing in. An account is only needed when you want to save a plan,
+            come back later, compare versions, or build a printable report from your saved blueprint.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Sign in / Create account to save", type="primary", use_container_width=True, key="saved_blueprints_auth_cta"):
+            st.session_state.show_auth_form = True
+            st.rerun()
     else:
         st.subheader("Save Current Scenario")
 
