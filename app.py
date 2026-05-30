@@ -5871,7 +5871,7 @@ Rule-based recommendations already identified:
 def generate_ai_recommendation_for_saved_scenario(name, summary, recommendations):
     """
     Uses OpenAI to generate a plain-English educational recommendation
-    for one saved scenario.
+    for one saved blueprint.
     """
     try:
         from openai import OpenAI
@@ -11852,7 +11852,7 @@ section[data-testid="stSidebar"] button {
         st.session_state.saved_ai_recommendations = {}
 
     def saved_scenario_annual_spending(data):
-        """Calculate spending from saved scenario data using the same flat/detailed logic as the live app."""
+        """Calculate spending from saved blueprint data using the same flat/detailed logic as the live app."""
         if data.get("budget_mode", "Flat monthly number") == "Detailed monthly budget":
             return sum(float(data.get(k, 0) or 0) for k, _ in budget_keys) * 12
         return float(data.get("flat_monthly_spending", 0) or 0) * 12
@@ -11881,7 +11881,7 @@ section[data-testid="stSidebar"] button {
 
         rough_wr = max(annual_spending - annual_income, 0) / total_assets if total_assets > 0 else 0
 
-        # Use the real projection engine for saved scenario math.
+        # Use the real projection engine for saved blueprint math.
         projection_df, score, label, rtv_reasons = run_projection_for_saved_scenario(data)
 
         if not projection_df.empty:
@@ -12669,7 +12669,7 @@ section[data-testid="stSidebar"] button {
                         income_col.metric("Income Coverage", pct(summary["income_coverage"]))
                         wr_col.metric("Max Withdrawal Rate", pct(summary["rough_wr"]))
 
-                    with st.expander("AI Recommendations for This Scenario"):
+                    with st.expander("AI Recommendations for This Blueprint"):
                         st.caption("Educational only. These suggestions are not financial, tax, legal, insurance, or investment advice.")
 
                         st.markdown("**Quick rule-based suggestions**")
@@ -12689,21 +12689,21 @@ section[data-testid="stSidebar"] button {
                                 )
 
                         if ai_key in st.session_state.saved_ai_recommendations:
-                            st.markdown("**AI-generated scenario review**")
+                            st.markdown("**AI-generated blueprint review**")
                             st.markdown(st.session_state.saved_ai_recommendations[ai_key])
 
                             if st.button("Clear AI Recommendation", key=f"clear_ai_{sid}", use_container_width=True):
                                 st.session_state.saved_ai_recommendations.pop(ai_key, None)
                                 st.rerun()
                         else:
-                            st.info("Click the button to generate a plain-English AI review for this saved scenario.")
+                            st.info("Click the button to generate a plain-English AI review for this saved blueprint.")
 
                     b1, b2, b3, b4, b5 = st.columns([1, 1, 1, 1, 1])
 
                     with b1:
-                        if st.button("↥ Load This Scenario", key=f"load_{sid}", use_container_width=True, type="primary"):
+                        if st.button("↥ Load This Blueprint", key=f"load_{sid}", use_container_width=True, type="primary"):
                             apply_scenario_data(data)
-                            st.success("Scenario loaded.")
+                            st.success("Blueprint loaded.")
                             st.rerun()
 
                     with b2:
@@ -12736,12 +12736,13 @@ section[data-testid="stSidebar"] button {
                             recommendations
                         )
                         st.download_button(
-                            "PDF Report",
+                            "📄 Blueprint Report",
                             data=pdf_bytes,
                             file_name=f"{scenario['scenario_name'].replace(' ', '_')}_report.pdf",
                             mime="application/pdf",
                             key=f"pdf_{sid}",
-                            use_container_width=True
+                            use_container_width=True,
+                            type="primary"
                         )
 
                     with b5:
