@@ -9080,16 +9080,16 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
         <div class="rb-card-note">Whether your money outlasts your plan, or runs out early.</div>
       </div>
       <div class="rb-card">
-        <div class="rb-card-label">Money left at the end</div>
-        <div class="rb-card-value">{compact_money(ending_balance)}</div>
-        <div class="rb-kpi-pill">Cushion at age {end_age}</div>
-        <div class="rb-card-note">An estimated leftover balance — your safety margin.</div>
+        <div class="rb-card-label">Money Left at {end_age}</div>
+        <div class="rb-card-value" style="color:#15803D;">{money(ending_balance)}</div>
+        <div class="rb-kpi-pill">Projected</div>
+        <div class="rb-card-note">Estimated balance at the end of the plan.</div>
       </div>
       <div class="rb-card">
-        <div class="rb-card-label">Monthly gap to cover</div>
-        <div class="rb-card-value" style="color:#EA580C;">{money(monthly_gap)}</div>
-        <div class="rb-kpi-pill">From your savings</div>
-        <div class="rb-card-note">After Social Security and income, this comes from savings each month.</div>
+        <div class="rb-card-label">Monthly Gap From Savings</div>
+        <div class="rb-card-value">{money(monthly_gap)}</div>
+        <div class="rb-kpi-pill">Savings need</div>
+        <div class="rb-card-note">Estimated monthly amount that needs to come from savings.</div>
       </div>
     </div>
     """, unsafe_allow_html=True)
