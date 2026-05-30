@@ -1887,16 +1887,14 @@ if not user and st.session_state.get("show_auth_form"):
 hero_left = st.container()
 
 with hero_left:
-    st.markdown(
-        f"""
-        <div class="rb-hero" style="margin-top: 8px; margin-bottom: 10px;">
-          <div class="rb-logo-row" style="width:100%;justify-content:flex-start;">
-            <img src="{logo_data_uri()}" alt="Retirement Blueprint 101 logo" style="width:min(100%, 440px);height:auto;" />
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.markdown("""
+    <div class="rb-hero" style="margin-top: 8px; margin-bottom: 10px;">
+      <div>
+        <div class="rb-hero-title">Retirement Blueprint 101</div>
+        <p class="rb-hero-subtitle">See when you can retire, how long your money may last, and what to improve before you make the leap.</p>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 
@@ -7442,8 +7440,6 @@ active_page = st.session_state.active_page
 if st.session_state.get("close_sidebar_after_nav", False):
     auto_close_sidebar()
     st.session_state.close_sidebar_after_nav = False
-
-render_page_logo(width_px=420 if active_page == "Home" else 360, margin_bottom=14)
 
 # Safe projection object used by premium insight cards across pages.
 # Keep this before any page rendering so Start My Blueprint / Home can use df safely.
