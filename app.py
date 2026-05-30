@@ -7916,9 +7916,6 @@ if active_page == PAGE_NAMES[0]:
         </div>
         """, unsafe_allow_html=True)
 
-        if st.button("Start My Blueprint", type="primary", use_container_width=True, key="home_empty_start_blueprint"):
-            go_to_page("Guided Questions")
-
     if not required_panel:
         st.success("Your blueprint has enough information to review the dashboard, action plan, confidence test, stress tests, and reports.")
         render_premium_insight("What your blueprint is telling you", df if can_run else None, "general")
