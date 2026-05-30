@@ -8977,8 +8977,6 @@ if active_page == PAGE_NAMES[7]:
         end_age_val = int(st.session_state.get("end_age", 90) or 90)
         retire_age_val = int(st.session_state.get("retire_age", 0) or 0)
 
-        render_suggested_spending_target_tool()
-
         avg_gap = 0.0
         if "Portfolio Need" in df.columns:
             avg_gap = float(df["Portfolio Need"].mean() or 0)
@@ -9062,6 +9060,9 @@ if active_page == PAGE_NAMES[7]:
           </div>
         </div>
         """, unsafe_allow_html=True)
+
+        st.divider()
+        render_suggested_spending_target_tool()
 
         actions = build_rtv_improvement_recommendations(df, rtv_score)
         positive_actions = [a for a in actions if a.get("Blueprint Impact", 0) > 0]
