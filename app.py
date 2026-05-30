@@ -8732,42 +8732,26 @@ if active_page == PAGE_NAMES[0]:
         st.success("Your blueprint has enough information to review the dashboard, action plan, confidence test, stress tests, and reports.")
         render_premium_insight("What your blueprint is telling you", df if can_run else None, "general")
 
-    st.markdown("### Start Here: Your Retirement Blueprint Process")
-    st.caption("Follow these steps in order. The sidebar stays available when you are ready to jump around, but this gives new users the clearest path.")
+    st.markdown("### Your next step")
+    st.caption("The full path is shown above. This box tells new users exactly what to do first.")
 
-    process_left, process_right = st.columns([1.35, 1])
-
-    with process_left:
-        st.markdown("""
-        <div class="rb-panel">
-          <div class="rb-panel-title"><span>🚀</span><span>Quick Start Roadmap</span></div>
-          <div class="rb-qs-step"><span class="rb-qs-step-num">1</span><span class="rb-qs-step-text"><b>Start My Blueprint</b><br/>Enter your age, savings, retirement age, Social Security, returns, and household setup.</span></div>
-          <div class="rb-qs-step"><span class="rb-qs-step-num">2</span><span class="rb-qs-step-text"><b>Build Your Spending Plan</b><br/>Estimate how much you want to spend each year in retirement.</span></div>
-          <div class="rb-qs-step"><span class="rb-qs-step-num">3</span><span class="rb-qs-step-text"><b>Add Income Sources</b><br/>Include pension, rental income, part-time work, or other retirement income.</span></div>
-          <div class="rb-qs-step"><span class="rb-qs-step-num">4</span><span class="rb-qs-step-text"><b>Review Your Dashboard</b><br/>See your Blueprint Score, projected money left, withdrawal pressure, and income coverage.</span></div>
-          <div class="rb-qs-step"><span class="rb-qs-step-num">5</span><span class="rb-qs-step-text"><b>Compare and Improve</b><br/>Use the Action Plan, Age Optimizer, scenarios, and bucket strategy to improve the plan.</span></div>
-          <div class="rb-qs-step"><span class="rb-qs-step-num">6</span><span class="rb-qs-step-text"><b>Save or Export</b><br/>Save blueprints, compare options, and export a full Blueprint Report.</span></div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with process_right:
-        st.markdown("""
-        <div class="rb-panel">
-          <div class="rb-panel-title"><span>✅</span><span>Next Best Step</span></div>
-          <div class="rb-next-box">
-            <div class="rb-next-heading">Start with your blueprint inputs</div>
-            <div class="rb-muted">Begin with the core numbers, then review your inputs before reading the dashboard.</div>
-          </div>
-          <div class="rb-tips">
-            <div class="rb-tips-title">💡 Helpful Tips</div>
-            <ul>
-              <li>Use estimates at first. You can refine them later.</li>
-              <li>Move left-to-right through the sidebar for the easiest flow.</li>
-              <li>Save multiple blueprints to compare different retirement choices.</li>
-            </ul>
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown("""
+    <div class="rb-panel">
+      <div class="rb-panel-title"><span>✅</span><span>Next Best Step</span></div>
+      <div class="rb-next-box">
+        <div class="rb-next-heading">Start with your blueprint inputs</div>
+        <div class="rb-muted">Begin with the basics: age, retirement age, savings, retirement spending, Social Security, and market comfort level. Use your best estimates — you can update everything later.</div>
+      </div>
+      <div class="rb-tips">
+        <div class="rb-tips-title">💡 Helpful Tips</div>
+        <ul>
+          <li>Use estimates at first. This is just your first draft.</li>
+          <li>After you answer the questions, the app will take you to your Retirement Dashboard.</li>
+          <li>Then use the Action Plan and Age Optimizer to test better options.</li>
+        </ul>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
     if st.button("Start My Blueprint", type="primary", use_container_width=True, key="home_big_start_before_premium"):
