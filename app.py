@@ -1867,11 +1867,11 @@ def render_auth_form():
             st.error("Enter both email and password.")
         elif mode == "Create Account":
             try:
-                supabase.auth.sign_up({
+                res = supabase.auth.sign_up({
                     "email": email,
                     "password": password
                 })
-                st.success("Account created. Check email if confirmation is required, then log in.")
+                start_first_blueprint_flow(res)
             except Exception as e:
                 st.error(f"Create account failed: {e}")
         else:
@@ -1886,6 +1886,23 @@ def render_auth_form():
                 st.rerun()
             except Exception as e:
                 st.error(f"Login failed: {e}")
+
+
+def start_first_blueprint_flow(signup_response=None):
+    """Route brand-new users straight into the guided questions flow."""
+    try:
+        created_user = getattr(signup_response, "user", None)
+        if created_user:
+            st.session_state.user = created_user
+    except Exception:
+        pass
+
+    st.session_state.show_auth_form = False
+    st.session_state.first_blueprint_flow = True
+    st.session_state.first_blueprint_completed = False
+    st.session_state.blueprint_mode = "Quick Blueprint"
+    st.session_state.active_page = "Guided Questions"
+    st.rerun()
 
 
 def render_sidebar_auth_controls():
@@ -1934,8 +1951,8 @@ def render_sidebar_auth_controls():
                     st.error("Enter both email and password.")
                 elif mode == "Create Account":
                     try:
-                        supabase.auth.sign_up({"email": email, "password": password})
-                        st.success("Account created. Check email if confirmation is required, then log in.")
+                        res = supabase.auth.sign_up({"email": email, "password": password})
+                        start_first_blueprint_flow(res)
                     except Exception as e:
                         st.error(f"Create account failed: {e}")
                 else:
@@ -8173,6 +8190,18 @@ if active_page == PAGE_NAMES[0]:
 if active_page == PAGE_NAMES[1]:
     render_page_shell("Start My Blueprint", "Set the core numbers that drive your retirement blueprint: ages, savings, contributions, Social Security, returns, and your bucket strategy.", "🧭")
     render_guided_progress(1)
+
+    if st.session_state.get("first_blueprint_flow", False):
+        st.markdown("""
+        <div class="rb-insight-card" style="margin-top:10px;margin-bottom:18px;">
+          <div class="rb-insight-kicker">Welcome — let’s build your first blueprint</div>
+          <div class="rb-insight-title">Answer a few simple questions first.</div>
+          <div class="rb-insight-copy">
+            Start with your best estimates. Once you save your answers, we’ll take you straight to your Retirement Dashboard so you can see your first plain-English blueprint.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
     page_help(
         "Guided Retirement Questions",
         "This page collects the core numbers for your retirement blueprint: ages, savings, contributions, Social Security, expected returns, inflation, Roth conversions, and premium 2-bucket strategy. These inputs drive the Retirement Dashboard, Blueprint Score, Action Plan, and Projection."
@@ -8274,6 +8303,12 @@ if active_page == PAGE_NAMES[1]:
 
                 st.session_state.quick_blueprint_saved = True
                 st.success("Quick Blueprint saved. Your Basic Blueprint is ready.")
+
+                if st.session_state.get("first_blueprint_flow", False):
+                    st.session_state.first_blueprint_flow = False
+                    st.session_state.first_blueprint_completed = True
+                    st.session_state.active_page = "Retirement Dashboard"
+                    st.rerun()
 
         if st.session_state.get("quick_blueprint_saved"):
             st.markdown("""
@@ -8501,6 +8536,11 @@ if active_page == PAGE_NAMES[1]:
                 }.items():
                     st.session_state[k] = v
                 st.success("Main answers saved.")
+                if st.session_state.get("first_blueprint_flow", False):
+                    st.session_state.first_blueprint_flow = False
+                    st.session_state.first_blueprint_completed = True
+                    st.session_state.active_page = "Retirement Dashboard"
+                    st.rerun()
 
             render_premium_insight("Premium bucket strategy", df if can_run else None, "bucket")
             render_three_bucket_strategy(df if can_run else None)
@@ -9415,6 +9455,10 @@ def render_basic_blueprint_dashboard():
             go_to_page("Retirement Dashboard")
 if active_page == PAGE_NAMES[6]:
     render_guided_progress(5)
+    if st.session_state.get("first_blueprint_completed", False):
+        st.success("Your first blueprint is ready. This dashboard turns your answers into a plain-English retirement snapshot.")
+        st.session_state.first_blueprint_completed = False
+
     if st.session_state.get("dashboard_focus"):
         focus_label = st.session_state.get("dashboard_focus")
         st.info(f"Opened from Premium Retirement Tools: **{focus_label}**. Use the premium tool buttons below or open advanced dashboard details.")
