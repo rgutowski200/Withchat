@@ -1867,11 +1867,11 @@ def render_auth_form():
             st.error("Enter both email and password.")
         elif mode == "Create Account":
             try:
-                res = supabase.auth.sign_up({
+                supabase.auth.sign_up({
                     "email": email,
                     "password": password
                 })
-                start_first_blueprint_flow(res)
+                st.success("Account created. Check email if confirmation is required, then log in.")
             except Exception as e:
                 st.error(f"Create account failed: {e}")
         else:
@@ -1886,25 +1886,6 @@ def render_auth_form():
                 st.rerun()
             except Exception as e:
                 st.error(f"Login failed: {e}")
-
-
-def start_first_blueprint_flow(signup_response=None):
-    """Route brand-new users straight into the guided questions flow."""
-    try:
-        created_user = getattr(signup_response, "user", None)
-        if created_user:
-            st.session_state.user = created_user
-    except Exception:
-        pass
-
-    st.session_state.show_auth_form = False
-    st.session_state.first_blueprint_flow = True
-    st.session_state.first_blueprint_onboarding = True
-    st.session_state.first_blueprint_completed = False
-    st.session_state.first_blueprint_step = 0
-    st.session_state.blueprint_mode = "Quick Blueprint"
-    st.session_state.active_page = "Guided Questions"
-    st.rerun()
 
 
 def render_sidebar_auth_controls():
@@ -1954,7 +1935,20 @@ def render_sidebar_auth_controls():
                 elif mode == "Create Account":
                     try:
                         res = supabase.auth.sign_up({"email": email, "password": password})
-                        start_first_blueprint_flow(res)
+
+                        # If Supabase returns a user/session immediately, start the first-blueprint wizard.
+                        if getattr(res, "user", None) is not None:
+                            st.session_state.user = res.user
+
+                        # Some Supabase setups require email confirmation. We still start the
+                        # friendly first-blueprint flow, and the user can sign in later if needed.
+                        st.session_state.show_auth_form = False
+                        st.session_state.first_blueprint_onboarding = True
+                        st.session_state.first_blueprint_step = 0
+                        st.session_state.first_blueprint_completed = False
+                        st.session_state.active_page = "Home"
+                        st.success("Account created. Let’s build your first blueprint.")
+                        st.rerun()
                     except Exception as e:
                         st.error(f"Create account failed: {e}")
                 else:
@@ -3854,6 +3848,7 @@ def get_scenario_data():
     data = {}
 
     keys_to_save = [
+        "first_name", "current_annual_income",
         "current_age", "retire_age", "end_age",
         "traditional", "roth", "taxable", "cash",
         "annual_contribution", "has_spouse", "spouse_age",
@@ -7864,95 +7859,175 @@ def render_guided_progress(current_step: int):
 
 
 
+# -----------------------------
+# First blueprint onboarding wizard
+# -----------------------------
 def _onboard_first_name():
-    name = str(st.session_state.get("onboard_name", "") or "").strip()
-    return name.split()[0] if name else "there"
-
-
-def _onboard_steps():
-    spouse_yes = bool(st.session_state.get("onboard_has_spouse", False))
-    steps = [
-        "name",
-        "current_age",
-        "current_income",
-        "spouse",
-    ]
-    if spouse_yes:
-        steps.extend(["spouse_age", "spouse_ss"])
-    steps.extend([
-        "retire_age",
-        "plan_age",
-        "savings",
-        "annual_savings",
-        "retirement_spending",
-        "social_security",
-        "other_income",
-        "return_assumption",
-        "review",
-    ])
-    return steps
+    return str(st.session_state.get("onboard_name", "") or "").strip() or "there"
 
 
 def _set_onboard_defaults():
     defaults = {
-        "onboard_name": "",
+        "onboard_name": str(st.session_state.get("first_name", "") or ""),
         "onboard_current_age": int(st.session_state.get("current_age", 0) or 0) or 55,
         "onboard_current_income": int(st.session_state.get("current_annual_income", 0) or 0),
         "onboard_has_spouse": bool(st.session_state.get("has_spouse", False)),
         "onboard_spouse_age": int(st.session_state.get("spouse_age", 0) or 0) or 55,
+        "onboard_spouse_retire_age": int(st.session_state.get("spouse_retire_age", 0) or 0) or int(st.session_state.get("retire_age", 0) or 62),
         "onboard_spouse_ss": int(st.session_state.get("spouse_ss", 0) or 0),
+        "onboard_spouse_ss_age": int(st.session_state.get("spouse_ss_age", 0) or 0) or 62,
         "onboard_retire_age": int(st.session_state.get("retire_age", 0) or 0) or 62,
         "onboard_plan_age": int(st.session_state.get("end_age", 0) or 0) or 90,
-        "onboard_total_savings": int(float(st.session_state.get("traditional", 0) or 0) + float(st.session_state.get("roth", 0) or 0) + float(st.session_state.get("taxable", 0) or 0) + float(st.session_state.get("cash", 0) or 0)),
+        "onboard_total_savings": int(
+            float(st.session_state.get("traditional", 0) or 0)
+            + float(st.session_state.get("roth", 0) or 0)
+            + float(st.session_state.get("taxable", 0) or 0)
+            + float(st.session_state.get("cash", 0) or 0)
+        ),
         "onboard_annual_savings": int(st.session_state.get("annual_contribution", 0) or 0),
-        "onboard_monthly_spending": int(float(st.session_state.get("flat_monthly_spending", 0) or 0) or float(st.session_state.get("monthly_spending", 0) or 0) or 8000),
-        "onboard_ss_age": int(st.session_state.get("user_ss_age", 62) or 62),
+        "onboard_monthly_spending": int(
+            float(st.session_state.get("flat_monthly_spending", 0) or 0)
+            or float(st.session_state.get("monthly_spending", 0) or 0)
+            or 8000
+        ),
+        "onboard_ss_age": int(st.session_state.get("user_ss_age", 0) or 0) or 62,
         "onboard_user_ss": int(st.session_state.get("user_ss", 0) or 0),
         "onboard_other_income": int(st.session_state.get("simple_income", 0) or 0),
-        "onboard_growth_return_pct": round(float(st.session_state.get("growth_return", 0.07) or 0.07) * 100, 2),
+        "onboard_risk_level": str(st.session_state.get("onboard_risk_level", "") or "Balanced — I can handle normal market swings (about 7.5% starting assumption)"),
     }
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
 
 
+def _onboard_steps():
+    steps = [
+        "name",
+        "current_age",
+        "current_income",
+        "spouse",
+    ]
+    if bool(st.session_state.get("onboard_has_spouse", False)):
+        steps.extend([
+            "spouse_age",
+            "spouse_retire_age",
+            "spouse_social_security",
+            "spouse_ss_age",
+        ])
+    steps.extend([
+        "retire_age",
+        "savings",
+        "annual_savings",
+        "retirement_spending",
+        "social_security",
+        "ss_age",
+        "other_income",
+        "risk_level",
+        "review",
+    ])
+    return steps
+
+
+def _risk_to_growth_return(risk_level):
+    """Convert the plain-English onboarding risk choice into a starting return assumption.
+
+    These are educational planning assumptions only. They are not investment advice
+    and users can adjust them later in the detailed inputs.
+    """
+    risk_level = str(risk_level or "Balanced")
+    if risk_level.startswith("Conservative"):
+        return 0.055
+    if risk_level.startswith("Growth"):
+        return 0.085
+    return 0.075
+
+
 def _validate_onboard_step(step_id):
+    first = _onboard_first_name()
+
     if step_id == "name" and not str(st.session_state.get("onboard_name", "") or "").strip():
-        return "Enter your name so the app can personalize the questions."
-    if step_id == "current_age" and int(st.session_state.get("onboard_current_age", 0) or 0) <= 0:
-        return "Enter your current age."
-    if step_id == "spouse_age" and bool(st.session_state.get("onboard_has_spouse", False)) and int(st.session_state.get("onboard_spouse_age", 0) or 0) <= 0:
-        return "Enter your spouse/partner age."
+        return "Please enter your first name so I can personalize the rest of the questions."
+
+    if step_id == "current_age":
+        age = int(st.session_state.get("onboard_current_age", 0) or 0)
+        if age < 18 or age > 100:
+            return f"Thanks, {first}. Please enter an age between 18 and 100."
+
+    if step_id == "current_income":
+        income = float(st.session_state.get("onboard_current_income", 0) or 0)
+        if income < 0:
+            return "Please enter zero or a positive income estimate."
+
+    if step_id == "spouse_age" and bool(st.session_state.get("onboard_has_spouse", False)):
+        age = int(st.session_state.get("onboard_spouse_age", 0) or 0)
+        if age < 18 or age > 100:
+            return "Please enter a spouse/partner age between 18 and 100."
+
     if step_id == "retire_age":
         current_age = int(st.session_state.get("onboard_current_age", 0) or 0)
         retire_age = int(st.session_state.get("onboard_retire_age", 0) or 0)
         if retire_age <= current_age:
             return "Your target retirement age should be higher than your current age."
-    if step_id == "plan_age":
-        retire_age = int(st.session_state.get("onboard_retire_age", 0) or 0)
-        plan_age = int(st.session_state.get("onboard_plan_age", 0) or 0)
-        if plan_age <= retire_age:
-            return "Plan-through age should be higher than your target retirement age."
-    if step_id == "retirement_spending" and float(st.session_state.get("onboard_monthly_spending", 0) or 0) <= 0:
-        return "Enter an estimated monthly retirement spending amount."
+
+    if step_id == "spouse_retire_age" and bool(st.session_state.get("onboard_has_spouse", False)):
+        spouse_age = int(st.session_state.get("onboard_spouse_age", 0) or 0)
+        spouse_retire_age = int(st.session_state.get("onboard_spouse_retire_age", 0) or 0)
+        if spouse_retire_age <= spouse_age:
+            return "Your spouse/partner retirement age should be higher than their current age."
+
+    if step_id == "savings":
+        savings = float(st.session_state.get("onboard_total_savings", 0) or 0)
+        if savings < 0:
+            return "Please enter zero or a positive savings estimate."
+
+    if step_id == "annual_savings":
+        savings = float(st.session_state.get("onboard_annual_savings", 0) or 0)
+        if savings < 0:
+            return "Please enter zero or a positive yearly savings estimate."
+
+    if step_id == "retirement_spending":
+        monthly = float(st.session_state.get("onboard_monthly_spending", 0) or 0)
+        if monthly <= 0:
+            return "Please enter an estimated monthly retirement spending amount."
+
+    if step_id in ["social_security", "spouse_social_security"]:
+        amount = float(st.session_state.get("onboard_user_ss" if step_id == "social_security" else "onboard_spouse_ss", 0) or 0)
+        if amount < 0:
+            return "Please enter zero or a positive Social Security estimate."
+
+    if step_id in ["ss_age", "spouse_ss_age"]:
+        key = "onboard_ss_age" if step_id == "ss_age" else "onboard_spouse_ss_age"
+        age = int(st.session_state.get(key, 0) or 0)
+        if age < 62 or age > 70:
+            return "Social Security start age should usually be between 62 and 70."
+
+    if step_id == "other_income":
+        amount = float(st.session_state.get("onboard_other_income", 0) or 0)
+        if amount < 0:
+            return "Please enter zero or a positive other-income estimate."
+
     return None
 
 
 def _apply_first_blueprint_answers():
     current_age = int(st.session_state.get("onboard_current_age", 55) or 55)
     retire_age = int(st.session_state.get("onboard_retire_age", 62) or 62)
-    plan_age = int(st.session_state.get("onboard_plan_age", 90) or 90)
+    plan_age = 90
     total_savings = int(st.session_state.get("onboard_total_savings", 0) or 0)
     annual_savings = int(st.session_state.get("onboard_annual_savings", 0) or 0)
     monthly_spending = int(st.session_state.get("onboard_monthly_spending", 0) or 0)
     ss_age = int(st.session_state.get("onboard_ss_age", 62) or 62)
-    user_ss = int(st.session_state.get("onboard_user_ss", 0) or 0)
-    other_income = int(st.session_state.get("onboard_other_income", 0) or 0)
-    growth_return = float(st.session_state.get("onboard_growth_return_pct", 7.0) or 7.0) / 100
+    user_ss_monthly = int(st.session_state.get("onboard_user_ss", 0) or 0)
+    other_income_monthly = int(st.session_state.get("onboard_other_income", 0) or 0)
     has_spouse = bool(st.session_state.get("onboard_has_spouse", False))
     spouse_age = int(st.session_state.get("onboard_spouse_age", 0) or 0) if has_spouse else 0
-    spouse_ss = int(st.session_state.get("onboard_spouse_ss", 0) or 0) if has_spouse else 0
+    spouse_retire_age = int(st.session_state.get("onboard_spouse_retire_age", retire_age) or retire_age) if has_spouse else 0
+    spouse_ss_monthly = int(st.session_state.get("onboard_spouse_ss", 0) or 0) if has_spouse else 0
+    spouse_ss_age = int(st.session_state.get("onboard_spouse_ss_age", 62) or 62) if has_spouse else 62
+    risk_level = str(st.session_state.get("onboard_risk_level", "Balanced") or "Balanced")
+    growth_return = _risk_to_growth_return(risk_level)
 
+    # For the first blueprint, keep the split simple. Users can refine this later.
     quick_traditional = int(total_savings * 0.80)
     quick_roth = int(total_savings * 0.20)
 
@@ -7969,13 +8044,13 @@ def _apply_first_blueprint_answers():
         "annual_contribution": annual_savings,
         "has_spouse": has_spouse,
         "spouse_age": spouse_age,
-        "spouse_retire_age": retire_age if has_spouse else 0,
+        "spouse_retire_age": spouse_retire_age,
         "spouse_plan_age": plan_age if has_spouse else 0,
         "spouse_annual_contribution": 0,
-        "spouse_ss_age": ss_age if has_spouse else 62,
-        "spouse_ss": spouse_ss,
+        "spouse_ss_age": spouse_ss_age,
+        "spouse_ss": spouse_ss_monthly * 12,
         "user_ss_age": ss_age,
-        "user_ss": user_ss,
+        "user_ss": user_ss_monthly * 12,
         "growth_return": growth_return,
         "safe_return": 0.045,
         "inflation": 0.03,
@@ -7991,19 +8066,21 @@ def _apply_first_blueprint_answers():
         "monthly_needs": monthly_spending,
         "retirement_monthly_spending": monthly_spending,
         "income_mode": "Simple income",
-        "simple_income": other_income,
-        "simple_income_start": retire_age if other_income > 0 else 0,
-        "simple_income_end": plan_age if other_income > 0 else 0,
+        "simple_income": other_income_monthly * 12,
+        "simple_income_start": retire_age if other_income_monthly > 0 else 0,
+        "simple_income_end": plan_age if other_income_monthly > 0 else 0,
         "simple_income_inflation": True,
         "simple_income_reliability": "Guaranteed",
+        "filing_status": "married_joint" if has_spouse else "single",
     }
+
     for key, value in updates.items():
         st.session_state[key] = value
 
-    if other_income > 0:
+    if other_income_monthly > 0:
         st.session_state.income_sources_df = pd.DataFrame([{
             "Name": "Other retirement income",
-            "Annual Amount": other_income,
+            "Annual Amount": other_income_monthly * 12,
             "Start Age": retire_age,
             "End Age": plan_age,
             "Inflation Adjusted": True,
@@ -8012,126 +8089,232 @@ def _apply_first_blueprint_answers():
             "Reliability": "Guaranteed",
             "Continues After First Death": True,
         }])
+    else:
+        st.session_state.income_sources_df = pd.DataFrame([])
 
     st.session_state.quick_blueprint_saved = True
-    st.session_state.first_blueprint_flow = False
     st.session_state.first_blueprint_onboarding = False
     st.session_state.first_blueprint_completed = True
+    st.session_state.dashboard_first_blueprint_ready = True
+
+    # Save the first blueprint to Supabase when a logged-in user is available.
+    if st.session_state.get("user") is not None:
+        try:
+            scenario_name = f"{_onboard_first_name()}'s First Blueprint"
+            save_scenario(st.session_state.user, scenario_name, get_scenario_data())
+            st.session_state.first_blueprint_saved_to_db = True
+        except Exception as e:
+            st.session_state.first_blueprint_saved_to_db = False
+            st.session_state.first_blueprint_save_error = str(e)
+
     st.session_state.active_page = "Retirement Dashboard"
+
+
+def _onboard_card_header(title, subtitle=None):
+    st.markdown(
+        f"""
+        <div class="rb-insight-card" style="margin-top:10px;margin-bottom:18px;">
+          <div class="rb-insight-kicker">Let’s build your first blueprint</div>
+          <div class="rb-insight-title">{title}</div>
+          {f'<div class="rb-insight-copy">{subtitle}</div>' if subtitle else ''}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_first_blueprint_card_wizard():
     _set_onboard_defaults()
     steps = _onboard_steps()
-    st.session_state.first_blueprint_step = max(0, min(int(st.session_state.get("first_blueprint_step", 0) or 0), len(steps) - 1))
+    st.session_state.first_blueprint_step = max(
+        0,
+        min(int(st.session_state.get("first_blueprint_step", 0) or 0), len(steps) - 1)
+    )
     step_idx = st.session_state.first_blueprint_step
     step_id = steps[step_idx]
     first = _onboard_first_name()
     progress_pct = int(((step_idx + 1) / len(steps)) * 100)
 
-    st.markdown(f"""
-    <div class="rb-insight-card" style="margin-top:10px;margin-bottom:18px;">
-      <div class="rb-insight-kicker">Welcome — let’s build your first blueprint</div>
-      <div class="rb-insight-title">One simple question at a time.</div>
-      <div class="rb-insight-copy">No finance degree needed. Use your best estimate today — you can refine everything later.</div>
-      <div style="margin-top:14px;background:#E5E7EB;border-radius:999px;height:12px;overflow:hidden;">
-        <div style="width:{progress_pct}%;height:12px;background:linear-gradient(90deg,#2563EB,#14B8A6);"></div>
-      </div>
-      <div style="margin-top:8px;color:#64748B;font-weight:800;font-size:.9rem;">Step {step_idx + 1} of {len(steps)}</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        f"""
+        <div class="rb-insight-card" style="margin-top:10px;margin-bottom:18px;">
+          <div class="rb-insight-kicker">Welcome</div>
+          <div class="rb-insight-title">We’ll build your first retirement blueprint one simple question at a time.</div>
+          <div class="rb-insight-copy">Use your best estimate today. You can update every answer later.</div>
+          <div style="margin-top:14px;background:#E5E7EB;border-radius:999px;height:12px;overflow:hidden;">
+            <div style="width:{progress_pct}%;height:12px;background:linear-gradient(135deg,#2563EB,#14B8A6);"></div>
+          </div>
+          <div class="rb-muted" style="margin-top:8px;">Step {step_idx + 1} of {len(steps)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     with st.container(border=True):
         if step_id == "name":
-            st.markdown("### What’s your name?")
-            st.caption("I’ll use this to make the questions feel less robotic.")
-            st.text_input("First name or full name", key="onboard_name", placeholder="Ron")
+            _onboard_card_header(
+                "First, what’s your name?",
+                "This helps the app make the questions and blueprint feel more personal."
+            )
+            st.text_input("First name", key="onboard_name", placeholder="Example: Ron")
 
         elif step_id == "current_age":
-            st.markdown(f"### Nice to meet you, {first}. How old are you today?")
+            _onboard_card_header(
+                f"Nice to meet you, {first}. Can I ask how old you are today?",
+                "Your age helps us estimate how many years you have before retirement and how long the plan may need to last."
+            )
             st.number_input("Current age", min_value=18, max_value=100, step=1, key="onboard_current_age")
 
         elif step_id == "current_income":
-            st.markdown(f"### What is your household income today, {first}?")
-            st.caption("Use yearly income before taxes. This helps frame savings and retirement readiness. A best estimate is fine.")
-            st.number_input("Current yearly household income", min_value=0, step=5000, key="onboard_current_income")
+            _onboard_card_header(
+                f"Thanks, {first}. About how much do you earn per year before taxes?",
+                "A close estimate is completely fine. This gives us context for savings and retirement readiness."
+            )
+            st.number_input("Current yearly income before taxes", min_value=0, step=1000, format="%d", key="onboard_current_income")
 
         elif step_id == "spouse":
-            st.markdown(f"### Are you planning retirement with a spouse or partner, {first}?")
-            st.radio("Household setup", [False, True], format_func=lambda x: "Yes, include spouse/partner" if x else "No, just me", key="onboard_has_spouse")
+            _onboard_card_header(
+                f"Should we build this blueprint just for you, {first}, or include a spouse or partner too?",
+                "Including a spouse or partner can change Social Security, spending, taxes, and how long the money needs to last."
+            )
+            choice = st.radio(
+                "Planning type",
+                ["Just me", "Include my spouse / partner"],
+                index=1 if bool(st.session_state.get("onboard_has_spouse", False)) else 0,
+                horizontal=True,
+                key="onboard_spouse_choice",
+            )
+            st.session_state.onboard_has_spouse = choice == "Include my spouse / partner"
 
         elif step_id == "spouse_age":
-            st.markdown("### How old is your spouse or partner?")
-            st.number_input("Spouse/partner age", min_value=18, max_value=100, step=1, key="onboard_spouse_age")
+            _onboard_card_header(
+                "Great — what is your spouse or partner’s age?",
+                "This helps the blueprint estimate timing for retirement income and how long the household plan may need to last."
+            )
+            st.number_input("Spouse / partner current age", min_value=18, max_value=100, step=1, key="onboard_spouse_age")
 
-        elif step_id == "spouse_ss":
-            st.markdown("### About how much annual Social Security should we estimate for your spouse or partner?")
-            st.caption("Use the annual amount you expect around the Social Security start age. Enter 0 if unsure.")
-            st.number_input("Spouse/partner annual Social Security", min_value=0, step=1000, key="onboard_spouse_ss")
+        elif step_id == "spouse_retire_age":
+            _onboard_card_header(
+                "What age would your spouse or partner like to retire?",
+                "No pressure — this is just the first age we’ll test."
+            )
+            st.number_input("Spouse / partner retirement age", min_value=18, max_value=100, step=1, key="onboard_spouse_retire_age")
+
+        elif step_id == "spouse_social_security":
+            _onboard_card_header(
+                "Do they have a Social Security estimate too?",
+                "A rough monthly estimate is fine. If you are not sure, you can enter 0 and update it later."
+            )
+            st.number_input("Estimated spouse / partner Social Security per month", min_value=0, step=100, format="%d", key="onboard_spouse_ss")
+
+        elif step_id == "spouse_ss_age":
+            _onboard_card_header(
+                "What age do you think they’ll start Social Security?",
+                "Most people can start between 62 and 70. You can test different ages later."
+            )
+            st.number_input("Spouse / partner Social Security start age", min_value=62, max_value=70, step=1, key="onboard_spouse_ss_age")
 
         elif step_id == "retire_age":
-            st.markdown(f"### What age would you like to retire, {first}?")
-            st.caption("This is your target age. The dashboard will test whether it looks realistic.")
-            st.number_input("Target retirement age", min_value=40, max_value=100, step=1, key="onboard_retire_age")
-
-        elif step_id == "plan_age":
-            st.markdown(f"### How long should we plan for, {first}?")
-            st.caption("Age 90 is a common starting estimate. You can change this later.")
-            st.number_input("Plan through age", min_value=70, max_value=110, step=1, key="onboard_plan_age")
+            _onboard_card_header(
+                f"What age would you like to retire, {first}?",
+                "No pressure — this is just the first retirement age we’ll test."
+            )
+            st.number_input("Target retirement age", min_value=18, max_value=100, step=1, key="onboard_retire_age")
 
         elif step_id == "savings":
-            st.markdown("### About how much do you have saved for retirement today?")
-            st.caption("Include 401(k), IRA, Roth, brokerage, and retirement cash. We’ll use a simple 80% traditional / 20% Roth split for the first blueprint.")
-            st.number_input("Total retirement savings", min_value=0, step=10000, key="onboard_total_savings")
+            _onboard_card_header(
+                "About how much do you have saved for retirement today?",
+                "A close estimate is totally fine. We’ll split it 80% traditional and 20% Roth for the first draft, and you can refine that later."
+            )
+            st.number_input("Total retirement savings today", min_value=0, step=5000, format="%d", key="onboard_total_savings")
 
         elif step_id == "annual_savings":
-            st.markdown(f"### How much can you save each year until retirement, {first}?")
-            st.caption("Include 401(k), IRA, employer match, and other retirement savings.")
-            st.number_input("Annual retirement savings", min_value=0, step=5000, key="onboard_annual_savings")
+            _onboard_card_header(
+                "How much do you expect to save each year before retirement?",
+                "Include 401(k), IRA, brokerage savings, and employer match if you want it reflected in the first blueprint."
+            )
+            st.number_input("Yearly retirement savings", min_value=0, step=1000, format="%d", key="onboard_annual_savings")
 
         elif step_id == "retirement_spending":
-            st.markdown("### How much do you think you’ll spend each month in retirement?")
-            st.caption("This is usually the biggest driver. Use your best estimate — mortgage, food, travel, insurance, taxes, and normal life.")
-            st.number_input("Estimated monthly retirement spending", min_value=0, step=500, key="onboard_monthly_spending")
+            _onboard_card_header(
+                f"In retirement, about how much would you like to spend each month, {first}?",
+                "Think of this as the lifestyle number you want to test first. You can adjust it later."
+            )
+            st.number_input("Monthly retirement spending", min_value=0, step=250, format="%d", key="onboard_monthly_spending")
 
         elif step_id == "social_security":
-            st.markdown(f"### What Social Security should we estimate for you, {first}?")
-            c1, c2 = st.columns(2)
-            with c1:
-                st.number_input("Social Security start age", min_value=62, max_value=70, step=1, key="onboard_ss_age")
-            with c2:
-                st.number_input("Your annual Social Security", min_value=0, step=1000, key="onboard_user_ss")
-            st.caption("You can use your SSA estimate, or put 0 if you want to add it later.")
+            _onboard_card_header(
+                "Do you have an estimate for your Social Security?",
+                "Use a monthly estimate. If you are not sure yet, you can enter 0 and update it later."
+            )
+            st.number_input("Estimated Social Security per month", min_value=0, step=100, format="%d", key="onboard_user_ss")
+
+        elif step_id == "ss_age":
+            _onboard_card_header(
+                "What age do you think you’ll start Social Security?",
+                "Most people can start between 62 and 70. This is one of the big retirement levers we can test later."
+            )
+            st.number_input("Social Security start age", min_value=62, max_value=70, step=1, key="onboard_ss_age")
 
         elif step_id == "other_income":
-            st.markdown("### Any other retirement income we should include?")
-            st.caption("Examples: pension, rental income, part-time income, or annuity income. Enter annual amount, or 0 if none.")
-            st.number_input("Other annual retirement income", min_value=0, step=1000, key="onboard_other_income")
+            _onboard_card_header(
+                "Will you have any other monthly retirement income?",
+                "This could be a pension, rental income, part-time work, or anything else. Enter 0 if none."
+            )
+            st.number_input("Other retirement income per month", min_value=0, step=100, format="%d", key="onboard_other_income")
 
-        elif step_id == "return_assumption":
-            st.markdown("### What average investment return should we test?")
-            st.caption("7% is a reasonable starter estimate for a growth-oriented long-term portfolio. You can refine this later.")
-            st.slider("Expected average annual return", min_value=0.0, max_value=12.0, step=0.25, format="%.2f%%", key="onboard_growth_return_pct")
+        elif step_id == "risk_level":
+            _onboard_card_header(
+                f"Last question, {first}. How comfortable are you with market ups and downs?",
+                "This helps us choose a simple starting return assumption. Balanced is the default, and you can change it later."
+            )
+            risk_options = [
+                "Conservative — I prefer less ups and downs (about 5.5% starting assumption)",
+                "Balanced — I can handle normal market swings (about 7.5% starting assumption)",
+                "Growth — I’m comfortable with more ups and downs (about 8.5% starting assumption)",
+            ]
+            existing_risk = str(st.session_state.get("onboard_risk_level", "") or "")
+            if existing_risk.startswith("Conservative"):
+                default_risk_index = 0
+            elif existing_risk.startswith("Growth"):
+                default_risk_index = 2
+            else:
+                default_risk_index = 1
+            st.radio(
+                "Investment comfort level",
+                risk_options,
+                index=default_risk_index,
+                key="onboard_risk_level",
+            )
+            st.caption("We use this only to set the first draft return assumption. It is not investment advice, and users can adjust it later.")
 
         elif step_id == "review":
-            st.markdown(f"### Ready to build your first blueprint, {first}?")
+            _onboard_card_header(
+                f"Perfect, {first} — ready to build your first Retirement Blueprint?",
+                "After this, I’ll take you straight to the Retirement Dashboard so you can see your plain-English result."
+            )
             total_savings = float(st.session_state.get("onboard_total_savings", 0) or 0)
             monthly_spending = float(st.session_state.get("onboard_monthly_spending", 0) or 0)
-            st.markdown(f"""
-            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:10px;">
-              <div class="rb-card"><div class="rb-card-label">Target retirement age</div><div class="rb-card-value">{int(st.session_state.get('onboard_retire_age', 0) or 0)}</div></div>
-              <div class="rb-card"><div class="rb-card-label">Retirement savings</div><div class="rb-card-value">{money(total_savings)}</div></div>
-              <div class="rb-card"><div class="rb-card-label">Monthly spending</div><div class="rb-card-value">{money(monthly_spending)}</div></div>
-            </div>
-            """, unsafe_allow_html=True)
-            st.caption("After this, I’ll take you straight to the Retirement Dashboard so you can see the plain-English result.")
+            st.markdown(
+                f"""
+                <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:10px;">
+                  <div class="rb-card"><div class="rb-card-label">Target retirement age</div><div class="rb-card-value">{int(st.session_state.get('onboard_retire_age', 0) or 0)}</div></div>
+                  <div class="rb-card"><div class="rb-card-label">Retirement savings</div><div class="rb-card-value">{money(total_savings)}</div></div>
+                  <div class="rb-card"><div class="rb-card-label">Monthly retirement spending</div><div class="rb-card-value">{money(monthly_spending)}</div></div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.caption("You can improve the blueprint later by adding account splits, taxes, housing, healthcare, and detailed budget items.")
 
     st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
     back_col, next_col = st.columns([1, 2])
+
     with back_col:
         if step_idx > 0 and st.button("Back", use_container_width=True, key="onboard_back"):
             st.session_state.first_blueprint_step = max(0, step_idx - 1)
             st.rerun()
+
     with next_col:
         if step_id == "review":
             if st.button("Build My First Blueprint", type="primary", use_container_width=True, key="onboard_build_blueprint"):
@@ -8143,9 +8326,13 @@ def render_first_blueprint_card_wizard():
                 if error:
                     st.error(error)
                 else:
-                    # If spouse choice changes, rebuild the step list and move forward safely.
                     st.session_state.first_blueprint_step = min(step_idx + 1, len(_onboard_steps()) - 1)
                     st.rerun()
+
+
+if active_page == "Home" and st.session_state.get("first_blueprint_onboarding", False):
+    render_first_blueprint_card_wizard()
+    st.stop()
 
 if active_page == PAGE_NAMES[0]:
     missing_items_home = required_missing()
@@ -8477,11 +8664,6 @@ if active_page == PAGE_NAMES[0]:
 if active_page == PAGE_NAMES[1]:
     render_page_shell("Start My Blueprint", "Set the core numbers that drive your retirement blueprint: ages, savings, contributions, Social Security, returns, and your bucket strategy.", "🧭")
     render_guided_progress(1)
-
-    if st.session_state.get("first_blueprint_flow", False) and st.session_state.get("first_blueprint_onboarding", False):
-        render_first_blueprint_card_wizard()
-        st.stop()
-
     page_help(
         "Guided Retirement Questions",
         "This page collects the core numbers for your retirement blueprint: ages, savings, contributions, Social Security, expected returns, inflation, Roth conversions, and premium 2-bucket strategy. These inputs drive the Retirement Dashboard, Blueprint Score, Action Plan, and Projection."
@@ -8583,12 +8765,6 @@ if active_page == PAGE_NAMES[1]:
 
                 st.session_state.quick_blueprint_saved = True
                 st.success("Quick Blueprint saved. Your Basic Blueprint is ready.")
-
-                if st.session_state.get("first_blueprint_flow", False):
-                    st.session_state.first_blueprint_flow = False
-                    st.session_state.first_blueprint_completed = True
-                    st.session_state.active_page = "Retirement Dashboard"
-                    st.rerun()
 
         if st.session_state.get("quick_blueprint_saved"):
             st.markdown("""
@@ -8816,11 +8992,6 @@ if active_page == PAGE_NAMES[1]:
                 }.items():
                     st.session_state[k] = v
                 st.success("Main answers saved.")
-                if st.session_state.get("first_blueprint_flow", False):
-                    st.session_state.first_blueprint_flow = False
-                    st.session_state.first_blueprint_completed = True
-                    st.session_state.active_page = "Retirement Dashboard"
-                    st.rerun()
 
             render_premium_insight("Premium bucket strategy", df if can_run else None, "bucket")
             render_three_bucket_strategy(df if can_run else None)
@@ -9734,11 +9905,16 @@ def render_basic_blueprint_dashboard():
         if st.button("Next: Retirement Dashboard", type="primary", use_container_width=True, key="review_inputs_to_retirement_dashboard"):
             go_to_page("Retirement Dashboard")
 if active_page == PAGE_NAMES[6]:
-    render_guided_progress(5)
-    if st.session_state.get("first_blueprint_completed", False):
-        st.success("Your first blueprint is ready. This dashboard turns your answers into a plain-English retirement snapshot.")
-        st.session_state.first_blueprint_completed = False
+    if st.session_state.get("dashboard_first_blueprint_ready", False):
+        first = st.session_state.get("first_name", "there")
+        st.success(f"Nice work, {first} — your first Retirement Blueprint is ready.")
+        if st.session_state.get("first_blueprint_saved_to_db") is True:
+            st.caption("Your first blueprint was also saved to your account.")
+        elif st.session_state.get("first_blueprint_saved_to_db") is False:
+            st.caption("Your blueprint is ready in this session. It could not be saved to your account yet.")
+        st.session_state.dashboard_first_blueprint_ready = False
 
+    render_guided_progress(5)
     if st.session_state.get("dashboard_focus"):
         focus_label = st.session_state.get("dashboard_focus")
         st.info(f"Opened from Premium Retirement Tools: **{focus_label}**. Use the premium tool buttons below or open advanced dashboard details.")
