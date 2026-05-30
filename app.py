@@ -1846,8 +1846,25 @@ with hero_left:
     </div>
     """, unsafe_allow_html=True)
 
-# Top-right sign-in button removed for a cleaner full-width header.
-# Sign-in can still be shown from the dashboard/Saved Blueprints flow when needed.
+# Account controls
+# Keep sign-in visible so users can save and reload blueprints.
+acct_left, acct_right = st.columns([5.5, 1.4])
+with acct_right:
+    if user:
+        user_email = getattr(user, "email", "Signed in")
+        st.caption(f"Signed in as {user_email}")
+        if st.button("Sign out", use_container_width=True, key="top_sign_out"):
+            try:
+                supabase.auth.sign_out()
+            except Exception:
+                pass
+            st.session_state.user = None
+            st.session_state.show_auth_form = False
+            st.rerun()
+    else:
+        if st.button("Sign In / Create Account", use_container_width=True, key="top_open_auth"):
+            st.session_state.show_auth_form = not st.session_state.get("show_auth_form", False)
+
 if not user and st.session_state.get("show_auth_form"):
     render_auth_form()
 
