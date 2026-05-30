@@ -7496,7 +7496,7 @@ PAGE_ICONS = {
     "Home": "🏠",
     "Guided Questions": "🧭",
     "Budget Builder": "💳",
-    "Income Builder": "💼",
+    "Income Builder": "💵",
     "Spouse Questions": "👥",
     "Review Answers": "📝",
     "Retirement Dashboard": "📊",
@@ -7518,7 +7518,7 @@ NAV_LABELS = {
     "Home": "Home",
     "Guided Questions": "Start My Blueprint",
     "Budget Builder": "Spending Plan",
-    "Income Builder": "Income Plan",
+    "Income Builder": "Income & Social Security",
     "Spouse Questions": "Household Plan",
     "Review Answers": "Review Inputs",
     "Retirement Dashboard": "Retirement Dashboard",
@@ -7637,7 +7637,6 @@ def render_navigation():
             "Home",
             "Guided Questions",
             "Budget Builder",
-            "Income Builder",
             "Review Answers",
             "Retirement Dashboard",
             "Recommendations",
@@ -7987,7 +7986,7 @@ def render_guided_progress(current_step: int):
     steps = [
         (1, "Start Blueprint", "Enter core numbers"),
         (2, "Spending Plan", "Estimate spending"),
-        (3, "Income Plan", "Add income sources"),
+        (3, "Income & Social Security", "Included in blueprint"),
         (4, "Review Inputs", "Check your answers"),
         (5, "Retirement Dashboard", "See your results"),
     ]
@@ -8727,7 +8726,7 @@ if active_page == PAGE_NAMES[0]:
         retire_status_note_home = "Enter your core numbers to test your retirement age."
         monthly_gap_home = "$0"
         monthly_gap_raw_home = 0
-        dashboard_reason_html = "Complete your Start Blueprint, Spending Plan, and Income Plan first. Then this dashboard will explain what is helping or hurting the retirement estimate."
+        dashboard_reason_html = "Complete your Start Blueprint and Spending Plan first. Then this dashboard will explain what is helping or hurting the retirement estimate."
         status_title = "You are not signed in." if not user else "Your plan needs a little more information."
         status_note = "You can still use the planner, but saved blueprints require an account." if not user else "Complete the required fields below to unlock projections and recommendations."
         required_panel = ", ".join(missing_items_home) if missing_items_home else "Review Start My Blueprint and Spending Plan."
@@ -8903,11 +8902,11 @@ if active_page == PAGE_NAMES[0]:
 
 
 if active_page == PAGE_NAMES[1]:
-    render_page_shell("Start My Blueprint", "Set the core numbers that drive your retirement blueprint: ages, savings, contributions, Social Security, returns, and your bucket strategy.", "🧭")
+    render_page_shell("Start My Blueprint", "Set the core numbers that drive your retirement blueprint: ages, savings, contributions, Social Security, other income, returns, and your bucket strategy.", "🧭")
     render_guided_progress(1)
     page_help(
         "Guided Retirement Questions",
-        "This page collects the core numbers for your retirement blueprint: ages, savings, contributions, Social Security, expected returns, inflation, Roth conversions, and premium 2-bucket strategy. These inputs drive the Retirement Dashboard, Blueprint Score, Action Plan, and Projection."
+        "This page collects the core numbers for your retirement blueprint: ages, savings, contributions, Social Security, other retirement income, expected returns, inflation, Roth conversions, and premium 2-bucket strategy. These inputs drive the Retirement Dashboard, Blueprint Score, Action Plan, and Projection."
     )
 
     blueprint_mode = st.radio(
@@ -8955,6 +8954,13 @@ if active_page == PAGE_NAMES[1]:
             q1, q2, q3 = st.columns(3)
             quick_ss_age = q1.number_input("Social Security start age", 62, 70, st.session_state.user_ss_age, help=FIELD_HELP["user_ss_age"])
             quick_ss = q2.number_input("Annual Social Security at 62", min_value=0, value=st.session_state.user_ss, step=1000, help=FIELD_HELP["user_ss"])
+            quick_other_income_monthly = q3.number_input(
+                "Other monthly retirement income",
+                min_value=0,
+                value=int(float(st.session_state.simple_income or 0) / 12),
+                step=100,
+                help="Include pension, rental income, part-time work, annuity income, or anything else you expect each month in retirement. Use 0 if none."
+            )
 
             market_options = [
                 "Conservative — I prefer a steadier, safer plan",
@@ -8967,14 +8973,16 @@ if active_page == PAGE_NAMES[1]:
                 "Aggressive — I am comfortable with more ups and downs for more growth potential": 0.085,
             }
             prior_quick_market = st.session_state.get("quick_market_comfort", "Balanced — I can handle normal market ups and downs")
-            quick_market_comfort = q3.selectbox(
+            q1, q2 = st.columns([1.5, 1])
+            quick_market_comfort = q1.selectbox(
                 "Market comfort level",
                 market_options,
                 index=market_options.index(prior_quick_market) if prior_quick_market in market_options else 1,
                 help="Quick Blueprint keeps this simple. Pick how comfortable you are with market ups and downs, and the app chooses a starter return assumption for you. You can choose custom returns in Detailed Blueprint.",
             )
             quick_growth_return = market_defaults[quick_market_comfort]
-            q3.caption(f"Quick Blueprint will use a {quick_growth_return * 100:.1f}% starter return assumption.")
+            q2.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+            q2.info(f"Quick Blueprint will use a {quick_growth_return * 100:.1f}% starter return assumption.")
 
             quick_save = st.button("Save Quick Blueprint", type="primary", use_container_width=True, key="save_quick_blueprint_button")
 
@@ -8993,6 +9001,12 @@ if active_page == PAGE_NAMES[1]:
                     "annual_contribution": quick_annual_contribution,
                     "user_ss_age": quick_ss_age,
                     "user_ss": quick_ss,
+                    "income_mode": "Simple income",
+                    "simple_income": quick_other_income_monthly * 12,
+                    "simple_income_start": quick_retire_age if quick_other_income_monthly > 0 else 0,
+                    "simple_income_end": quick_end_age if quick_other_income_monthly > 0 else 0,
+                    "simple_income_inflation": True,
+                    "simple_income_reliability": "Guaranteed",
                     "growth_return": quick_growth_return,
                     "quick_growth_return": quick_growth_return,
                     "quick_market_comfort": quick_market_comfort,
@@ -9029,7 +9043,7 @@ if active_page == PAGE_NAMES[1]:
               <div class="rb-next-heading">Basic Blueprint ready</div>
               <div class="rb-muted">
                 Your starter blueprint uses the basics you entered: age, target retirement age, savings,
-                monthly retirement spending, Social Security, annual savings, and your market comfort level.
+                monthly retirement spending, Social Security, other retirement income, annual savings, and your market comfort level.
                 Next, review the dashboard to see your first retirement snapshot.
               </div>
             </div>
@@ -9101,6 +9115,15 @@ if active_page == PAGE_NAMES[1]:
                 healthcare = c2.number_input("Your annual healthcare in retirement", min_value=0, value=st.session_state.healthcare, step=1000, help=FIELD_HELP["healthcare"])
                 user_ss_age = c3.number_input("Your Social Security start age", 62, 70, st.session_state.user_ss_age, help=FIELD_HELP["user_ss_age"])
                 user_ss = c4.number_input("Your annual Social Security at 62", min_value=0, value=st.session_state.user_ss, step=1000, help=FIELD_HELP["user_ss"])
+
+                st.subheader("Other Retirement Income")
+                st.caption("Optional. Add income besides Social Security, such as a pension, rental income, part-time work, annuity income, or business income.")
+                c1, c2, c3, c4 = st.columns(4)
+                simple_income = c1.number_input("Other annual income", min_value=0, value=int(st.session_state.simple_income), step=1000, help=FIELD_HELP["simple_income"])
+                simple_income_start = c2.number_input("Other income start age", min_value=0, max_value=110, value=int(st.session_state.simple_income_start), help=FIELD_HELP["simple_income_start"])
+                simple_income_end = c3.number_input("Other income end age", min_value=0, max_value=120, value=int(st.session_state.simple_income_end), help=FIELD_HELP["simple_income_end"])
+                simple_income_reliability = c4.selectbox("Income reliability", ["Guaranteed", "Variable"], index=0 if st.session_state.simple_income_reliability == "Guaranteed" else 1, help=FIELD_HELP["simple_income_reliability"])
+                simple_income_inflation = st.checkbox("Other income rises with inflation?", value=bool(st.session_state.simple_income_inflation), help=FIELD_HELP["simple_income_inflation"])
 
                 st.subheader("Household")
                 has_spouse = bool(st.session_state.get("has_spouse", False))
@@ -9228,6 +9251,12 @@ if active_page == PAGE_NAMES[1]:
                     "traditional": traditional, "roth": roth, "taxable": taxable, "cash": cash,
                     "annual_contribution": annual_contribution, "healthcare": healthcare,
                     "user_ss_age": user_ss_age, "user_ss": user_ss,
+                    "income_mode": "Simple income",
+                    "simple_income": simple_income,
+                    "simple_income_start": simple_income_start,
+                    "simple_income_end": simple_income_end,
+                    "simple_income_inflation": simple_income_inflation,
+                    "simple_income_reliability": simple_income_reliability,
                     "has_spouse": has_spouse,
                     "spouse_age": spouse_age,
                     "spouse_retire_age": spouse_retire_age,
@@ -9412,8 +9441,8 @@ if active_page == PAGE_NAMES[2]:
         if st.button("Back: Start My Blueprint", use_container_width=True, key="back_from_budget_to_guided"):
             go_to_page("Guided Questions")
     with next_cols[1]:
-        if st.button("Next: Income Plan", type="primary", use_container_width=True, key="next_from_budget_to_income"):
-            go_to_page("Income Builder")
+        if st.button("Next: Review Inputs", type="primary", use_container_width=True, key="next_from_budget_to_review"):
+            go_to_page("Review Answers")
 
 
 if active_page == PAGE_NAMES[3]:
@@ -10221,8 +10250,8 @@ def render_basic_blueprint_dashboard():
     st.divider()
     nav_cols = st.columns([1, 1])
     with nav_cols[0]:
-        if st.button("Back: Income Plan", use_container_width=True, key="review_inputs_back_income"):
-            go_to_page("Income Builder")
+        if st.button("Back: Spending Plan", use_container_width=True, key="review_inputs_back_spending"):
+            go_to_page("Budget Builder")
     with nav_cols[1]:
         if st.button("Next: Retirement Dashboard", type="primary", use_container_width=True, key="review_inputs_to_retirement_dashboard"):
             go_to_page("Retirement Dashboard")
