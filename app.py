@@ -8805,15 +8805,26 @@ if active_page == PAGE_NAMES[1]:
             q1, q2, q3 = st.columns(3)
             quick_ss_age = q1.number_input("Social Security start age", 62, 70, st.session_state.user_ss_age, help=FIELD_HELP["user_ss_age"])
             quick_ss = q2.number_input("Annual Social Security at 62", min_value=0, value=st.session_state.user_ss, step=1000, help=FIELD_HELP["user_ss"])
-            quick_growth_return = q3.slider(
-            "Expected average return",
-            min_value=0.0,
-            max_value=30.0,
-            value=min(max(float(st.session_state.growth_return) * 100, 0.0), 30.0),
-            step=0.25,
-            format="%.2f%%",
-            help=FIELD_HELP["growth_return"],
-        ) / 100
+
+            market_options = [
+                "Conservative — I prefer a steadier, safer plan",
+                "Balanced — I can handle normal market ups and downs",
+                "Aggressive — I am comfortable with more ups and downs for more growth potential",
+            ]
+            market_defaults = {
+                "Conservative — I prefer a steadier, safer plan": 0.055,
+                "Balanced — I can handle normal market ups and downs": 0.075,
+                "Aggressive — I am comfortable with more ups and downs for more growth potential": 0.085,
+            }
+            prior_quick_market = st.session_state.get("quick_market_comfort", "Balanced — I can handle normal market ups and downs")
+            quick_market_comfort = q3.selectbox(
+                "Market comfort level",
+                market_options,
+                index=market_options.index(prior_quick_market) if prior_quick_market in market_options else 1,
+                help="Quick Blueprint keeps this simple. Pick how comfortable you are with market ups and downs, and the app chooses a starter return assumption for you. You can choose custom returns in Detailed Blueprint.",
+            )
+            quick_growth_return = market_defaults[quick_market_comfort]
+            q3.caption(f"Quick Blueprint will use a {quick_growth_return * 100:.1f}% starter return assumption.")
 
             quick_save = st.button("Save Quick Blueprint", type="primary", use_container_width=True, key="save_quick_blueprint_button")
 
@@ -8833,6 +8844,8 @@ if active_page == PAGE_NAMES[1]:
                     "user_ss_age": quick_ss_age,
                     "user_ss": quick_ss,
                     "growth_return": quick_growth_return,
+                    "quick_growth_return": quick_growth_return,
+                    "quick_market_comfort": quick_market_comfort,
                     "safe_return": 0.045,
                     "inflation": 0.03,
                     "bucket1_years": 3.0,
@@ -8855,7 +8868,10 @@ if active_page == PAGE_NAMES[1]:
                     st.session_state[k] = v
 
                 st.session_state.quick_blueprint_saved = True
-                st.success("Quick Blueprint saved. Your Basic Blueprint is ready.")
+                if quick_monthly_spending <= 0:
+                    st.warning("Quick Blueprint saved, but monthly retirement spending is still $0. Add a spending estimate before relying on the dashboard.")
+                else:
+                    st.success("Quick Blueprint saved. Your Basic Blueprint is ready.")
 
         if st.session_state.get("quick_blueprint_saved"):
             st.markdown("""
@@ -8863,7 +8879,7 @@ if active_page == PAGE_NAMES[1]:
               <div class="rb-next-heading">Basic Blueprint ready</div>
               <div class="rb-muted">
                 Your starter blueprint uses the basics you entered: age, target retirement age, savings,
-                monthly retirement spending, Social Security, annual savings, and expected return.
+                monthly retirement spending, Social Security, annual savings, and your market comfort level.
                 Next, review the dashboard to see your first retirement snapshot.
               </div>
             </div>
@@ -8883,7 +8899,7 @@ if active_page == PAGE_NAMES[1]:
             st.caption("Detailed spending, account-level planning, tax settings, Roth conversions, home equity, and bucket strategy are part of Detailed Blueprint.")
 
         if st.session_state.get("show_premium_prompt"):
-            st.info("Detailed Blueprint is a Premium feature. Free trial users can continue with Quick Blueprint, then unlock Premium for account-level planning, tax settings, Roth conversions, home equity, detailed spending, and bucket strategy.")
+            st.info("Detailed Blueprint is a Premium feature. Free trial users can continue with Quick Blueprint. Detailed Blueprint keeps the custom return sliders, so advanced users can test their own return, inflation, and bucket assumptions separately.")
 
     if blueprint_mode == "Detailed Blueprint":
         st.subheader("Detailed Blueprint")
