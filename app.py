@@ -7932,12 +7932,82 @@ if active_page == PAGE_NAMES[0]:
                 go_to_page("Recommendations")
     else:
         st.markdown("""
-        <div class="rb-insight-card">
-          <div class="rb-insight-kicker">Home</div>
-          <div class="rb-insight-title">Ready to see where you stand?</div>
-          <div class="rb-insight-copy">
-            Start with a few basic numbers. Retirement Blueprint 101 will estimate whether your target retirement age
-            looks realistic, how long your money may last, and what to improve first.
+        <div class="rb-insight-card" style="padding: 26px 28px; margin-bottom: 22px;">
+          <div style="display:grid; grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr); gap: 28px; align-items:center;">
+            <div>
+              <div class="rb-insight-kicker">Retirement Blueprint 101</div>
+              <div style="font-size: clamp(2.0rem, 4vw, 4.2rem); line-height: 1.02; font-weight: 950; color:#0f172a; letter-spacing:-.05em; margin: 6px 0 14px;">
+                Find out if your retirement plan can actually work.
+              </div>
+              <div class="rb-insight-copy" style="max-width: 920px; font-size: 1.05rem;">
+                No finance degree needed. Enter your age, savings, spending, Social Security, and income.
+                The app turns those numbers into a simple retirement blueprint: when you may be able to retire,
+                how long your money may last, and what to improve first.
+              </div>
+              <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:18px;">
+                <span style="background:#dcfce7; color:#166534; border:1px solid #bbf7d0; border-radius:999px; padding:8px 12px; font-weight:800;">Simple answers</span>
+                <span style="background:#e0f2fe; color:#075985; border:1px solid #bae6fd; border-radius:999px; padding:8px 12px; font-weight:800;">What-if testing</span>
+                <span style="background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; border-radius:999px; padding:8px 12px; font-weight:800;">Action plan included</span>
+              </div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #dbeafe; border-radius:24px; padding:18px; box-shadow:0 22px 50px rgba(15,23,42,.10); transform: rotate(1deg);">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                <div style="font-weight:950; color:#0f172a; font-size:1.15rem;">Example Blueprint</div>
+                <div style="font-size:.78rem; font-weight:900; color:#2563eb; background:#eff6ff; border-radius:999px; padding:5px 9px;">PREVIEW</div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:16px; padding:13px;">
+                  <div style="color:#64748b; font-size:.78rem; font-weight:800;">Blueprint Score</div>
+                  <div style="font-size:2rem; font-weight:950; color:#0f172a;">76/100</div>
+                  <div style="color:#166534; font-weight:900; font-size:.78rem;">Likely viable</div>
+                </div>
+                <div style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:16px; padding:13px;">
+                  <div style="color:#64748b; font-size:.78rem; font-weight:800;">Retire at 60?</div>
+                  <div style="font-size:2rem; font-weight:950; color:#0f172a;">Maybe</div>
+                  <div style="color:#b45309; font-weight:900; font-size:.78rem;">Needs review</div>
+                </div>
+              </div>
+              <div style="margin-top:12px; background:linear-gradient(135deg,#eff6ff,#ecfdf5); border:1px solid #bfdbfe; border-radius:18px; padding:14px;">
+                <div style="font-weight:950; color:#0f172a; margin-bottom:8px;">Plain-English Summary</div>
+                <div style="color:#475569; line-height:1.45; font-size:.95rem;">
+                  Your plan may work, but the biggest pressure is how much must come from savings each month.
+                </div>
+              </div>
+              <div style="margin-top:12px; display:grid; gap:8px;">
+                <div style="display:flex; gap:8px; align-items:flex-start;"><span>✅</span><span style="color:#334155;">See your retirement score</span></div>
+                <div style="display:flex; gap:8px; align-items:flex-start;"><span>📉</span><span style="color:#334155;">Spot risk before you retire</span></div>
+                <div style="display:flex; gap:8px; align-items:flex-start;"><span>🧭</span><span style="color:#334155;">Get your next best step</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:16px; margin-bottom: 22px;">
+          <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:20px; padding:20px; box-shadow:0 12px 28px rgba(15,23,42,.06);">
+            <div style="font-size:2.4rem; font-weight:950; color:#2563eb; line-height:1;">67%</div>
+            <div style="font-weight:900; color:#0f172a; margin-top:8px;">worry more about running out of money than death</div>
+            <div class="rb-muted" style="margin-top:8px;">That fear is exactly what this app is built to help people test in plain English.</div>
+            <div style="font-size:.78rem; color:#64748b; margin-top:10px;">Source: Allianz Life 2026 Annual Retirement Study</div>
+          </div>
+          <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:20px; padding:20px; box-shadow:0 12px 28px rgba(15,23,42,.06);">
+            <div style="font-size:2.4rem; font-weight:950; color:#16a34a; line-height:1;">3</div>
+            <div style="font-weight:900; color:#0f172a; margin-top:8px;">big questions answered</div>
+            <div class="rb-muted" style="margin-top:8px;">Can I retire? Will my money last? What should I change first?</div>
+          </div>
+          <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:20px; padding:20px; box-shadow:0 12px 28px rgba(15,23,42,.06);">
+            <div style="font-size:2.4rem; font-weight:950; color:#0f172a; line-height:1;">1</div>
+            <div style="font-weight:900; color:#0f172a; margin-top:8px;">personal blueprint</div>
+            <div class="rb-muted" style="margin-top:8px;">A simple plan you can save, compare, improve, and turn into a report.</div>
+          </div>
+        </div>
+
+        <div style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:22px; padding:20px; margin-bottom: 22px;">
+          <div style="font-weight:950; color:#0f172a; font-size:1.25rem; margin-bottom:12px;">What you will get</div>
+          <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:12px;">
+            <div style="background:#ffffff; border-radius:16px; padding:14px; border:1px solid #e5e7eb;"><b>Retirement score</b><br/><span class="rb-muted">A simple signal showing where your plan stands.</span></div>
+            <div style="background:#ffffff; border-radius:16px; padding:14px; border:1px solid #e5e7eb;"><b>Money timeline</b><br/><span class="rb-muted">See key ages, income timing, and projected balances.</span></div>
+            <div style="background:#ffffff; border-radius:16px; padding:14px; border:1px solid #e5e7eb;"><b>Action plan</b><br/><span class="rb-muted">Find the changes that may improve confidence fastest.</span></div>
+            <div style="background:#ffffff; border-radius:16px; padding:14px; border:1px solid #e5e7eb;"><b>Scenario testing</b><br/><span class="rb-muted">Compare retiring earlier, later, or spending differently.</span></div>
           </div>
         </div>
         """, unsafe_allow_html=True)
