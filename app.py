@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from io import BytesIO
 import io
 from xml.sax.saxutils import escape as xml_escape
+from datetime import date
 
 from db import supabase
 
@@ -1998,17 +1999,43 @@ def social_security_for_age(current_age, start_age, annual_benefit_at_62):
     return estimate_social_security_by_claim_age(annual_benefit_at_62, start_age)
 
 
+def inflation_factor_from_today(projected_age):
+    """Inflate today's-dollar amounts from the user's current age to projected_age."""
+    current_age = int(st.session_state.get("current_age", projected_age) or projected_age)
+    years_from_today = max(int(projected_age or current_age) - current_age, 0)
+    return (1 + float(st.session_state.get("inflation", 0.0) or 0.0)) ** years_from_today
+
+
+def apply_cola_to_social_security(amount, projected_age):
+    """Apply a simplified COLA assumption using the app's inflation rate."""
+    return float(amount or 0.0) * inflation_factor_from_today(projected_age)
+
+
 # -----------------------------
 # RMD Helper - simplified Uniform Lifetime Table
 # -----------------------------
 def get_rmd_start_age():
-    """Simplified default RMD start age.
+    """Estimate the user's RMD start age from current age and the current calendar year.
 
-    Current app default uses 75 because most users planning from their 50s today
-    are likely in the SECURE 2.0 age-75 group. This is educational and should be
-    verified for the user's birth year.
+    SECURE 2.0 generally moved the RMD start age to 73 for people born 1951-1959
+    and 75 for people born 1960 or later. The app does not collect birth date, so
+    this uses a best-effort birth-year estimate from current age. Users should
+    verify their exact RMD year with a tax professional.
     """
-    return int(st.session_state.get("rmd_start_age", 75) or 75)
+    manual_value = st.session_state.get("rmd_start_age", None)
+    if manual_value not in (None, "", 0):
+        return int(manual_value)
+
+    current_age = int(st.session_state.get("current_age", 0) or 0)
+    if current_age <= 0:
+        return 75
+
+    estimated_birth_year = date.today().year - current_age
+    if estimated_birth_year >= 1960:
+        return 75
+    if estimated_birth_year >= 1951:
+        return 73
+    return 72
 
 
 def uniform_lifetime_divisor(age):
@@ -2257,7 +2284,7 @@ def tax_assumption_note():
     return (
         f"Federal tax estimate uses {get_tax_year()} brackets, {settings['label']} filing status, "
         f"and a standard deduction of {money(settings['standard_deduction'])}. "
-        "Phase 2 estimates taxable Social Security using provisional income thresholds and includes taxable Social Security in federal taxable income. "
+        "Phase 2 estimates taxable Social Security using provisional income thresholds, applies a simplified Social Security COLA using the app inflation rate, includes taxable Social Security in federal taxable income, and models RMDs using a simplified Uniform Lifetime Table. "
         "Capital gains, state taxes, credits, itemized deductions, IRMAA, and tax penalties are still simplified/future enhancements."
     )
 
@@ -3148,7 +3175,7 @@ def render_scenario_comparison_panel():
     def simple_status(score, ending_portfolio):
         if score >= 90:
             return "Very Strong"
-        if score >= 75:
+        if score >= 80:
             return "Strong"
         if score >= 60:
             return "Possible, but tight"
@@ -3330,7 +3357,7 @@ def build_retirement_age_optimizer_results(start_age=None, end_age=None, safety_
     earliest = viable.sort_values(["Retirement Age"], ascending=True).iloc[0]
 
     recommended_candidates = viable[
-        (viable["Blueprint Score"] >= 75)
+        (viable["Blueprint Score"] >= 80)
         & (viable["Ending Portfolio"] >= float(safety_target))
     ].copy()
 
@@ -3640,7 +3667,7 @@ defaults = {
     "retirement_housing_plan": "Unsure",
     "tax_year": 2026,
     "filing_status": "married_joint",
-    "rmd_start_age": 75,
+    "rmd_start_age": None,
     "user_plan": "free",
     "premium_preview_enabled": True,
     "bucket2_years": 5.0,
@@ -4007,6 +4034,7 @@ def run_projection():
         spouse_age = int(st.session_state.spouse_age) + year_offset if st.session_state.has_spouse else 0
         spouse_alive = bool(st.session_state.has_spouse and spouse_age <= int(st.session_state.spouse_plan_age))
         start_total = trad + roth + taxable + bucket1
+        start_trad_for_rmd = trad
 
         if age < int(st.session_state.retire_age):
             trad += float(st.session_state.annual_contribution) * 0.8
@@ -4033,11 +4061,20 @@ def run_projection():
             trad -= conversion
             roth += conversion
 
-        user_ss = social_security_for_age(age, int(st.session_state.user_ss_age), float(st.session_state.user_ss))
-        spouse_ss = social_security_for_age(spouse_age, int(st.session_state.spouse_ss_age), float(st.session_state.spouse_ss)) if spouse_alive else 0
+        user_ss = apply_cola_to_social_security(
+            social_security_for_age(age, int(st.session_state.user_ss_age), float(st.session_state.user_ss)),
+            age,
+        )
+        spouse_ss = apply_cola_to_social_security(
+            social_security_for_age(spouse_age, int(st.session_state.spouse_ss_age), float(st.session_state.spouse_ss)),
+            age,
+        ) if spouse_alive else 0
         if st.session_state.has_spouse and not spouse_alive:
             if st.session_state.survivor_ss_strategy == "Higher benefit continues":
-                spouse_survivor_ss = estimate_social_security_by_claim_age(float(st.session_state.spouse_ss), int(st.session_state.spouse_ss_age))
+                spouse_survivor_ss = apply_cola_to_social_security(
+                    estimate_social_security_by_claim_age(float(st.session_state.spouse_ss), int(st.session_state.spouse_ss_age)),
+                    age,
+                )
                 ss_income = max(user_ss, spouse_survivor_ss)
             else:
                 ss_income = user_ss
@@ -4051,19 +4088,18 @@ def run_projection():
 
         spending = 0
         if household_retired:
-            years_retired = max(age - int(st.session_state.retire_age), 0)
+            inflation_factor = inflation_factor_from_today(age)
             if st.session_state.has_spouse and not spouse_alive and float(st.session_state.survivor_spending) > 0:
-                spending = float(st.session_state.survivor_spending) * ((1 + float(st.session_state.inflation)) ** years_retired)
+                spending = float(st.session_state.survivor_spending) * inflation_factor
             else:
-                spending = annual_spending_for_age(age) * ((1 + float(st.session_state.inflation)) ** years_retired)
+                spending = annual_spending_for_age(age) * inflation_factor
 
         healthcare = 0
+        healthcare_inflation_factor = inflation_factor_from_today(age)
         if age >= int(st.session_state.retire_age):
-            user_healthcare_years = max(age - int(st.session_state.retire_age), 0)
-            healthcare += float(st.session_state.healthcare) * ((1 + float(st.session_state.inflation)) ** user_healthcare_years)
+            healthcare += float(st.session_state.healthcare) * healthcare_inflation_factor
         if spouse_alive and spouse_age >= int(st.session_state.spouse_retire_age):
-            spouse_healthcare_years = max(spouse_age - int(st.session_state.spouse_retire_age), 0)
-            healthcare += float(st.session_state.spouse_healthcare) * ((1 + float(st.session_state.inflation)) ** spouse_healthcare_years)
+            healthcare += float(st.session_state.spouse_healthcare) * healthcare_inflation_factor
 
         mortgage_payment = annual_mortgage_payment_for_age(age) if household_retired else 0
         total_spending = spending + healthcare + mortgage_payment
@@ -4087,7 +4123,7 @@ def run_projection():
             used_trad += take
         take = min(roth, max(withdrawal_needed, 0)); roth -= take; withdrawal_needed -= take; used_roth += take
 
-        rmd_required = calculate_required_minimum_distribution(age, trad + used_trad)
+        rmd_required = calculate_required_minimum_distribution(age, start_trad_for_rmd)
         forced_rmd = 0.0
         federal_tax_from_forced_rmd = 0.0
         taxable_reinvestment = 0.0
@@ -4576,6 +4612,7 @@ def run_projection_with_return_sequence(return_sequence):
         spouse_age = int(st.session_state.spouse_age) + year_offset if st.session_state.has_spouse else 0
         spouse_alive = bool(st.session_state.has_spouse and spouse_age <= int(st.session_state.spouse_plan_age))
         start_total = trad + roth + taxable + bucket1
+        start_trad_for_rmd = trad
 
         if age < int(st.session_state.retire_age):
             trad += float(st.session_state.annual_contribution) * 0.8
@@ -4603,12 +4640,21 @@ def run_projection_with_return_sequence(return_sequence):
             trad -= conversion
             roth += conversion
 
-        user_ss = social_security_for_age(age, int(st.session_state.user_ss_age), float(st.session_state.user_ss))
-        spouse_ss = social_security_for_age(spouse_age, int(st.session_state.spouse_ss_age), float(st.session_state.spouse_ss)) if spouse_alive else 0
+        user_ss = apply_cola_to_social_security(
+            social_security_for_age(age, int(st.session_state.user_ss_age), float(st.session_state.user_ss)),
+            age,
+        )
+        spouse_ss = apply_cola_to_social_security(
+            social_security_for_age(spouse_age, int(st.session_state.spouse_ss_age), float(st.session_state.spouse_ss)),
+            age,
+        ) if spouse_alive else 0
 
         if st.session_state.has_spouse and not spouse_alive:
             if st.session_state.survivor_ss_strategy == "Higher benefit continues":
-                spouse_survivor_ss = estimate_social_security_by_claim_age(float(st.session_state.spouse_ss), int(st.session_state.spouse_ss_age))
+                spouse_survivor_ss = apply_cola_to_social_security(
+                    estimate_social_security_by_claim_age(float(st.session_state.spouse_ss), int(st.session_state.spouse_ss_age)),
+                    age,
+                )
                 ss_income = max(user_ss, spouse_survivor_ss)
             else:
                 ss_income = user_ss
@@ -4621,19 +4667,18 @@ def run_projection_with_return_sequence(return_sequence):
 
         spending = 0
         if household_retired:
-            years_retired = max(age - int(st.session_state.retire_age), 0)
+            inflation_factor = inflation_factor_from_today(age)
             if st.session_state.has_spouse and not spouse_alive and float(st.session_state.survivor_spending) > 0:
-                spending = float(st.session_state.survivor_spending) * ((1 + float(st.session_state.inflation)) ** years_retired)
+                spending = float(st.session_state.survivor_spending) * inflation_factor
             else:
-                spending = annual_spending_for_age(age) * ((1 + float(st.session_state.inflation)) ** years_retired)
+                spending = annual_spending_for_age(age) * inflation_factor
 
         healthcare = 0
+        healthcare_inflation_factor = inflation_factor_from_today(age)
         if age >= int(st.session_state.retire_age):
-            user_healthcare_years = max(age - int(st.session_state.retire_age), 0)
-            healthcare += float(st.session_state.healthcare) * ((1 + float(st.session_state.inflation)) ** user_healthcare_years)
+            healthcare += float(st.session_state.healthcare) * healthcare_inflation_factor
         if spouse_alive and spouse_age >= int(st.session_state.spouse_retire_age):
-            spouse_healthcare_years = max(spouse_age - int(st.session_state.spouse_retire_age), 0)
-            healthcare += float(st.session_state.spouse_healthcare) * ((1 + float(st.session_state.inflation)) ** spouse_healthcare_years)
+            healthcare += float(st.session_state.spouse_healthcare) * healthcare_inflation_factor
 
         mortgage_payment = annual_mortgage_payment_for_age(age) if household_retired else 0
         total_spending = spending + healthcare + mortgage_payment
@@ -4670,7 +4715,7 @@ def run_projection_with_return_sequence(return_sequence):
         withdrawal_needed -= take
         used_roth += take
 
-        rmd_required = calculate_required_minimum_distribution(age, trad + used_trad)
+        rmd_required = calculate_required_minimum_distribution(age, start_trad_for_rmd)
         forced_rmd = 0.0
         federal_tax_from_forced_rmd = 0.0
         taxable_reinvestment = 0.0
@@ -8692,11 +8737,14 @@ def calculate_basic_blueprint_snapshot():
         balance_at_retirement = balance_at_retirement * (1 + growth_return) + annual_contribution
 
     balance = balance_at_retirement
-    first_year_gap = max(annual_spending - (ss_annual if retire_age >= ss_age else 0), 0)
+    first_year_spending = annual_spending * ((1 + inflation) ** max(retire_age - current_age, 0))
+    first_year_ss = ss_annual * ((1 + inflation) ** max(retire_age - current_age, 0)) if retire_age >= ss_age else 0
+    first_year_gap = max(first_year_spending - first_year_ss, 0)
     depletion_age = None
     for age in range(retire_age, end_age + 1):
-        spending = annual_spending * ((1 + inflation) ** max(age - retire_age, 0))
-        income = ss_annual if age >= ss_age else 0
+        years_from_today = max(age - current_age, 0)
+        spending = annual_spending * ((1 + inflation) ** years_from_today)
+        income = ss_annual * ((1 + inflation) ** years_from_today) if age >= ss_age else 0
         gap = max(spending - income, 0)
         balance = balance * (1 + growth_return) - gap
         if balance <= 0 and depletion_age is None:
@@ -11002,7 +11050,7 @@ section[data-testid="stSidebar"] button {
         if score >= 90:
             badge = "badge-strong"
             score_class = "score-big"
-        elif score >= 75:
+        elif score >= 80:
             badge = "badge-strong"
             score_class = "score-big"
         elif score >= 60:
