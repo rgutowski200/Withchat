@@ -7892,6 +7892,36 @@ if active_page == PAGE_NAMES[0]:
     </div>
     """, unsafe_allow_html=True)
 
+    st.markdown("""
+    <div class="rb-insight-card" style="margin-top: 10px; margin-bottom: 22px;">
+      <div class="rb-insight-kicker">Plain-English Retirement Planning</div>
+      <div class="rb-insight-title">You do not need to be a financial expert to use this.</div>
+      <div class="rb-insight-copy">
+        Retirement can feel confusing because there are a lot of moving parts: savings, Social Security,
+        spending, taxes, healthcare, and market ups and downs. This tool is designed to turn those pieces
+        into simple answers you can understand and act on.
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-top:16px;">
+        <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:16px; padding:16px;">
+          <div style="font-weight:900; color:#0f172a; margin-bottom:6px;">1. Start with estimates</div>
+          <div class="rb-muted">You can use your best guess today. The goal is to get a clear starting point, then improve it over time.</div>
+        </div>
+        <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:16px; padding:16px;">
+          <div style="font-weight:900; color:#0f172a; margin-bottom:6px;">2. See what matters most</div>
+          <div class="rb-muted">The app shows whether spending, income, retirement age, or savings is putting the most pressure on your plan.</div>
+        </div>
+        <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:16px; padding:16px;">
+          <div style="font-weight:900; color:#0f172a; margin-bottom:6px;">3. Test better options</div>
+          <div class="rb-muted">Try different retirement ages, spending levels, and Social Security timing to see what improves your confidence.</div>
+        </div>
+      </div>
+      <div style="margin-top:14px; color:#475569; line-height:1.5;">
+        Think of this as a retirement GPS. It does not promise the future, but it helps you see the road ahead,
+        spot the potholes, and decide what to adjust before you make a big decision.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 
     if safe_can_run_home:
         st.markdown("""
