@@ -7986,9 +7986,9 @@ def render_guided_progress(current_step: int):
     steps = [
         (1, "Start Blueprint", "Enter core numbers"),
         (2, "Spending Plan", "Estimate spending"),
-        (3, "Income & Social Security", "Included in blueprint"),
-        (4, "Review Inputs", "Check your answers"),
-        (5, "Retirement Dashboard", "See your results"),
+        (3, "Review Inputs", "Check your answers"),
+        (4, "Retirement Dashboard", "See your results"),
+        (5, "Saved Blueprint", "Name and save it"),
     ]
 
     html = ['<div class="rb-progress-wrap">']
@@ -9418,7 +9418,7 @@ if active_page == PAGE_NAMES[2]:
         for k, v in detailed_values.items():
             st.session_state[k] = v
 
-        st.success("Budget saved. Next, add your income sources.")
+        st.success("Spending saved. Next, review your Retirement Dashboard.")
 
     monthly = (
         st.session_state.flat_monthly_spending
@@ -9441,8 +9441,8 @@ if active_page == PAGE_NAMES[2]:
         if st.button("Back: Start My Blueprint", use_container_width=True, key="back_from_budget_to_guided"):
             go_to_page("Guided Questions")
     with next_cols[1]:
-        if st.button("Next: Review Inputs", type="primary", use_container_width=True, key="next_from_budget_to_review"):
-            go_to_page("Review Answers")
+        if st.button("Next: Retirement Dashboard", type="primary", use_container_width=True, key="next_from_budget_to_dashboard"):
+            go_to_page("Retirement Dashboard")
 
 
 if active_page == PAGE_NAMES[3]:
@@ -9518,7 +9518,7 @@ if active_page == PAGE_NAMES[4]:
 
 if active_page == PAGE_NAMES[5]:
     render_page_shell("Review Inputs", "See a clean summary of your current inputs before running deeper analysis or sharing the results.", "📝")
-    render_guided_progress(4)
+    render_guided_progress(3)
     page_help(
         "Review Answers",
         "This page summarizes your saved inputs before running the plan. Use it to catch missing or incorrect assumptions before trusting the results."
@@ -10265,7 +10265,7 @@ if active_page == PAGE_NAMES[6]:
             st.caption("Your blueprint is ready in this session. It could not be saved to your account yet.")
         st.session_state.dashboard_first_blueprint_ready = False
 
-    render_guided_progress(5)
+    render_guided_progress(4)
     if st.session_state.get("dashboard_focus"):
         focus_label = st.session_state.get("dashboard_focus")
         st.info(f"Opened from Premium Retirement Tools: **{focus_label}**. Use the premium tool buttons below or open advanced dashboard details.")
@@ -10537,15 +10537,14 @@ if active_page == PAGE_NAMES[6]:
     st.divider()
     next_cols = st.columns([1, 1])
     with next_cols[0]:
-        if st.button("Next: View Action Plan", type="primary", use_container_width=True, key="next_from_dashboard_to_action"):
-            go_to_page("Recommendations")
+        if st.button("Next: Save Blueprint", type="primary", use_container_width=True, key="next_from_dashboard_to_save_blueprint"):
+            go_to_page("Saved Scenarios")
     with next_cols[1]:
         if st.button("Review Projection", use_container_width=True, key="next_from_dashboard_to_projection"):
             go_to_page("Projection Table")
 
 if active_page == PAGE_NAMES[7]:
     render_page_shell("Action Plan", "Plain-English next steps to help improve your retirement blueprint.", "💡")
-    render_guided_progress(5)
     page_help(
         "Recommendations",
         "This page explains what your retirement numbers mean in plain English and gives you practical ideas to improve the plan."
@@ -10862,7 +10861,6 @@ if active_page == PAGE_NAMES[7]:
 
 if active_page == PAGE_NAMES[8]:
     render_page_shell("Projection", "A clean year-by-year view of how your retirement blueprint may play out.", "📈")
-    render_guided_progress(4)
 
     if st.session_state.get("projection_focus"):
         focus_label = st.session_state.get("projection_focus")
