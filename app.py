@@ -8495,13 +8495,13 @@ if active_page == PAGE_NAMES[0]:
             dashboard_reason_bits.append(f"<b>Social Security gap:</b> There are about <b>{ss_gap_years_home} year(s)</b> between the tested retirement age and when Social Security starts. During that gap, savings may need to carry more of the spending.")
             dashboard_idea_bits.append("Use the Action Plan to test whether delaying retirement or changing Social Security timing improves the score.")
         else:
-            dashboard_reason_bits.append("<b>Social Security timing:</b> Social Security appears to start at or before the tested retirement age, which can reduce pressure on savings.")
+            dashboard_reason_bits.append("<b>Social Security:</b> Social Security starts at or before the retirement age being tested, so it helps cover spending right away.")
 
         if healthcare_gap_years_home > 0:
             dashboard_reason_bits.append(f"<b>Healthcare bridge:</b> There are about <b>{healthcare_gap_years_home} year(s)</b> before Medicare age 65. Healthcare costs during this bridge period can reduce the plan cushion.")
             dashboard_idea_bits.append("Check whether healthcare costs before Medicare are realistic.")
         else:
-            dashboard_reason_bits.append("<b>Healthcare bridge:</b> The plan does not show a major pre-Medicare healthcare bridge based on the current ages.")
+            dashboard_reason_bits.append("<b>Healthcare before Medicare:</b> Based on the current ages, the plan does not show a big gap before Medicare starts.")
 
         if monthly_gap_raw_home > 0:
             dashboard_reason_bits.append(f"<b>Monthly gap from savings:</b> After estimated income is counted, about <b>{compact_money(monthly_gap_raw_home)}</b> per month still needs to come from savings.")
@@ -8510,17 +8510,17 @@ if active_page == PAGE_NAMES[0]:
             elif monthly_gap_raw_home >= 3000:
                 dashboard_idea_bits.append("The savings gap is manageable to test, but still deserves attention.")
         else:
-            dashboard_reason_bits.append("<b>Monthly gap from savings:</b> Estimated income appears to cover the monthly spending need in the early years.")
+            dashboard_reason_bits.append("<b>Monthly gap from savings:</b> Based on these numbers, Social Security and other income appear to cover the monthly spending need in the early years.")
 
         if end_total_home <= 0 or unmet_need_home > 0:
-            dashboard_reason_bits.append("<b>Money left:</b> The projection shows a shortfall or portfolio depletion. The biggest levers are usually retiring later, reducing spending, increasing income, or saving more before retirement.")
+            dashboard_reason_bits.append("<b>Money left:</b> The projection shows little or no money left at the end. That usually means the plan needs one or more changes: retire later, spend less, save more, or add income.")
             dashboard_idea_bits.append("Go to the Action Plan to see which lever may add the most points.")
         else:
             dashboard_reason_bits.append(f"<b>Money left:</b> The projection estimates about <b>{compact_money(end_total_home)}</b> left at the end of the plan. This is a cushion estimate, not a guarantee.")
             if end_total_home < 250000:
                 dashboard_idea_bits.append("The ending cushion is thin, so stress testing matters.")
             else:
-                dashboard_idea_bits.append("The ending balance is a cushion estimate. Use stress tests before relying on it.")
+                dashboard_idea_bits.append("The ending balance is only an estimate. Stress tests help show what happens if returns are worse than expected.")
 
         dashboard_reason_html = "<br/><br/>".join(dashboard_reason_bits)
 
@@ -9695,6 +9695,24 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
         avg_gap = float(retired_df["Portfolio Need"].mean() or 0)
     monthly_gap = max(avg_gap, 0) / 12
 
+    starting_balance = float(df["Start Total"].iloc[0] or 0) if "Start Total" in df.columns and not df.empty else 0.0
+    years_until_retirement = max(retire_age - current_age, 0)
+    annual_savings = float(st.session_state.get("annual_contribution", 0) or 0)
+    growth_return = float(st.session_state.get("growth_return", 0) or 0)
+    safe_return = float(st.session_state.get("safe_return", 0) or 0)
+
+    if ending_balance > 0 and unmet_need <= 0:
+        why_money_left = (
+            f"The reason the model shows money left is simple: it starts with about <b>{money(starting_balance)}</b>, "
+            f"adds about <b>{money(annual_savings)}</b> per year until retirement, applies your assumed investment growth, "
+            f"and then subtracts only the part of spending not covered by Social Security or other income. "
+            f"In this version, that savings gap is about <b>{money(monthly_gap)}/month</b>, so the withdrawals are relatively manageable compared with the projected growth."
+        )
+    else:
+        why_money_left = (
+            "The model is showing little or no money left because the withdrawals needed from savings are too large for the current savings, income, and return assumptions."
+        )
+
     runout_age = None
     try:
         if "End Total" in df.columns:
@@ -9791,24 +9809,25 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
     if unmet_need > 0 or ending_balance <= 0 or rtv_score < 60:
         runout_phrase = f" The projection appears to run short around age <b>{runout_age}</b>." if runout_age else " The projection is showing a shortfall."
         summary_text = (
-            f"You told us you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
-            f"After Social Security and other income, your plan may need about <b>{money(monthly_gap)}/month</b> from savings."
-            f"{runout_phrase} This does not mean retirement is impossible — it means the first blueprint needs changes. "
-            "Start by testing a later retirement age, lower spending, more yearly savings, or additional income."
+            f"Here is the simple version: you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
+            f"After Social Security and other income are counted, savings would need to cover about <b>{money(monthly_gap)}/month</b>. "
+            f"{runout_phrase} That does not mean retirement is impossible. It means this first version needs changes before it looks comfortable. "
+            "The easiest things to test are retiring a little later, spending a little less, saving more before retirement, or adding income."
         )
     elif rtv_score < 80:
         summary_text = (
-            f"You told us you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
-            f"After Social Security and other income, your savings may need to cover roughly <b>{money(monthly_gap)}/month</b>. "
-            f"The projection still shows about <b>{compact_money(ending_balance)}</b> at age <b>{end_age}</b>, but the cushion may be thin. "
-            "The next step is to compare a few changes and stress test bad market years."
+            f"Here is the simple version: you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
+            f"After Social Security and other income are counted, savings would need to cover about <b>{money(monthly_gap)}/month</b>. "
+            f"The projection still shows about <b>{money(ending_balance)}</b> at age <b>{end_age}</b>, but the cushion may not be strong enough yet. "
+            "The next step is to test a few changes and see how the plan handles bad market years."
         )
     else:
         summary_text = (
-            f"You told us you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
-            f"After Social Security and other income, your savings may need to cover roughly <b>{money(monthly_gap)}/month</b>. "
-            f"The good news: your projected balance at age <b>{end_age}</b> is about <b>{compact_money(ending_balance)}</b>. "
-            "The main thing to check next is what happens if the market has a few bad years right after you retire."
+            f"Here is the simple version: you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
+            f"After Social Security and other income are counted, savings would need to cover about <b>{money(monthly_gap)}/month</b>. "
+            f"The projection shows about <b>{money(ending_balance)}</b> left at age <b>{end_age}</b>. "
+            f"{why_money_left} "
+            "This is still an estimate, so the next smart step is to stress test it against a few bad market years."
         )
 
     st.markdown(f"""
@@ -9857,13 +9876,13 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
         <div class="rb-card-label">Money Left at {end_age}</div>
         <div class="rb-card-value" style="color:{'#15803D' if ending_balance > 0 and unmet_need <= 0 else '#B91C1C'};">{money(ending_balance)}</div>
         <div class="rb-kpi-pill" style="background:{'#DCFCE7' if ending_balance > 0 and unmet_need <= 0 else '#FEE2E2'};color:{'#166534' if ending_balance > 0 and unmet_need <= 0 else '#991B1B'};">Projected</div>
-        <div class="rb-card-note">Estimated balance at the end of the plan.</div>
+        <div class="rb-card-note">Estimated money left after the plan pays for retirement spending.</div>
       </div>
       <div class="rb-card">
         <div class="rb-card-label">Monthly Gap From Savings</div>
         <div class="rb-card-value">{money(monthly_gap)}</div>
         <div class="rb-kpi-pill" style="background:{dashboard_pill_bg if rtv_score < 80 else '#DCFCE7'};color:{dashboard_pill_color if rtv_score < 80 else '#166534'};">Savings need</div>
-        <div class="rb-card-note">Estimated monthly amount that needs to come from savings.</div>
+        <div class="rb-card-note">The part of monthly spending not covered by Social Security or other income.</div>
       </div>
     </div>
     """, unsafe_allow_html=True)
@@ -10080,47 +10099,51 @@ if active_page == PAGE_NAMES[6]:
         if dashboard_avg_gap <= 0 and "Total Spending" in df.columns and "Total Non-Portfolio Income" in df.columns:
             dashboard_avg_gap = float((df["Total Spending"] - df["Total Non-Portfolio Income"]).clip(lower=0).mean())
         dashboard_monthly_gap = max(dashboard_avg_gap, 0) / 12
+        dashboard_start_total = float(df["Start Total"].iloc[0] or 0) if "Start Total" in df.columns and not df.empty else 0.0
+        dashboard_annual_savings = float(st.session_state.get("annual_contribution", 0) or 0)
+        dashboard_monthly_spending = float(annual_household_spending() or 0) / 12
+        dashboard_growth_return = float(st.session_state.get("growth_return", 0) or 0)
 
         if dashboard_score_val < 60:
-            retirement_dashboard_reason_bits.append(f"<b>Blueprint Score:</b> Your score is <b>{dashboard_score_val}/100</b>. This plan needs work before it looks retirement-ready.")
-            retirement_dashboard_idea_bits.extend(["Try a later retirement age.", "Try lowering monthly spending.", "Add income sources if available."])
+            retirement_dashboard_reason_bits.append(f"<b>Your score:</b> Your score is <b>{dashboard_score_val}/100</b>. In plain English, this version of the plan needs more work before it looks comfortable.")
+            retirement_dashboard_idea_bits.extend(["Try a later retirement age.", "Try lowering retirement spending.", "Add income sources if available."])
         elif dashboard_score_val < 80:
-            retirement_dashboard_reason_bits.append(f"<b>Blueprint Score:</b> Your score is <b>{dashboard_score_val}/100</b>. This plan may be possible, but the cushion is thin.")
+            retirement_dashboard_reason_bits.append(f"<b>Your score:</b> Your score is <b>{dashboard_score_val}/100</b>. This may be possible, but the plan does not have a large safety cushion yet.")
             retirement_dashboard_idea_bits.extend(["Build more cushion before retirement.", "Stress test bad market years.", "Compare Social Security timing."])
         else:
-            retirement_dashboard_reason_bits.append(f"<b>Blueprint Score:</b> Your score is <b>{dashboard_score_val}/100</b>. This plan looks stronger under the current assumptions, but it should still be stress-tested.")
+            retirement_dashboard_reason_bits.append(f"<b>Your score:</b> Your score is <b>{dashboard_score_val}/100</b>. This means the current version looks strong based on the numbers you entered.")
             retirement_dashboard_idea_bits.extend(["Save this version as your baseline.", "Run stress tests to see how it handles bad years.", "Compare one or two alternate retirement ages."])
 
         if dashboard_ss_gap > 0:
-            retirement_dashboard_reason_bits.append(f"<b>Social Security gap:</b> There are about <b>{dashboard_ss_gap} year(s)</b> between the tested retirement age and when Social Security starts. During that gap, savings may need to carry more of the spending.")
+            retirement_dashboard_reason_bits.append(f"<b>Social Security:</b> If you retire at <b>{dashboard_target_age}</b> and Social Security starts at <b>{dashboard_ss_age}</b>, savings may need to cover more of your spending for about <b>{dashboard_ss_gap} year(s)</b>.")
             retirement_dashboard_idea_bits.append("Use the Action Plan to test whether delaying retirement or changing Social Security timing improves the score.")
         else:
-            retirement_dashboard_reason_bits.append("<b>Social Security timing:</b> Social Security appears to start at or before the tested retirement age, which can reduce pressure on savings.")
+            retirement_dashboard_reason_bits.append("<b>Social Security:</b> Social Security starts at or before the retirement age being tested, so it helps cover spending right away.")
 
         if dashboard_healthcare_gap > 0:
-            retirement_dashboard_reason_bits.append(f"<b>Healthcare bridge:</b> There are about <b>{dashboard_healthcare_gap} year(s)</b> before Medicare age 65. Healthcare costs during this bridge period can reduce the plan cushion.")
+            retirement_dashboard_reason_bits.append(f"<b>Healthcare before Medicare:</b> Because this retirement age is before 65, there may be about <b>{dashboard_healthcare_gap} year(s)</b> where health insurance needs to be covered before Medicare starts.")
             retirement_dashboard_idea_bits.append("Check whether healthcare costs before Medicare are realistic.")
         else:
-            retirement_dashboard_reason_bits.append("<b>Healthcare bridge:</b> The plan does not show a major pre-Medicare healthcare bridge based on the current ages.")
+            retirement_dashboard_reason_bits.append("<b>Healthcare before Medicare:</b> Based on the current ages, the plan does not show a big gap before Medicare starts.")
 
         if dashboard_monthly_gap > 0:
-            retirement_dashboard_reason_bits.append(f"<b>Monthly gap from savings:</b> After estimated income is counted, about <b>{compact_money(dashboard_monthly_gap)}</b> per month still needs to come from savings.")
+            retirement_dashboard_reason_bits.append(f"<b>Monthly gap from savings:</b> Your retirement spending is about <b>{money(dashboard_monthly_spending)}/month</b>. After Social Security and other income are counted, savings may need to cover about <b>{money(dashboard_monthly_gap)}/month</b>.")
             if dashboard_monthly_gap >= 8000:
                 retirement_dashboard_idea_bits.append("The savings gap is large, so spending, income, and retirement age are the biggest levers.")
             elif dashboard_monthly_gap >= 3000:
                 retirement_dashboard_idea_bits.append("The savings gap is manageable to test, but still deserves attention.")
         else:
-            retirement_dashboard_reason_bits.append("<b>Monthly gap from savings:</b> Estimated income appears to cover the monthly spending need in the early years.")
+            retirement_dashboard_reason_bits.append("<b>Monthly gap from savings:</b> Based on these numbers, Social Security and other income appear to cover the monthly spending need in the early years.")
 
         if dashboard_end_total <= 0 or dashboard_unmet_need > 0:
-            retirement_dashboard_reason_bits.append("<b>Money left:</b> The projection shows a shortfall or portfolio depletion. The biggest levers are usually retiring later, reducing spending, increasing income, or saving more before retirement.")
+            retirement_dashboard_reason_bits.append("<b>Money left:</b> The projection shows little or no money left at the end. That usually means the plan needs one or more changes: retire later, spend less, save more, or add income.")
             retirement_dashboard_idea_bits.append("Go to the Action Plan to see which lever may add the most points.")
         else:
-            retirement_dashboard_reason_bits.append(f"<b>Money left:</b> The projection estimates about <b>{compact_money(dashboard_end_total)}</b> left at the end of the plan. This is a cushion estimate, not a guarantee.")
+            retirement_dashboard_reason_bits.append(f"<b>Money left:</b> The projection estimates about <b>{money(dashboard_end_total)}</b> left at age <b>{dashboard_plan_age}</b>. Why? The model starts with about <b>{money(dashboard_start_total)}</b>, adds about <b>{money(dashboard_annual_savings)}</b> per year until retirement, applies the growth assumption, and subtracts the monthly gap from savings. Because the gap is about <b>{money(dashboard_monthly_gap)}/month</b>, the balance can keep growing in this estimate.")
             if dashboard_end_total < 250000:
                 retirement_dashboard_idea_bits.append("The ending cushion is thin, so stress testing matters.")
             else:
-                retirement_dashboard_idea_bits.append("The ending balance is a cushion estimate. Use stress tests before relying on it.")
+                retirement_dashboard_idea_bits.append("The ending balance is only an estimate. Stress tests help show what happens if returns are worse than expected.")
 
         cleaned_dashboard_ideas = []
         seen_dashboard_ideas = set()
@@ -10134,8 +10157,8 @@ if active_page == PAGE_NAMES[6]:
 
         st.markdown(f"""
         <div class="rb-dashboard-explain rb-dashboard-explain-top">
-          <div class="rb-explain-kicker">Retirement Dashboard Explanation</div>
-          <div class="rb-explain-title">Why these numbers look this way</div>
+          <div class="rb-explain-kicker">Plain-English Dashboard Explanation</div>
+          <div class="rb-explain-title">What these numbers are telling you</div>
           <div class="rb-explain-copy">
             {retirement_dashboard_reason_html}
           </div>
