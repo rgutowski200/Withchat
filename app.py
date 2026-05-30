@@ -3513,89 +3513,89 @@ def build_retirement_age_optimizer_results(start_age=None, end_age=None, safety_
 
 def render_retirement_age_optimizer_page():
     render_page_shell(
-        "Smart Retirement Age Optimizer",
-        "Compare retirement ages and see which age gives the best balance of retiring sooner, portfolio safety, and long-term cushion.",
+        "Retirement Age Test Drive",
+        "Try a few retirement ages and see which one looks the most comfortable based on your current numbers.",
         "🎯"
     )
     page_help(
-        "Smart Retirement Age Optimizer",
-        "This educational tool runs the current blueprint several times using different retirement ages. It does not tell the user when to retire. It helps compare which tested age appears strongest based on the numbers entered."
+        "Retirement Age Test Drive",
+        "This page is like taking different retirement ages for a test drive. It does not tell you when you have to retire. It simply shows how each age looks using the numbers already entered."
     )
 
     if not can_run:
-        st.info("Complete the required inputs first, then return here to calculate a retirement age recommendation.")
+        st.info("Almost there — complete your basic blueprint first, then come back here and we can test different retirement ages together.")
         return
 
     premium_badge("Premium Feature Preview")
 
-    st.markdown("### What this tool is for")
+    st.markdown("### What this page helps you answer")
     st.info(
-        "This tool answers one simple question: **Based on the numbers entered, which retirement age looks strongest?** "
-        "It compares several retirement ages side by side and looks at whether the money lasts, how much cushion is left, "
-        "how much pressure withdrawals put on the portfolio, and how many years the user must bridge before Medicare or Social Security."
+        "This page answers a simple question: **If I retire at different ages, which age looks the most comfortable?** "
+        "Think of it like trying on a few retirement dates before choosing one. The app checks whether your money appears to last, "
+        "how much breathing room is left, and whether retiring earlier puts too much pressure on your savings."
     )
 
-    with st.expander("How to read the recommendation", expanded=True):
+    with st.expander("How to read this page", expanded=True):
         st.markdown(
             """
-            | **Result** | **What it means** |
+            | **You’ll see** | **Plain-English meaning** |
             |---|---|
-            | **Earliest Possible** | The first tested age where the plan appears to work through the planning age |
-            | **Current Target Age** | The age with the best balance of retiring sooner, Blueprint Score, safety cushion, and risk |
-            | **Safest Age** | The age that leaves the highest projected ending balance |
-            | **Recommended Score** | The Blueprint Score for the tested retirement age |
+            | **Soonest age that works** | The earliest age tested where the plan appears to make it through your planning age |
+            | **Best-fit age** | The age that seems to give the best mix of retiring sooner and still having a cushion |
+            | **Safest age** | The tested age that leaves the most money at the end of the plan |
+            | **Blueprint Score** | A simple 0–100 score for that specific retirement age |
 
-            **Important:** The recommended age is not automatically the earliest age or the safest age.  
-            It is the age that appears to offer the best overall balance based on the current inputs.
+            **Quick note:** The best-fit age is not a command. It is not saying, “You must retire here.”  
+            It is simply the age that looks like the best balance from the ages you asked the app to test.
             """
         )
 
     st.warning(
-        "Educational estimate only. This does not tell someone when they should retire and is not financial, tax, legal, investment, insurance, or retirement advice."
+        "Friendly reminder: this is an educational estimate, not financial advice. It helps you compare choices so you can ask better questions and plan with more confidence."
     )
 
     current_age = int(st.session_state.current_age or 0)
     planning_age = int(st.session_state.end_age or 90)
     current_retire_age = int(st.session_state.retire_age or max(current_age + 1, 62))
 
-    st.markdown("### Ages to compare")
-    st.caption("Choose the retirement ages you want the app to test. Most people test a range like 58 through 70.")
+    st.markdown("### Pick the ages you want to test")
+    st.caption("Choose a starting age and ending age. The app will run the numbers for every age in between — kind of like retirement speed dating, but with fewer awkward appetizers.")
 
     c1, c2, c3 = st.columns(3)
     start_age = c1.number_input(
-        "First age to test",
+        "Earliest age to try",
         min_value=current_age,
         max_value=max(current_age, min(75, planning_age - 1)),
         value=max(current_age, min(current_retire_age, planning_age - 1)),
         step=1,
-        help="The earliest retirement age you want the optimizer to test.",
+        help="The first retirement age you want to test.",
         key="optimizer_start_age",
     )
     end_age = c2.number_input(
-        "Last age to test",
+        "Latest age to try",
         min_value=int(start_age),
         max_value=max(int(start_age), min(75, planning_age - 1)),
         value=max(int(start_age), min(70, planning_age - 1)),
         step=1,
-        help="The latest retirement age you want the optimizer to test. Many users test through age 70.",
+        help="The last retirement age you want to test. Many people test through age 70.",
         key="optimizer_end_age",
     )
     safety_target = c3.number_input(
-        "Minimum cushion wanted",
+        "Comfort cushion",
         min_value=0,
         value=int(max(250000, annual_household_spending() * 2)),
         step=25000,
-        help="The optimizer favors retirement ages that leave at least this much projected money at the end of the plan.",
+        help="The app gives extra credit to ages that leave at least this much money at the end of the plan.",
         key="optimizer_safety_target",
     )
 
     st.caption(
-        "Minimum cushion wanted is the amount of projected money the user would like to still have at the end of the plan. "
-        "A higher cushion makes the recommendation more conservative."
+        "Your comfort cushion is the amount you would like to still have at the end of the plan. "
+        "A bigger cushion is more conservative — basically giving your future self a larger safety pillow."
     )
 
-    if st.button("Calculate My Can I Retire at This Age?", type="primary", use_container_width=True):
-        with st.spinner("Testing retirement ages with your current blueprint..."):
+    if st.button("Test These Retirement Ages", type="primary", use_container_width=True):
+        with st.spinner("Testing each age with your current blueprint..."):
             st.session_state.retirement_age_optimizer = build_retirement_age_optimizer_results(
                 start_age=int(start_age),
                 end_age=int(end_age),
@@ -3603,80 +3603,79 @@ def render_retirement_age_optimizer_page():
             )
 
     if "retirement_age_optimizer" not in st.session_state:
-        st.info("Click the button above to generate your retirement age recommendation.")
+        st.info("Click the button above and I’ll compare the ages side by side.")
         return
 
     opt = st.session_state.retirement_age_optimizer
     if not opt or opt.get("results") is None or opt["results"].empty:
-        st.warning("The optimizer could not calculate results with the current inputs.")
+        st.warning("I could not calculate the age comparison with the current inputs. Review your blueprint numbers and try again.")
         return
 
     results = opt["results"].copy()
 
     if opt["recommended"] is None:
-        st.error("None of the tested retirement ages fully worked under the current assumptions.")
-        st.write("Try testing later ages, reducing spending, increasing savings, adding income, or adjusting Social Security timing.")
+        st.error("None of the ages tested made the plan look comfortable yet.")
+        st.write("That does not mean retirement is impossible. It means the current version may need help. Try testing later ages, lowering spending, saving more, adding income, or changing Social Security timing.")
     else:
         earliest = opt["earliest"]
         recommended = opt["recommended"]
         safest = opt["safest"]
 
         st.success(
-            f"Current Target Age: **{int(recommended['Retirement Age'])}** — "
-            "best overall balance from the ages tested."
+            f"Best-fit age from this test: **{int(recommended['Retirement Age'])}**. "
+            "This age appears to give the best mix of retiring sooner and keeping a reasonable cushion."
         )
 
-        st.markdown("### Recommendation summary")
+        st.markdown("### Quick results")
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Earliest Possible", int(earliest["Retirement Age"]), "First tested age that works")
-        m1.caption("Useful if the user wants to retire as soon as the plan appears workable.")
+        m1.metric("Soonest age that works", int(earliest["Retirement Age"]), "Earliest green-light age")
+        m1.caption("Useful if the goal is to retire as soon as the plan appears workable.")
 
-        m2.metric("Current Target Age", int(recommended["Retirement Age"]), "Best balance")
-        m2.caption("Balances retiring sooner with score, cushion, and risk.")
+        m2.metric("Best-fit age", int(recommended["Retirement Age"]), "Best balance")
+        m2.caption("A balance between retiring sooner and keeping enough cushion.")
 
-        m3.metric("Safest Age", int(safest["Retirement Age"]), "Highest ending balance")
-        m3.caption("Most conservative of the tested ages.")
+        m3.metric("Safest age", int(safest["Retirement Age"]), "Most cushion")
+        m3.caption("The tested age that leaves the most money at the end.")
 
-        m4.metric("Recommended Score", f"{int(recommended['Blueprint Score'])}/100", recommended["Readiness Label"])
-        m4.caption("Blueprint Score at the recommended age.")
+        m4.metric("Blueprint Score", f"{int(recommended['Blueprint Score'])}/100", recommended["Readiness Label"])
+        m4.caption("Score for the best-fit age.")
 
-        st.markdown("### Why this age was recommended")
+        st.markdown("### Why this age looks like the best fit")
         st.caption(
-            "This table explains the main drivers behind the recommendation. The optimizer is looking for an age that works, "
-            "has a strong score, leaves a cushion, and does not put too much withdrawal pressure on the portfolio."
+            "Here is the plain-English reason behind the result. The app is looking for an age where the plan appears to last, "
+            "still leaves breathing room, and does not lean too hard on your savings."
         )
 
         why_rows = [
-            ["Portfolio survival", recommended["Plan Status"], f"Does the money last through age {planning_age}? Projected money left is {money(recommended['Ending Portfolio'])}."],
-            ["Safety cushion", money(recommended["Safety Cushion"]), f"Projected money above the selected minimum cushion of {money(opt['safety_target'])}."],
-            ["Withdrawal pressure", pct(recommended["Max Withdrawal Rate"]), "The highest withdrawal rate during retirement. Lower usually means more flexibility."],
-            ["Income coverage", pct(recommended["Avg Income Coverage"]), "How much spending is covered by income sources like Social Security, pension, or other income instead of portfolio withdrawals."],
-            ["Healthcare gap", f"{int(recommended['Healthcare Gap Years'])} years", "Years before Medicare eligibility at age 65. More gap years can increase risk."],
-            ["Social Security gap", f"{int(recommended['Years Until Social Security'])} years", "Years before Social Security starts. More gap years mean the portfolio must carry more of the load."],
+            ["Does the money last?", recommended["Plan Status"], f"The app checks whether the money appears to last through age {planning_age}. At this tested age, the projection shows {money(recommended['Ending Portfolio'])} left."],
+            ["Breathing room", money(recommended["Safety Cushion"]), f"This is how much the ending balance is above your comfort cushion of {money(opt['safety_target'])}. More breathing room usually means less stress."],
+            ["Savings pressure", pct(recommended["Max Withdrawal Rate"]), "This is the highest yearly pull from savings. Lower pressure usually gives the plan more wiggle room."],
+            ["Income help", pct(recommended["Avg Income Coverage"]), "This shows how much spending is covered by Social Security, pension, or other income before touching savings."],
+            ["Years before Medicare", f"{int(recommended['Healthcare Gap Years'])} years", "Retiring before 65 can mean paying for health insurance before Medicare starts."],
+            ["Years before Social Security", f"{int(recommended['Years Until Social Security'])} years", "Before Social Security starts, savings may have to do more of the heavy lifting."],
         ]
-        st.dataframe(pd.DataFrame(why_rows, columns=["Factor", "Result", "What it means"]), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(why_rows, columns=["What we checked", "Result", "Plain-English meaning"]), use_container_width=True, hide_index=True)
 
         st.markdown("### Plain-English takeaway")
         if int(earliest["Retirement Age"]) < int(recommended["Retirement Age"]):
             st.info(
-                f"The plan may work as early as **age {int(earliest['Retirement Age'])}**, "
-                f"but **age {int(recommended['Retirement Age'])}** looks stronger because it provides a better balance of score, cushion, and risk."
+                f"Good news: the plan may start working as early as **age {int(earliest['Retirement Age'])}**. "
+                f"But **age {int(recommended['Retirement Age'])}** looks like the better fit because it gives the plan more cushion without waiting all the way to the safest age."
             )
         else:
             st.info(
-                f"**Age {int(recommended['Retirement Age'])}** appears to be the earliest tested age that also provides a reasonable safety margin."
+                f"**Age {int(recommended['Retirement Age'])}** is the first age tested that also gives the plan a reasonable cushion. In plain English: this is the first age that does not look too squeezed."
             )
 
         if int(safest["Retirement Age"]) > int(recommended["Retirement Age"]):
             st.write(
-                f"Age **{int(safest['Retirement Age'])}** is the safest tested age because it leaves the highest projected ending portfolio. "
-                f"The optimizer did not automatically choose it because age **{int(recommended['Retirement Age'])}** already appears strong and allows retirement sooner."
+                f"Age **{int(safest['Retirement Age'])}** leaves the most money at the end, so it is the safest of the ages tested. "
+                f"The app did not automatically pick it because **age {int(recommended['Retirement Age'])}** already looks workable and gets you retired sooner."
             )
 
-    st.subheader("Retirement Age Comparison")
+    st.subheader("Side-by-side age comparison")
     st.caption(
-        "Use this table to compare each tested age. It shows whether the plan works, the Blueprint Score, projected money left, "
-        "withdrawal pressure, and key gap years before Medicare or Social Security."
+        "This table lets you compare each age without needing to read a complicated chart. Look for ages with a stronger score, more money left, and less pressure on savings."
     )
 
     display = results.copy()
@@ -3705,16 +3704,16 @@ def render_retirement_age_optimizer_page():
     with st.expander("What each column means", expanded=False):
         st.markdown(
             """
-            | **Column** | **Meaning** |
+            | **Column** | **Easy meaning** |
             |---|---|
             | **Retirement Age** | The age being tested |
-            | **Plan Status** | Whether the portfolio appears to last through the planning age |
-            | **Blueprint Score** | Overall retirement readiness score for that tested age |
-            | **Ending Portfolio** | Projected money left at the end of the plan |
-            | **Safety Cushion** | Projected money left above the minimum cushion selected above |
-            | **Max Withdrawal Rate** | The highest annual portfolio withdrawal rate in the plan |
-            | **Avg Income Coverage** | Percent of spending covered by income sources instead of withdrawals |
-            | **Healthcare Gap Years** | Years before Medicare starts |
+            | **Plan Status** | Whether the money appears to last through your planning age |
+            | **Blueprint Score** | The simple 0–100 score for that age |
+            | **Ending Portfolio** | Estimated money left at the end of the plan |
+            | **Safety Cushion** | Extra money left above the comfort cushion you selected |
+            | **Max Withdrawal Rate** | The biggest yearly pull from savings; lower is usually easier on the plan |
+            | **Avg Income Coverage** | How much spending is covered by income instead of savings |
+            | **Healthcare Gap Years** | Years before Medicare starts, if retiring before 65 |
             | **Years Until Social Security** | Years before Social Security starts |
             | **Unmet Need** | Spending the plan could not cover, if any |
             """
@@ -3722,14 +3721,14 @@ def render_retirement_age_optimizer_page():
 
     csv = results.to_csv(index=False).encode("utf-8")
     st.download_button(
-        "Download Retirement Age Comparison CSV",
+        "Download Age Comparison CSV",
         csv,
         "retirement_age_optimizer.csv",
         "text/csv",
         use_container_width=True,
     )
 
-    st.warning("Educational planning estimate only. Not financial, tax, legal, investment, insurance, or retirement advice.")
+    st.warning("Educational planning estimate only. This is a planning helper, not financial, tax, legal, investment, insurance, or retirement advice.")
 
 def set_default(key, value):
     if key not in st.session_state:
