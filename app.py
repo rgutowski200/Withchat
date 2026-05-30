@@ -6763,6 +6763,149 @@ def find_monthly_spending_for_target_score(target_score=80):
     }
 
 
+def render_suggested_spending_target_tool():
+    """Render the Action Plan spending target tool."""
+    st.markdown("### Suggested Spending Target")
+    st.caption(
+        "Use this to see the monthly spending level that would help your plan hit a target Blueprint Score."
+    )
+
+    target_score = st.slider(
+        "Target Blueprint Score",
+        min_value=50,
+        max_value=100,
+        value=int(st.session_state.get("action_target_blueprint_score", 80) or 80),
+        step=1,
+        key="action_target_blueprint_score",
+        help="A higher target usually means the plan needs more cushion, lower spending, more income, or more assets.",
+    )
+
+    if st.button("Find Suggested Monthly Spending", type="primary", key="find_action_suggested_spending"):
+        with st.spinner("Testing spending levels against your Blueprint Score..."):
+            st.session_state.action_spending_target_result = find_monthly_spending_for_target_score(target_score)
+
+    result = st.session_state.get("action_spending_target_result")
+
+    if not result:
+        st.markdown("""
+        <div class="rb-next-box">
+          <div class="rb-next-heading">How this works</div>
+          <div class="rb-muted">
+            Pick the score you want, then run the tool. Retirement Blueprint 101 will test monthly spending levels
+            using your current projection assumptions and show the spending target that best supports that score.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+        return
+
+    current_monthly = float(result.get("current_monthly") or 0)
+    suggested_monthly = result.get("suggested_monthly")
+    current_score = int(result.get("current_score") or 0)
+    suggested_score = int(result.get("suggested_score") or current_score or 0)
+    monthly_difference = result.get("monthly_difference")
+
+    if suggested_monthly is None or monthly_difference is None:
+        st.warning(
+            "I could not find a monthly spending amount that reaches that score with the current assumptions. "
+            "Try a lower target score, later retirement age, more savings, or more guaranteed income."
+        )
+        return
+
+    suggested_monthly = float(suggested_monthly)
+    monthly_difference = float(monthly_difference)
+
+    if suggested_score >= 80:
+        score_badge = "↗ Strong"
+        score_badge_style = "background:#DCFCE7;color:#166534;"
+    elif suggested_score >= 65:
+        score_badge = "⚠ Watch"
+        score_badge_style = "background:#FEF3C7;color:#92400E;"
+    else:
+        score_badge = "⚠ Needs Work"
+        score_badge_style = "background:#FEE2E2;color:#991B1B;"
+
+    difference_label = f"{money(abs(monthly_difference))}"
+    if monthly_difference < 0:
+        difference_note = "Monthly reduction needed"
+        difference_prefix = "-"
+    elif monthly_difference > 0:
+        difference_note = "Estimated extra monthly room"
+        difference_prefix = "+"
+    else:
+        difference_note = "No monthly change needed"
+        difference_prefix = ""
+
+    mode = result.get("mode")
+    if mode == "lower":
+        insight_text = (
+            f"To target a Blueprint Score of {target_score}+, the model suggests lowering monthly spending "
+            f"by about {money(abs(monthly_difference))}."
+        )
+    else:
+        insight_text = (
+            f"Your current spending is close to the estimated sustainable level for a Blueprint Score of {target_score}+."
+        )
+
+    st.markdown(f"""
+    <div class="rb-card-grid">
+      <div class="rb-card">
+        <div class="rb-card-top"><div class="rb-card-label">Current Monthly Spending</div></div>
+        <div class="rb-card-value">{money(current_monthly)}</div>
+        <div class="rb-card-note">Based on your current spending inputs.</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-top"><div class="rb-card-label">Suggested Monthly Spending</div></div>
+        <div class="rb-card-value">{money(suggested_monthly)}</div>
+        <div class="rb-card-note">Estimated spending level for the target score.</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-top"><div class="rb-card-label">Monthly Difference</div></div>
+        <div class="rb-card-value">{difference_prefix}{difference_label}</div>
+        <div class="rb-card-note">{difference_note}</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-top"><div class="rb-card-label">Estimated Blueprint Score</div></div>
+        <div class="rb-card-value">{suggested_score}/100</div>
+        <div class="rb-card-note"><span style="display:inline-block;padding:5px 10px;border-radius:999px;font-weight:800;{score_badge_style}">{score_badge}</span></div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.info(insight_text)
+    st.caption(
+        "Educational estimate only. This uses the app's Blueprint Score model and your current assumptions, not financial advice."
+    )
+
+    st.divider()
+
+    st.subheader("Spending Change Recommendations")
+    if monthly_difference < 0:
+        st.info(
+            "Consider reducing flexible spending, delaying large purchases, or adding a later-life spending change if travel, mortgage, or early-retirement expenses decline."
+        )
+    else:
+        st.info(
+            "Your current spending appears workable under this target. Consider documenting when spending may drop later in retirement, such as after travel slows or a mortgage is paid off."
+        )
+
+    st.divider()
+
+    st.subheader("Home & Housing Recommendations")
+    home_value = float(st.session_state.get("home_value", 0) or 0)
+    mortgage_balance = float(st.session_state.get("mortgage_balance", 0) or 0)
+    home_equity = max(home_value - mortgage_balance, 0)
+    if home_equity > 0:
+        st.info(
+            f"Moderate housing flexibility: estimated home equity of {money(home_equity)} could become an important retirement planning lever."
+        )
+    else:
+        st.info(
+            "Moderate housing flexibility: home equity, downsizing, relocating, or mortgage payoff timing could become important retirement planning levers."
+        )
+
+    st.divider()
+
+
 # -----------------------------
 # App navigation
 # -----------------------------
@@ -8833,6 +8976,8 @@ if active_page == PAGE_NAMES[7]:
         avg_income_coverage = float(df["Income Coverage Ratio"].mean() or 0)
         end_age_val = int(st.session_state.get("end_age", 90) or 90)
         retire_age_val = int(st.session_state.get("retire_age", 0) or 0)
+
+        render_suggested_spending_target_tool()
 
         avg_gap = 0.0
         if "Portfolio Need" in df.columns:
