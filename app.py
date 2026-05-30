@@ -1831,24 +1831,8 @@ def render_auth_form():
 
 user = auth_box()
 
-# Header / hero area
-hero_left = st.container()
-
-with hero_left:
-    st.markdown("""
-    <div class="rb-hero" style="margin-bottom: 10px;">
-      <div class="rb-logo-row">
-        <div class="rb-logo">↗</div>
-        <div>
-          <div class="rb-hero-title">Retirement Blueprint 101</div>
-          <p class="rb-hero-subtitle">See when you can retire, how long your money may last, and what to improve before you make the leap.</p>
-        </div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
-
 # Account controls
-# Keep sign-in visible so users can save and reload blueprints.
+# Keep sign-in visible at the very top so users can save and reload blueprints.
 acct_left, acct_right = st.columns([5.5, 1.4])
 with acct_right:
     if user:
@@ -1868,6 +1852,22 @@ with acct_right:
 
 if not user and st.session_state.get("show_auth_form"):
     render_auth_form()
+
+# Header / hero area
+hero_left = st.container()
+
+with hero_left:
+    st.markdown("""
+    <div class="rb-hero" style="margin-top: 8px; margin-bottom: 10px;">
+      <div class="rb-logo-row">
+        <div class="rb-logo">↗</div>
+        <div>
+          <div class="rb-hero-title">Retirement Blueprint 101</div>
+          <p class="rb-hero-subtitle">See when you can retire, how long your money may last, and what to improve before you make the leap.</p>
+        </div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 
