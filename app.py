@@ -6764,11 +6764,235 @@ def find_monthly_spending_for_target_score(target_score=80):
 
 
 def render_suggested_spending_target_tool():
-    """Render the Action Plan spending target tool."""
-    st.markdown("### Suggested Spending Target")
-    st.caption(
-        "Use this to see the monthly spending level that would help your plan hit a target Blueprint Score."
-    )
+    """Render the Action Plan spending target tool as a featured planning lab."""
+    st.markdown("""
+    <style>
+    .rb-spend-lab {
+        border: 1px solid rgba(59,130,246,.22);
+        border-radius: 28px;
+        padding: 28px 28px 24px 28px;
+        margin: 8px 0 26px 0;
+        background:
+            radial-gradient(circle at top right, rgba(20,184,166,.16), transparent 34%),
+            linear-gradient(135deg, #F8FBFF 0%, #EEF6FF 52%, #F0FDF4 100%);
+        box-shadow: 0 18px 45px rgba(15, 23, 42, .08);
+    }
+    .rb-spend-lab-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: flex-start;
+        margin-bottom: 18px;
+    }
+    .rb-spend-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #DBEAFE;
+        color: #1D4ED8;
+        border-radius: 999px;
+        padding: 7px 12px;
+        font-size: .76rem;
+        font-weight: 900;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+    }
+    .rb-spend-title {
+        font-size: 2.1rem;
+        line-height: 1.05;
+        font-weight: 950;
+        color: #0F172A;
+        margin: 0 0 8px 0;
+    }
+    .rb-spend-subtitle {
+        color: #475569;
+        font-size: 1.02rem;
+        line-height: 1.55;
+        max-width: 850px;
+    }
+    .rb-spend-side {
+        min-width: 215px;
+        border-radius: 22px;
+        background: rgba(255,255,255,.74);
+        border: 1px solid rgba(148,163,184,.24);
+        padding: 16px;
+        box-shadow: 0 10px 24px rgba(15,23,42,.06);
+    }
+    .rb-spend-side-label {
+        color: #64748B;
+        font-weight: 850;
+        font-size: .82rem;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+    }
+    .rb-spend-side-value {
+        color: #0F172A;
+        font-size: 1.75rem;
+        font-weight: 950;
+        margin-top: 4px;
+    }
+    .rb-spend-steps {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 20px;
+    }
+    .rb-spend-step {
+        border-radius: 18px;
+        background: rgba(255,255,255,.72);
+        border: 1px solid rgba(148,163,184,.22);
+        padding: 14px 15px;
+    }
+    .rb-spend-step-num {
+        display: inline-flex;
+        width: 26px;
+        height: 26px;
+        border-radius: 999px;
+        align-items: center;
+        justify-content: center;
+        background: #0F62FE;
+        color: white;
+        font-weight: 950;
+        font-size: .86rem;
+        margin-right: 8px;
+    }
+    .rb-spend-step-title {
+        font-weight: 900;
+        color: #0F172A;
+    }
+    .rb-spend-step-note {
+        color: #64748B;
+        margin-top: 6px;
+        font-size: .92rem;
+        line-height: 1.4;
+    }
+    .rb-spend-control-box {
+        border: 1px solid rgba(226,232,240,.95);
+        border-radius: 24px;
+        padding: 22px 24px 18px 24px;
+        margin: 18px 0 22px 0;
+        background: #FFFFFF;
+        box-shadow: 0 10px 30px rgba(15,23,42,.055);
+    }
+    .rb-spend-control-title {
+        font-size: 1.05rem;
+        font-weight: 950;
+        color: #0F172A;
+        margin-bottom: 4px;
+    }
+    .rb-spend-control-note {
+        color: #64748B;
+        margin-bottom: 12px;
+    }
+    .rb-spend-result-hero {
+        border-radius: 26px;
+        padding: 24px 26px;
+        margin: 18px 0 18px 0;
+        background: linear-gradient(135deg, #ECFDF5 0%, #EFF6FF 100%);
+        border: 1px solid rgba(34,197,94,.28);
+        box-shadow: 0 16px 38px rgba(15,23,42,.075);
+    }
+    .rb-spend-result-eyebrow {
+        color: #15803D;
+        font-size: .78rem;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        font-weight: 950;
+        margin-bottom: 8px;
+    }
+    .rb-spend-result-title {
+        color: #0F172A;
+        font-size: 1.65rem;
+        line-height: 1.15;
+        font-weight: 950;
+        margin-bottom: 8px;
+    }
+    .rb-spend-result-note {
+        color: #475569;
+        font-size: 1rem;
+        line-height: 1.5;
+    }
+    .rb-spend-card-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+        margin: 14px 0 20px 0;
+    }
+    .rb-spend-card {
+        background: white;
+        border: 1px solid #E5E7EB;
+        border-radius: 22px;
+        padding: 20px;
+        box-shadow: 0 10px 26px rgba(15,23,42,.06);
+        min-height: 165px;
+    }
+    .rb-spend-card-label {
+        color: #475569;
+        font-weight: 900;
+        font-size: .96rem;
+        min-height: 42px;
+    }
+    .rb-spend-card-value {
+        color: #0F172A;
+        font-size: 2rem;
+        line-height: 1.05;
+        font-weight: 950;
+        margin-top: 12px;
+    }
+    .rb-spend-card-note {
+        color: #64748B;
+        margin-top: 12px;
+        font-size: .92rem;
+        line-height: 1.35;
+    }
+    @media (max-width: 900px) {
+        .rb-spend-lab-top { flex-direction: column; }
+        .rb-spend-side { width: 100%; }
+        .rb-spend-steps { grid-template-columns: 1fr; }
+        .rb-spend-card-grid { grid-template-columns: 1fr; }
+        .rb-spend-title { font-size: 1.65rem; }
+    }
+    </style>
+    <div class="rb-spend-lab">
+      <div class="rb-spend-lab-top">
+        <div>
+          <div class="rb-spend-badge">✨ Featured What‑If Tool</div>
+          <div class="rb-spend-title">Find the spending number that makes the plan work</div>
+          <div class="rb-spend-subtitle">
+            This is one of the most useful parts of the Action Plan: instead of only saying whether retirement looks strong or risky,
+            it backs into a monthly spending target that can help the user reach the Blueprint Score they want.
+          </div>
+        </div>
+        <div class="rb-spend-side">
+          <div class="rb-spend-side-label">Best for</div>
+          <div class="rb-spend-side-value">Decision clarity</div>
+          <div class="rb-spend-step-note">Great for testing “Can I spend this much?” before changing retirement age, savings, or income.</div>
+        </div>
+      </div>
+      <div class="rb-spend-steps">
+        <div class="rb-spend-step">
+          <div><span class="rb-spend-step-num">1</span><span class="rb-spend-step-title">Choose a target score</span></div>
+          <div class="rb-spend-step-note">Pick the confidence level the user wants to aim for.</div>
+        </div>
+        <div class="rb-spend-step">
+          <div><span class="rb-spend-step-num">2</span><span class="rb-spend-step-title">Run the spending test</span></div>
+          <div class="rb-spend-step-note">The app tests spending levels against the current projection assumptions.</div>
+        </div>
+        <div class="rb-spend-step">
+          <div><span class="rb-spend-step-num">3</span><span class="rb-spend-step-title">Use the action number</span></div>
+          <div class="rb-spend-step-note">See whether the plan needs a cut, has room, or needs another lever.</div>
+        </div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="rb-spend-control-box">
+      <div class="rb-spend-control-title">Set your target Blueprint Score</div>
+      <div class="rb-spend-control-note">Move the slider, then run the test to calculate the suggested monthly spending target.</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     target_score = st.slider(
         "Target Blueprint Score",
@@ -6780,7 +7004,13 @@ def render_suggested_spending_target_tool():
         help="A higher target usually means the plan needs more cushion, lower spending, more income, or more assets.",
     )
 
-    if st.button("Find Suggested Monthly Spending", type="primary", key="find_action_suggested_spending"):
+    run_col, note_col = st.columns([1, 2.4])
+    with run_col:
+        run_test = st.button("Calculate My Spending Target", type="primary", key="find_action_suggested_spending", use_container_width=True)
+    with note_col:
+        st.caption("This feature uses your saved inputs and the current Blueprint Score model. It is an educational estimate, not financial advice.")
+
+    if run_test:
         with st.spinner("Testing spending levels against your Blueprint Score..."):
             st.session_state.action_spending_target_result = find_monthly_spending_for_target_score(target_score)
 
@@ -6789,10 +7019,10 @@ def render_suggested_spending_target_tool():
     if not result:
         st.markdown("""
         <div class="rb-next-box">
-          <div class="rb-next-heading">How this works</div>
+          <div class="rb-next-heading">Why this is powerful</div>
           <div class="rb-muted">
-            Pick the score you want, then run the tool. Retirement Blueprint 101 will test monthly spending levels
-            using your current projection assumptions and show the spending target that best supports that score.
+            Most retirement tools only show a score. This turns the score into a specific monthly spending target,
+            so the user knows what to test next instead of guessing.
           </div>
         </div>
         """, unsafe_allow_html=True)
@@ -6828,53 +7058,51 @@ def render_suggested_spending_target_tool():
     if monthly_difference < 0:
         difference_note = "Monthly reduction needed"
         difference_prefix = "-"
+        result_headline = f"To target {target_score}+, aim for about {money(suggested_monthly)} per month."
+        result_note = f"That means reducing current monthly spending by about {money(abs(monthly_difference))}, based on the current projection model."
     elif monthly_difference > 0:
         difference_note = "Estimated extra monthly room"
         difference_prefix = "+"
+        result_headline = f"Your plan may support about {money(suggested_monthly)} per month at this target."
+        result_note = f"That is about {money(abs(monthly_difference))} more than current monthly spending while still targeting a Blueprint Score of {target_score}+."
     else:
         difference_note = "No monthly change needed"
         difference_prefix = ""
-
-    mode = result.get("mode")
-    if mode == "lower":
-        insight_text = (
-            f"To target a Blueprint Score of {target_score}+, the model suggests lowering monthly spending "
-            f"by about {money(abs(monthly_difference))}."
-        )
-    else:
-        insight_text = (
-            f"Your current spending is close to the estimated sustainable level for a Blueprint Score of {target_score}+."
-        )
+        result_headline = f"Your current spending is right on target for a {target_score}+ score."
+        result_note = "No monthly spending adjustment is suggested under the current assumptions."
 
     st.markdown(f"""
-    <div class="rb-card-grid">
-      <div class="rb-card">
-        <div class="rb-card-top"><div class="rb-card-label">Current Monthly Spending</div></div>
-        <div class="rb-card-value">{money(current_monthly)}</div>
-        <div class="rb-card-note">Based on your current spending inputs.</div>
-      </div>
-      <div class="rb-card">
-        <div class="rb-card-top"><div class="rb-card-label">Suggested Monthly Spending</div></div>
-        <div class="rb-card-value">{money(suggested_monthly)}</div>
-        <div class="rb-card-note">Estimated spending level for the target score.</div>
-      </div>
-      <div class="rb-card">
-        <div class="rb-card-top"><div class="rb-card-label">Monthly Difference</div></div>
-        <div class="rb-card-value">{difference_prefix}{difference_label}</div>
-        <div class="rb-card-note">{difference_note}</div>
-      </div>
-      <div class="rb-card">
-        <div class="rb-card-top"><div class="rb-card-label">Estimated Blueprint Score</div></div>
-        <div class="rb-card-value">{suggested_score}/100</div>
-        <div class="rb-card-note"><span style="display:inline-block;padding:5px 10px;border-radius:999px;font-weight:800;{score_badge_style}">{score_badge}</span></div>
-      </div>
+    <div class="rb-spend-result-hero">
+      <div class="rb-spend-result-eyebrow">Suggested spending answer</div>
+      <div class="rb-spend-result-title">{result_headline}</div>
+      <div class="rb-spend-result-note">{result_note}</div>
     </div>
     """, unsafe_allow_html=True)
 
-    st.info(insight_text)
-    st.caption(
-        "Educational estimate only. This uses the app's Blueprint Score model and your current assumptions, not financial advice."
-    )
+    st.markdown(f"""
+    <div class="rb-spend-card-grid">
+      <div class="rb-spend-card">
+        <div class="rb-spend-card-label">Current Monthly Spending</div>
+        <div class="rb-spend-card-value">{money(current_monthly)}</div>
+        <div class="rb-spend-card-note">Based on your current spending inputs.</div>
+      </div>
+      <div class="rb-spend-card">
+        <div class="rb-spend-card-label">Suggested Monthly Spending</div>
+        <div class="rb-spend-card-value">{money(suggested_monthly)}</div>
+        <div class="rb-spend-card-note">Estimated spending level for the target score.</div>
+      </div>
+      <div class="rb-spend-card">
+        <div class="rb-spend-card-label">Monthly Difference</div>
+        <div class="rb-spend-card-value">{difference_prefix}{difference_label}</div>
+        <div class="rb-spend-card-note">{difference_note}</div>
+      </div>
+      <div class="rb-spend-card">
+        <div class="rb-spend-card-label">Estimated Blueprint Score</div>
+        <div class="rb-spend-card-value">{suggested_score}/100</div>
+        <div class="rb-spend-card-note"><span style="display:inline-block;padding:6px 11px;border-radius:999px;font-weight:900;{score_badge_style}">{score_badge}</span></div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.divider()
 
