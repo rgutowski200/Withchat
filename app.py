@@ -10919,7 +10919,7 @@ if active_page == PAGE_NAMES[9]:
 
     st.markdown("""
     <style>
-    /* Saved Scenarios page polish */
+    /* Saved Blueprints page polish */
     div[data-testid="stMetric"] {
         background: #ffffff;
         border-radius: 12px;
@@ -11842,8 +11842,8 @@ section[data-testid="stSidebar"] button {
 </style>
     """, unsafe_allow_html=True)
 
-    st.markdown("<div class='saved-page-title'>Saved Scenarios</div>", unsafe_allow_html=True)
-    st.markdown("<div class='saved-page-caption'>Save, load, compare, and generate AI recommendations for your retirement plans.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='saved-page-title'>Saved Blueprints</div>", unsafe_allow_html=True)
+    st.markdown("<div class='saved-page-caption'>Save your retirement blueprints, reload them later, compare options, and generate recommendations.</div>", unsafe_allow_html=True)
 
     if "compare_scenarios" not in st.session_state:
         st.session_state.compare_scenarios = {}
@@ -12399,32 +12399,45 @@ section[data-testid="stSidebar"] button {
         return data
 
     if not user:
-        st.info("Log in to save and load retirement scenarios.")
+        st.info("Log in to save and load your retirement blueprints.")
     else:
-        st.subheader("Save Current Scenario")
+        st.markdown("""
+        <div style="border:1px solid #BFDBFE;border-radius:22px;padding:22px 24px;background:linear-gradient(135deg,#EFF6FF,#ECFEFF);margin:12px 0 20px 0;box-shadow:0 10px 28px rgba(15,23,42,.06);">
+          <div style="font-size:.82rem;font-weight:950;color:#2563EB;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Save your work</div>
+          <div style="font-size:1.35rem;font-weight:950;color:#0F172A;margin-bottom:8px;">Name this blueprint, then click Save Blueprint.</div>
+          <div style="color:#475569;line-height:1.55;font-size:1rem;">This saves the numbers you entered so you can come back later, compare different retirement ages, or create another version.</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        save_col1, save_col2 = st.columns([5, 1.25])
+        st.subheader("Save Current Blueprint")
+
+        save_col1, save_col2 = st.columns([4.2, 1.45])
         with save_col1:
-            scenario_name = st.text_input("Scenario name", "My Retirement Plan", label_visibility="visible")
+            blueprint_name = st.text_input("Name your blueprint", "My Retirement Blueprint", label_visibility="visible", help="Give this version a clear name, like Retire at 62, Retire at 65, or Lower Spending Plan.")
+            st.caption("Example: Retire at 62, Retire at 65, Lower Spending Plan, or My First Blueprint.")
+            scenario_name = blueprint_name
         with save_col2:
             st.write("")
             st.write("")
-            save_clicked = st.button("💾 Save Scenario", use_container_width=True, type="primary")
+            save_clicked = st.button("💾 Save Blueprint", use_container_width=True, type="primary")
 
         if save_clicked:
-            try:
-                scenario_data = get_scenario_data()
-                save_scenario(user, scenario_name, scenario_data)
-                st.success("Scenario saved.")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Scenario save failed: {e}")
+            if not str(scenario_name or "").strip():
+                st.error("Please name your blueprint first, then click Save Blueprint.")
+            else:
+                try:
+                    scenario_data = get_scenario_data()
+                    save_scenario(user, scenario_name, scenario_data)
+                    st.success("Blueprint saved. You can reload it later from this page.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Blueprint save failed: {e}")
 
         st.divider()
 
         col_a, col_b = st.columns([4, 1])
         with col_a:
-            st.subheader("Your Saved Scenarios")
+            st.subheader("Your Saved Blueprints")
         with col_b:
             if st.button("⟳ Refresh", use_container_width=True):
                 st.rerun()
@@ -12436,12 +12449,12 @@ section[data-testid="stSidebar"] button {
             scenarios = []
 
         if not scenarios:
-            st.info("No saved scenarios yet.")
+            st.info("No saved blueprints yet. Name your first blueprint above, then click Save Blueprint.")
         else:
             # Scenario Comparison panel
             if st.session_state.compare_scenarios:
-                st.markdown("### Scenario Comparison")
-                st.caption("Compare your saved retirement plans side by side.")
+                st.markdown("### Blueprint Comparison")
+                st.caption("Compare your saved blueprints side by side.")
 
                 compare_items = []
                 for sid, item in st.session_state.compare_scenarios.items():
