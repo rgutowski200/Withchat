@@ -393,16 +393,18 @@ input[placeholder="Press Enter to submit form"]::placeholder {
 }
 .rb-progress-num {
     display: inline-flex;
-    width: 24px;
-    height: 24px;
+    min-width: 58px;
+    height: 26px;
+    padding: 0 10px;
     border-radius: 999px;
     align-items: center;
     justify-content: center;
     background: #CBD5E1;
     color: #0F172A;
-    font-size: .78rem;
+    font-size: .74rem;
     font-weight: 900;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
+    white-space: nowrap;
 }
 .rb-progress-step.active .rb-progress-num {
     background: #2563EB;
@@ -7862,7 +7864,7 @@ def render_guided_progress(current_step: int):
         status = "done" if num < current_step else ("active" if num == current_step else "")
         html.append(
             f'<div class="rb-progress-step {status}">'
-            f'<div class="rb-progress-num">{num}</div>'
+            f'<div class="rb-progress-num">Step {num}</div>'
             f'<div class="rb-progress-label">{label}</div>'
             f'<div class="rb-progress-copy">{copy}</div>'
             f'</div>'
