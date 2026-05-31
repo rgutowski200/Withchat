@@ -1151,6 +1151,58 @@ def inject_app_styles():
         margin-top: 12px;
     }
 
+    .rb-onboard-review-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 14px;
+    }
+
+    .rb-onboard-review-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 18px;
+        padding: 18px 16px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.055);
+        min-width: 0;
+    }
+
+    .rb-onboard-review-label {
+        color: #475569;
+        font-weight: 900;
+        font-size: .92rem;
+        line-height: 1.25;
+        margin-bottom: 8px;
+    }
+
+    .rb-onboard-review-value {
+        color: #0f172a;
+        font-size: clamp(1.7rem, 4vw, 2.35rem);
+        line-height: 1.05;
+        font-weight: 950;
+        overflow-wrap: anywhere;
+    }
+
+    @media (max-width: 700px) {
+        .rb-onboard-review-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+        }
+        .rb-onboard-review-card {
+            min-height: auto !important;
+            padding: 16px !important;
+        }
+        .rb-onboard-review-label {
+            font-size: .95rem !important;
+            margin-bottom: 6px !important;
+        }
+        .rb-onboard-review-value {
+            font-size: 2rem !important;
+            overflow-wrap: normal !important;
+            word-break: normal !important;
+        }
+    }
+
     .rb-warning-panel {
         display: flex;
         align-items: center;
@@ -8762,10 +8814,19 @@ def render_first_blueprint_card_wizard():
             monthly_spending = _onboard_money("onboard_monthly_spending", 0)
             st.markdown(
                 f"""
-                <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:10px;">
-                  <div class="rb-card"><div class="rb-card-label">Target retirement age</div><div class="rb-card-value">{int(st.session_state.get('onboard_retire_age', 0) or 0)}</div></div>
-                  <div class="rb-card"><div class="rb-card-label">Retirement savings</div><div class="rb-card-value">{money(total_savings)}</div></div>
-                  <div class="rb-card"><div class="rb-card-label">Monthly retirement spending</div><div class="rb-card-value">{money(monthly_spending)}</div></div>
+                <div class="rb-onboard-review-grid">
+                  <div class="rb-onboard-review-card">
+                    <div class="rb-onboard-review-label">Target retirement age</div>
+                    <div class="rb-onboard-review-value">{int(st.session_state.get('onboard_retire_age', 0) or 0)}</div>
+                  </div>
+                  <div class="rb-onboard-review-card">
+                    <div class="rb-onboard-review-label">Retirement savings</div>
+                    <div class="rb-onboard-review-value">{money(total_savings)}</div>
+                  </div>
+                  <div class="rb-onboard-review-card">
+                    <div class="rb-onboard-review-label">Monthly retirement spending</div>
+                    <div class="rb-onboard-review-value">{money(monthly_spending)}</div>
+                  </div>
                 </div>
                 """,
                 unsafe_allow_html=True,
