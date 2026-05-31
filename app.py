@@ -357,6 +357,27 @@ input[placeholder="Press Enter to submit form"]::placeholder {
 }
 
 
+/* Hide Streamlit's small input helper text like “Press Enter to apply”.
+   This keeps login/create-account fields clean, especially on iPad. */
+div[data-testid="InputInstructions"],
+[data-testid="stTextInput"] div[data-testid="InputInstructions"],
+[data-testid="stNumberInput"] div[data-testid="InputInstructions"],
+[data-testid="stTextArea"] div[data-testid="InputInstructions"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
+}
+
+/* Prevent Safari/iPad autofill/helper overlays from visually crowding the auth fields. */
+[data-testid="stTextInput"] input,
+[data-testid="stNumberInput"] input {
+    padding-right: 0.75rem !important;
+}
+
+
 .rb-progress-wrap {
     border: 1px solid #E2E8F0;
     border-radius: 18px;
