@@ -1945,8 +1945,7 @@ def render_sidebar_auth_controls():
                 supabase.auth.sign_out()
             except Exception:
                 pass
-            st.session_state.user = None
-            st.session_state.show_auth_form = False
+            reset_app_after_signout()
             st.rerun()
     else:
         st.markdown(
@@ -3893,6 +3892,24 @@ if "income_sources_df" not in st.session_state:
             "Continues After First Death": True,
         }
     ])
+
+
+def reset_app_after_signout():
+    """Clear the signed-in user's local inputs so the app returns to a clean public Home page."""
+    keys_to_clear = list(st.session_state.keys())
+    for key in keys_to_clear:
+        try:
+            del st.session_state[key]
+        except Exception:
+            pass
+
+    # Re-seed only the minimum state needed for the public landing experience.
+    st.session_state.user = None
+    st.session_state.show_auth_form = False
+    st.session_state.active_page = "Home"
+    st.session_state.first_blueprint_onboarding = False
+    st.session_state.first_blueprint_completed = False
+    st.session_state.close_sidebar_after_nav = False
 
 
 # -----------------------------
