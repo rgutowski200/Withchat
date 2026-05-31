@@ -310,6 +310,64 @@ section[data-testid="stSidebar"] div.stButton > button:disabled {
     .rb-premium-grid-v2 { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 
+
+/* Mobile landing page fixes */
+.rb-home-landing-grid {
+    display:grid;
+    grid-template-columns:minmax(0, 1.2fr) minmax(320px, .8fr);
+    gap:28px;
+    align-items:center;
+}
+.rb-home-stat-strip {
+    background:#ffffff;
+    border:1px solid #dbeafe;
+    border-left:7px solid #2563eb;
+    border-radius:22px;
+    padding:22px 24px;
+    margin-bottom:22px;
+    box-shadow:0 14px 34px rgba(15,23,42,.06);
+    display:grid;
+    grid-template-columns:150px 1fr;
+    gap:20px;
+    align-items:center;
+}
+.rb-home-headline {
+    font-size: clamp(2.0rem, 4vw, 4.2rem);
+    line-height:1.02;
+    font-weight:950;
+    color:#0f172a;
+    letter-spacing:-.05em;
+    margin:6px 0 14px;
+}
+
+@media (max-width: 700px) {
+    .block-container {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        max-width: 100% !important;
+    }
+    .rb-home-landing-grid {
+        grid-template-columns: 1fr !important;
+        gap: 18px !important;
+    }
+    .rb-home-headline {
+        font-size: 2.15rem !important;
+        line-height: 1.08 !important;
+        letter-spacing: -0.035em !important;
+    }
+    .rb-insight-card {
+        padding: 20px 18px !important;
+        overflow: hidden !important;
+    }
+    .rb-home-stat-strip {
+        grid-template-columns: 1fr !important;
+        padding: 18px !important;
+    }
+    .rb-home-stat-strip .rb-home-stat-number {
+        font-size: 2.6rem !important;
+    }
+}
+
 .rb-qs-step-text b {
     color: #0f172a;
     font-weight: 900;
@@ -8909,10 +8967,10 @@ if active_page == PAGE_NAMES[0]:
     else:
         st.markdown("""
         <div class="rb-insight-card" style="padding: 26px 28px; margin-bottom: 22px;">
-          <div style="display:grid; grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr); gap: 28px; align-items:center;">
+          <div class="rb-home-landing-grid">
             <div>
               <div class="rb-insight-kicker">Retirement Blueprint 101</div>
-              <div style="font-size: clamp(2.0rem, 4vw, 4.2rem); line-height: 1.02; font-weight: 950; color:#0f172a; letter-spacing:-.05em; margin: 6px 0 14px;">
+              <div class="rb-home-headline">
                 Find out if your retirement plan can actually work — in terms you can understand.
               </div>
               <div class="rb-insight-copy" style="max-width: 920px; font-size: 1.05rem;">
@@ -8959,8 +9017,8 @@ if active_page == PAGE_NAMES[0]:
           </div>
         </div>
 
-        <div style="background:#ffffff; border:1px solid #dbeafe; border-left:7px solid #2563eb; border-radius:22px; padding:22px 24px; margin-bottom:22px; box-shadow:0 14px 34px rgba(15,23,42,.06); display:grid; grid-template-columns:150px 1fr; gap:20px; align-items:center;">
-          <div style="font-size:3.4rem; font-weight:950; color:#2563eb; line-height:1;">67%</div>
+        <div class="rb-home-stat-strip">
+          <div class="rb-home-stat-number" style="font-size:3.4rem; font-weight:950; color:#2563eb; line-height:1;">67%</div>
           <div>
             <div style="font-size:1.35rem; font-weight:950; color:#0f172a; margin-bottom:6px;">of Americans say they worry more about running out of money in retirement than death.</div>
             <div class="rb-muted" style="font-size:1.02rem; line-height:1.5;">That fear is exactly why Retirement Blueprint 101 exists: to turn the numbers into plain-English answers before you make one of life’s biggest decisions.</div>
