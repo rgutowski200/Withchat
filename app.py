@@ -1892,6 +1892,8 @@ def auth_box():
         st.session_state.user = None
     if "show_auth_form" not in st.session_state:
         st.session_state.show_auth_form = False
+    if "show_account_settings" not in st.session_state:
+        st.session_state.show_account_settings = False
     return st.session_state.user
 
 
@@ -1948,6 +1950,46 @@ def render_auth_form():
                 st.error(f"Login failed: {e}")
 
 
+def send_password_reset_email(email: str):
+    """Send a Supabase password reset email with safe fallbacks for client versions."""
+    email = (email or "").strip()
+    if not email:
+        raise ValueError("Enter your email first.")
+
+    redirect_url = "https://retirementblueprint101.com"
+
+    # supabase-py v2
+    if hasattr(supabase.auth, "reset_password_for_email"):
+        try:
+            return supabase.auth.reset_password_for_email(email, {"redirect_to": redirect_url})
+        except TypeError:
+            return supabase.auth.reset_password_for_email(email)
+
+    # Older/alternate clients
+    if hasattr(supabase.auth, "reset_password_email"):
+        try:
+            return supabase.auth.reset_password_email(email, {"redirect_to": redirect_url})
+        except TypeError:
+            return supabase.auth.reset_password_email(email)
+
+    raise RuntimeError("Password reset is not available in this Supabase client version.")
+
+
+def update_signed_in_password(new_password: str):
+    """Update password for the currently signed-in Supabase user."""
+    new_password = (new_password or "").strip()
+    if len(new_password) < 8:
+        raise ValueError("Password must be at least 8 characters.")
+
+    if hasattr(supabase.auth, "update_user"):
+        return supabase.auth.update_user({"password": new_password})
+
+    if hasattr(supabase.auth, "api") and hasattr(supabase.auth.api, "update_user"):
+        return supabase.auth.api.update_user({"password": new_password})
+
+    raise RuntimeError("Password update is not available in this Supabase client version.")
+
+
 def render_sidebar_auth_controls():
     if st.session_state.user:
         user_email = getattr(st.session_state.user, "email", "Signed in")
@@ -1961,6 +2003,31 @@ def render_sidebar_auth_controls():
             """,
             unsafe_allow_html=True,
         )
+        if st.button("Account Settings", use_container_width=True, key="sidebar_account_settings"):
+            st.session_state.show_account_settings = not st.session_state.get("show_account_settings", False)
+
+        if st.session_state.get("show_account_settings", False):
+            st.markdown("""
+            <div style="border:1px solid #E2E8F0;border-radius:16px;padding:12px;background:#FFFFFF;margin:8px 0 10px 0;">
+              <div style="font-weight:900;color:#0F172A;margin-bottom:4px;">Change password</div>
+              <div style="color:#64748B;font-size:.86rem;line-height:1.35;">Choose a new password. This will not change your saved blueprints.</div>
+            </div>
+            """, unsafe_allow_html=True)
+            new_password = st.text_input("New password", type="password", key="sidebar_new_password")
+            confirm_password = st.text_input("Confirm new password", type="password", key="sidebar_confirm_password")
+            if st.button("Update Password", use_container_width=True, key="sidebar_update_password"):
+                if not new_password or not confirm_password:
+                    st.error("Enter and confirm your new password.")
+                elif new_password != confirm_password:
+                    st.error("The passwords do not match.")
+                else:
+                    try:
+                        update_signed_in_password(new_password)
+                        st.success("Password updated.")
+                        st.session_state.show_account_settings = False
+                    except Exception as e:
+                        st.error(f"Password update failed: {e}")
+
         if st.button("Sign out", use_container_width=True, key="sidebar_sign_out"):
             try:
                 supabase.auth.sign_out()
@@ -1983,42 +2050,57 @@ def render_sidebar_auth_controls():
             st.session_state.show_auth_form = not st.session_state.get("show_auth_form", False)
 
         if st.session_state.get("show_auth_form", False):
-            mode = st.radio("Account action", ["Login", "Create Account"], key="sidebar_auth_mode", horizontal=True)
+            mode = st.radio(
+                "Account action",
+                ["Login", "Create Account", "Forgot Password"],
+                key="sidebar_auth_mode",
+                horizontal=True,
+            )
             email = st.text_input("Email", key="sidebar_auth_email")
-            password = st.text_input("Password", type="password", key="sidebar_auth_password")
-            action_clicked = st.button(mode, use_container_width=True, key="sidebar_auth_submit")
 
-            if action_clicked:
-                if not email or not password:
-                    st.error("Enter both email and password.")
-                elif mode == "Create Account":
-                    try:
-                        res = supabase.auth.sign_up({"email": email, "password": password})
+            if mode in ["Login", "Create Account"]:
+                password = st.text_input("Password", type="password", key="sidebar_auth_password")
+                action_clicked = st.button(mode, use_container_width=True, key="sidebar_auth_submit")
 
-                        # If Supabase returns a user/session immediately, start the first-blueprint wizard.
-                        if getattr(res, "user", None) is not None:
+                if action_clicked:
+                    if not email or not password:
+                        st.error("Enter both email and password.")
+                    elif mode == "Create Account":
+                        try:
+                            res = supabase.auth.sign_up({"email": email, "password": password})
+
+                            # If Supabase returns a user/session immediately, start the first-blueprint wizard.
+                            if getattr(res, "user", None) is not None:
+                                st.session_state.user = res.user
+
+                            # Some Supabase setups require email confirmation. We still start the
+                            # friendly first-blueprint flow, and the user can sign in later if needed.
+                            st.session_state.show_auth_form = False
+                            st.session_state.first_blueprint_onboarding = True
+                            st.session_state.first_blueprint_step = 0
+                            st.session_state.first_blueprint_completed = False
+                            st.session_state.active_page = "Home"
+                            st.success("Account created. Let’s build your first blueprint.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Create account failed: {e}")
+                    else:
+                        try:
+                            res = supabase.auth.sign_in_with_password({"email": email, "password": password})
                             st.session_state.user = res.user
-
-                        # Some Supabase setups require email confirmation. We still start the
-                        # friendly first-blueprint flow, and the user can sign in later if needed.
-                        st.session_state.show_auth_form = False
-                        st.session_state.first_blueprint_onboarding = True
-                        st.session_state.first_blueprint_step = 0
-                        st.session_state.first_blueprint_completed = False
-                        st.session_state.active_page = "Home"
-                        st.success("Account created. Let’s build your first blueprint.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Create account failed: {e}")
-                else:
+                            st.session_state.show_auth_form = False
+                            st.success("Logged in.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Login failed: {e}")
+            else:
+                st.caption("Enter your email and we’ll send a secure reset link. After resetting, come back and sign in.")
+                if st.button("Send Password Reset Email", use_container_width=True, key="sidebar_password_reset"):
                     try:
-                        res = supabase.auth.sign_in_with_password({"email": email, "password": password})
-                        st.session_state.user = res.user
-                        st.session_state.show_auth_form = False
-                        st.success("Logged in.")
-                        st.rerun()
+                        send_password_reset_email(email)
+                        st.success("Password reset email sent. Check your inbox and spam folder.")
                     except Exception as e:
-                        st.error(f"Login failed: {e}")
+                        st.error(f"Password reset failed: {e}")
 
 
 user = auth_box()
