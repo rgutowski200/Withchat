@@ -12685,6 +12685,21 @@ section[data-testid="stSidebar"] button {
             if st.button("⟳ Refresh", use_container_width=True):
                 st.rerun()
 
+        with st.expander("What do these saved blueprint buttons do?", expanded=False):
+            st.markdown("""
+            <div style="border:1px solid #DBEAFE;border-radius:18px;padding:16px;background:linear-gradient(135deg,#F8FBFF,#ECFEFF);margin-bottom:10px;">
+              <div style="font-weight:950;color:#0F172A;font-size:1.05rem;margin-bottom:8px;">Plain-English button guide</div>
+              <div style="color:#475569;line-height:1.55;">These buttons do not change your saved blueprint unless you choose an action like duplicate or delete. They help you open, compare, copy, or export a saved version.</div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;">
+              <div style="border:1px solid #E5E7EB;border-radius:14px;padding:13px;background:#FFFFFF;"><b>↥ Load This Blueprint</b><br><span style="color:#64748B;">Puts this saved blueprint back into the app so the dashboard, action plan, and tools use these numbers.</span></div>
+              <div style="border:1px solid #E5E7EB;border-radius:14px;padding:13px;background:#FFFFFF;"><b>⚖ Compare</b><br><span style="color:#64748B;">Adds this blueprint to a side-by-side comparison so you can see which version looks stronger.</span></div>
+              <div style="border:1px solid #E5E7EB;border-radius:14px;padding:13px;background:#FFFFFF;"><b>⧉ Duplicate</b><br><span style="color:#64748B;">Makes a copy you can adjust without changing the original. Great for testing a new retirement age or spending level.</span></div>
+              <div style="border:1px solid #E5E7EB;border-radius:14px;padding:13px;background:#FFFFFF;"><b>📄 Blueprint Report</b><br><span style="color:#64748B;">Creates a PDF version of that saved blueprint that you can review or share.</span></div>
+              <div style="border:1px solid #E5E7EB;border-radius:14px;padding:13px;background:#FFFFFF;"><b>🗑 Delete</b><br><span style="color:#64748B;">Removes that saved blueprint after confirmation. Use carefully — tiny trash can, big responsibility.</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+
         try:
             scenarios = load_scenarios(user)
         except Exception as e:
@@ -12966,7 +12981,7 @@ section[data-testid="stSidebar"] button {
                             try:
                                 copy_name = f"{scenario['scenario_name']} Copy"
                                 save_scenario(user, copy_name, data)
-                                st.success("Scenario duplicated.")
+                                st.success("Blueprint duplicated.")
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"Duplicate failed: {e}")
@@ -12997,7 +13012,7 @@ section[data-testid="stSidebar"] button {
                                     supabase.table("retirement_scenarios").delete().eq("id", scenario["id"]).eq("user_id", user.id).execute()
                                     st.session_state.compare_scenarios.pop(sid, None)
                                     st.session_state[confirm_key] = False
-                                    st.success("Scenario deleted.")
+                                    st.success("Blueprint deleted.")
                                     st.rerun()
                                 except Exception as e:
                                     st.error(f"Delete failed: {e}")
@@ -13012,39 +13027,53 @@ section[data-testid="stSidebar"] button {
 
             st.divider()
 
+            st.markdown("""
+            <div style="border:1px solid #BFDBFE;border-radius:22px;padding:20px 22px;background:linear-gradient(135deg,#EFF6FF,#F8FBFF);margin:18px 0 14px 0;box-shadow:0 8px 24px rgba(15,23,42,.05);">
+              <div style="font-size:.82rem;font-weight:950;color:#2563EB;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;">Create another version</div>
+              <div style="font-size:1.2rem;font-weight:950;color:#0F172A;margin-bottom:8px;">Use these buttons to quickly create a new saved blueprint.</div>
+              <div style="color:#475569;line-height:1.55;margin-bottom:12px;">They start with your current numbers, then create a new saved version with different planning assumptions. Your original saved blueprints are not changed.</div>
+              <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;">
+                <div style="border:1px solid #E5E7EB;border-radius:14px;padding:12px;background:#FFFFFF;"><b>Blank Blueprint</b><br><span style="color:#64748B;">Starts a clean version from zero.</span></div>
+                <div style="border:1px solid #E5E7EB;border-radius:14px;padding:12px;background:#FFFFFF;"><b>Conservative</b><br><span style="color:#64748B;">Uses lower growth, higher inflation, and a larger cash cushion.</span></div>
+                <div style="border:1px solid #E5E7EB;border-radius:14px;padding:12px;background:#FFFFFF;"><b>Base</b><br><span style="color:#64748B;">Uses the normal middle-road assumptions.</span></div>
+                <div style="border:1px solid #E5E7EB;border-radius:14px;padding:12px;background:#FFFFFF;"><b>Aggressive</b><br><span style="color:#64748B;">Tests a higher-growth version and may test retiring a little sooner.</span></div>
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+
             t1, t2, t3, t4 = st.columns([1.2, 1, 1, 1])
             with t1:
-                if st.button("＋ Create New Blank Scenario", use_container_width=True):
+                if st.button("＋ Create New Blank Blueprint", use_container_width=True):
                     try:
-                        save_scenario(user, "New Blank Scenario", blank_scenario_data())
-                        st.success("Blank scenario created.")
+                        save_scenario(user, "New Blank Blueprint", blank_scenario_data())
+                        st.success("Blank blueprint created.")
                         st.rerun()
                     except Exception as e:
                         st.error(f"Blank scenario failed: {e}")
 
             with t2:
-                if st.button("Conservative", use_container_width=True):
+                if st.button("Conservative Blueprint", use_container_width=True):
                     try:
                         save_scenario(user, "Conservative Plan", make_template_data("Conservative"))
-                        st.success("Conservative scenario created.")
+                        st.success("Conservative blueprint created.")
                         st.rerun()
                     except Exception as e:
                         st.error(f"Template failed: {e}")
 
             with t3:
-                if st.button("Base", use_container_width=True):
+                if st.button("Base Blueprint", use_container_width=True):
                     try:
                         save_scenario(user, "Base Plan", make_template_data("Base"))
-                        st.success("Base scenario created.")
+                        st.success("Base blueprint created.")
                         st.rerun()
                     except Exception as e:
                         st.error(f"Template failed: {e}")
 
             with t4:
-                if st.button("Aggressive", use_container_width=True):
+                if st.button("Aggressive Blueprint", use_container_width=True):
                     try:
                         save_scenario(user, "Aggressive Plan", make_template_data("Aggressive"))
-                        st.success("Aggressive scenario created.")
+                        st.success("Aggressive blueprint created.")
                         st.rerun()
                     except Exception as e:
                         st.error(f"Template failed: {e}")
