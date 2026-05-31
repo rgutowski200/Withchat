@@ -340,6 +340,28 @@ section[data-testid="stSidebar"] div.stButton > button:disabled {
     margin:6px 0 14px;
 }
 
+
+.rb-home-feature-grid {
+    display:grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap:12px;
+}
+.rb-home-feature-card {
+    background:#ffffff;
+    border-radius:16px;
+    padding:14px;
+    border:1px solid #e5e7eb;
+    min-width:0;
+    overflow-wrap:anywhere;
+    word-break:normal;
+}
+.rb-home-feature-card b {
+    display:block;
+    color:#0f172a;
+    font-weight:900;
+    margin-bottom:6px;
+}
+
 @media (max-width: 700px) {
     .block-container {
         padding-left: 1rem !important;
@@ -365,6 +387,13 @@ section[data-testid="stSidebar"] div.stButton > button:disabled {
     }
     .rb-home-stat-strip .rb-home-stat-number {
         font-size: 2.6rem !important;
+    }
+    .rb-home-feature-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+    .rb-home-feature-card {
+        padding: 16px !important;
     }
 }
 
@@ -9037,11 +9066,11 @@ if active_page == PAGE_NAMES[0]:
 
         <div style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:22px; padding:20px; margin-bottom: 22px;">
           <div style="font-weight:950; color:#0f172a; font-size:1.25rem; margin-bottom:12px;">What you will get</div>
-          <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:12px;">
-            <div style="background:#ffffff; border-radius:16px; padding:14px; border:1px solid #e5e7eb;"><b>Retirement score</b><br/><span class="rb-muted">A simple signal showing where your plan stands.</span></div>
-            <div style="background:#ffffff; border-radius:16px; padding:14px; border:1px solid #e5e7eb;"><b>Plain-English summary</b><br/><span class="rb-muted">Understand the result without reading complex charts.</span></div>
-            <div style="background:#ffffff; border-radius:16px; padding:14px; border:1px solid #e5e7eb;"><b>Action plan</b><br/><span class="rb-muted">Find the changes that may improve confidence fastest.</span></div>
-            <div style="background:#ffffff; border-radius:16px; padding:14px; border:1px solid #e5e7eb;"><b>Scenario testing</b><br/><span class="rb-muted">Compare retiring earlier, later, or spending differently.</span></div>
+          <div class="rb-home-feature-grid">
+            <div class="rb-home-feature-card"><b>Retirement score</b><span class="rb-muted">A simple signal showing where your plan stands.</span></div>
+            <div class="rb-home-feature-card"><b>Plain-English summary</b><span class="rb-muted">Understand the result without reading complex charts.</span></div>
+            <div class="rb-home-feature-card"><b>Action plan</b><span class="rb-muted">Find the changes that may improve confidence fastest.</span></div>
+            <div class="rb-home-feature-card"><b>Scenario testing</b><span class="rb-muted">Compare retiring earlier, later, or spending differently.</span></div>
           </div>
         </div>
         """, unsafe_allow_html=True)
