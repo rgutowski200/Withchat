@@ -10168,15 +10168,22 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
     income_coverage = float(df["Income Coverage Ratio"].mean() or 0) if "Income Coverage Ratio" in df.columns else 0.0
     max_withdrawal_rate = float(df["Withdrawal Rate"].max() or 0) if "Withdrawal Rate" in df.columns else 0.0
 
-    # Show the user's actual spending gap before portfolio withdrawals.
-    # This is more understandable than showing $0 when the portfolio is already depleted.
-    avg_gap = 0.0
+    # Show the FIRST-YEAR retirement gap, not a multi-year average.
+    # Averaging across all retirement years inflates the number because spending grows
+    # with inflation over time — the average gap across 20 years looks much larger than
+    # year one. First-year is directly comparable to the monthly spending shown above.
+    first_year_gap = 0.0
     retired_df = df[df["Age"] >= retire_age].copy() if "Age" in df.columns and retire_age else df.copy()
-    if "Total Spending" in retired_df.columns and "Total Non-Portfolio Income" in retired_df.columns and not retired_df.empty:
-        avg_gap = float((retired_df["Total Spending"] - retired_df["Total Non-Portfolio Income"]).clip(lower=0).mean() or 0)
-    elif "Portfolio Need" in retired_df.columns and not retired_df.empty:
-        avg_gap = float(retired_df["Portfolio Need"].mean() or 0)
-    monthly_gap = max(avg_gap, 0) / 12
+    if not retired_df.empty:
+        first_row = retired_df.iloc[0]
+        if "Total Spending" in first_row.index and "Total Non-Portfolio Income" in first_row.index:
+            first_year_gap = max(
+                float(first_row["Total Spending"] or 0) - float(first_row["Total Non-Portfolio Income"] or 0),
+                0,
+            )
+        elif "Portfolio Need" in first_row.index:
+            first_year_gap = max(float(first_row["Portfolio Need"] or 0), 0)
+    monthly_gap = first_year_gap / 12
 
     starting_balance = float(df["Start Total"].iloc[0] or 0) if "Start Total" in df.columns and not df.empty else 0.0
     years_until_retirement = max(retire_age - current_age, 0)
@@ -10289,25 +10296,37 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
     else:
         market_label, market_class = "Lower", "rb-pill-green"
 
+    # Explain why the savings gap can exceed stated monthly spending.
+    # The gap includes healthcare costs and estimated federal taxes on top of lifestyle spending,
+    # so it is often larger than the monthly spending number the user entered.
+    gap_vs_spending = monthly_gap - monthly_spending
+    if gap_vs_spending > 100:
+        gap_explanation = (
+            f" This savings gap is higher than your stated spending because it also includes estimated healthcare costs "
+            f"and federal taxes — not just lifestyle spending."
+        )
+    else:
+        gap_explanation = ""
+
     if unmet_need > 0 or ending_balance <= 0 or rtv_score < 60:
         runout_phrase = f" The projection appears to run short around age <b>{runout_age}</b>." if runout_age else " The projection is showing a shortfall."
         summary_text = (
             f"Here is the simple version: you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
-            f"After Social Security and other income are counted, savings would need to cover about <b>{money(monthly_gap)}/month</b>. "
+            f"After Social Security and other income are counted, savings would need to cover about <b>{money(monthly_gap)}/month</b>.{gap_explanation} "
             f"{runout_phrase} That does not mean retirement is impossible. It means this first version needs changes before it looks comfortable. "
             "The easiest things to test are retiring a little later, spending a little less, saving more before retirement, or adding income."
         )
     elif rtv_score < 80:
         summary_text = (
             f"Here is the simple version: you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
-            f"After Social Security and other income are counted, savings would need to cover about <b>{money(monthly_gap)}/month</b>. "
+            f"After Social Security and other income are counted, savings would need to cover about <b>{money(monthly_gap)}/month</b>.{gap_explanation} "
             f"The projection still shows about <b>{money(ending_balance)}</b> at age <b>{end_age}</b>, but the cushion may not be strong enough yet. "
             "The next step is to test a few changes and see how the plan handles bad market years."
         )
     else:
         summary_text = (
             f"Here is the simple version: you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
-            f"After Social Security and other income are counted, savings would need to cover about <b>{money(monthly_gap)}/month</b>. "
+            f"After Social Security and other income are counted, savings would need to cover about <b>{money(monthly_gap)}/month</b>.{gap_explanation} "
             f"The projection shows about <b>{money(ending_balance)}</b> left at age <b>{end_age}</b>. "
             f"{why_money_left} "
             "This is still an estimate, so the next smart step is to stress test it against a few bad market years."
@@ -10365,7 +10384,7 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
         <div class="rb-card-label">Monthly Gap From Savings</div>
         <div class="rb-card-value">{money(monthly_gap)}</div>
         <div class="rb-kpi-pill" style="background:{dashboard_pill_bg if rtv_score < 80 else '#DCFCE7'};color:{dashboard_pill_color if rtv_score < 80 else '#166534'};">Savings need</div>
-        <div class="rb-card-note">The part of monthly spending not covered by Social Security or other income.</div>
+        <div class="rb-card-note">First-year retirement gap: lifestyle + healthcare + est. taxes, minus Social Security and other income.</div>
       </div>
     </div>
     """, unsafe_allow_html=True)
