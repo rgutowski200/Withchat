@@ -2990,7 +2990,7 @@ def render_two_bucket_strategy(df=None):
     show["Target Years"] = show["Target Years"].map(lambda x: f"{x:g}" if isinstance(x, (int, float)) else x)
     if "Assumed Return" in show.columns:
         show["Assumed Return"] = show["Assumed Return"].map(pct)
-    st.dataframe(show, use_container_width=True, hide_index=True)
+    st.markdown(html_table(show), unsafe_allow_html=True)
 
     st.info(
         "Simple version: Bucket 1 holds only the chosen number of years of expenses. Bucket 2 holds the rest."
@@ -3374,7 +3374,7 @@ def render_bucket_strategy_comparison_panel(df=None):
         }
     ]
 
-    st.dataframe(pd.DataFrame(simple_rows), use_container_width=True, hide_index=True)
+    st.markdown(html_table(pd.DataFrame(simple_rows)), unsafe_allow_html=True)
 
     st.markdown("### Bottom line")
     if one_shortfall > 0 and two_shortfall > 0:
@@ -3410,7 +3410,7 @@ def render_bucket_strategy_comparison_panel(df=None):
         for rate_col in ["Safety Bucket Return", "Growth Bucket Return"]:
             if rate_col in show.columns:
                 show[rate_col] = show[rate_col].map(lambda x: "N/A" if pd.isna(x) else pct(x))
-        st.dataframe(show, use_container_width=True, hide_index=True)
+        st.markdown(html_table(show), unsafe_allow_html=True)
 
     if not paths_df.empty:
         fig, ax = plt.subplots(figsize=(9, 4.5))
@@ -3588,7 +3588,7 @@ def render_scenario_comparison_panel():
         "Simple Status": "Status",
         "Plain-English Takeaway": "What it means",
     })
-    st.dataframe(simple_show, use_container_width=True, hide_index=True)
+    st.markdown(html_table(simple_show), unsafe_allow_html=True)
     st.caption(
         f"Projected Money Left at {planning_age} means the estimated portfolio balance remaining at the end of the plan. "
         "It uses the same numbers from the projection: savings, contributions, retirement spending, income, taxes, and investment return assumptions."
@@ -3612,7 +3612,7 @@ def render_scenario_comparison_panel():
             "Retirement Age": "Retire at Age",
             "Label": "Detailed Label",
         })
-        st.dataframe(advanced, use_container_width=True, hide_index=True)
+        st.markdown(html_table(advanced), unsafe_allow_html=True)
         st.caption(
             "Advanced numbers are useful for deeper analysis, but the simple comparison above is the user-friendly summary."
         )
@@ -3946,7 +3946,7 @@ def render_retirement_age_optimizer_page():
         "Years Until Social Security",
         "Unmet Need",
     ]
-    st.dataframe(display[display_columns], use_container_width=True, hide_index=True)
+    st.markdown(html_table(display[display_columns]), unsafe_allow_html=True)
 
     with st.expander("What each column means", expanded=False):
         st.markdown(
@@ -8181,7 +8181,7 @@ def render_tax_aware_withdrawal_plan(projection_df=None):
         return
 
     st.subheader("Suggested withdrawal order")
-    st.dataframe(pd.DataFrame(order_rows), use_container_width=True, hide_index=True)
+    st.markdown(html_table(pd.DataFrame(order_rows)), unsafe_allow_html=True)
 
     st.subheader("What this means for your blueprint")
     notes = []
@@ -10053,7 +10053,7 @@ if active_page == PAGE_NAMES[5]:
         ["Mortgage payoff age", st.session_state.mortgage_payoff_age if st.session_state.mortgage_payoff_age else "Unknown"],
         ["Housing plan", st.session_state.retirement_housing_plan],
     ], columns=["Input", "Answer"])
-    st.dataframe(review, use_container_width=True)
+    st.markdown(html_table(review), unsafe_allow_html=True)
 
 # can_run and df are initialized safely before page rendering above.
 
@@ -11421,7 +11421,7 @@ if active_page == PAGE_NAMES[7]:
                 "Average income coverage": pct(avg_income_coverage),
                 "Spending not covered": money(df["Unmet Need"].sum()),
             }])
-            st.dataframe(advanced_df, use_container_width=True, hide_index=True)
+            st.markdown(html_table(advanced_df), unsafe_allow_html=True)
 
             if rtv_reasons:
                 st.markdown("**Why this score?**")
@@ -13291,7 +13291,7 @@ section[data-testid="stSidebar"] button {
                         "Max Withdrawal Rate": pct(s["rough_wr"]),
                     })
 
-                st.dataframe(pd.DataFrame(compare_rows), use_container_width=True, hide_index=True)
+                st.markdown(html_table(pd.DataFrame(compare_rows)), unsafe_allow_html=True)
 
                 if len(compare_items) >= 2:
                     sorted_items = sorted(compare_items, key=lambda x: x["summary"]["score"], reverse=True)
@@ -13707,7 +13707,7 @@ if active_page == PAGE_NAMES[10]:
         "Watch Out For",
         "Example Places",
     ]]
-    st.dataframe(state_table, use_container_width=True, hide_index=True, height=390)
+    st.markdown(html_table(state_table), unsafe_allow_html=True)
 
     with st.expander("What the scores mean", expanded=False):
         explain = pd.DataFrame([
@@ -13717,7 +13717,7 @@ if active_page == PAGE_NAMES[10]:
             ["Lifestyle", "Retirement should fit how you actually want to live."],
             ["Climate", "Weather, snowbird plans, and seasonal comfort matter."],
         ], columns=["Factor", "Why It Matters"])
-        st.dataframe(explain, use_container_width=True, hide_index=True)
+        st.markdown(html_table(explain), unsafe_allow_html=True)
 
     # Personalized ranking
     st.divider()
@@ -13880,26 +13880,10 @@ if active_page == PAGE_NAMES[10]:
         personal_display["Effective Tax Rate"] = personal_display["Effective Tax Rate"].map(pct)
 
         st.subheader("Personalized top states")
-        st.dataframe(
-            personal_display[
-                [
-                    "Personal Rank",
-                    "State",
-                    "Preference Fit Score",
-                    "Estimated Annual Tax",
-                    "Effective Tax Rate",
-                    "Cost Score",
-                    "Healthcare Score",
-                    "Lifestyle Score",
-                    "Climate Score",
-                    "Example Places",
-                    "Best Fit",
-                ]
-            ].head(12),
-            use_container_width=True,
-            hide_index=True,
-            height=430
-        )
+        st.markdown(html_table(personal_display[[
+                    "Personal Rank","State","Preference Fit Score","Estimated Annual Tax",
+                    "Effective Tax Rate","Cost Score","Healthcare Score","Lifestyle Score",
+                    "Climate Score","Example Places"]]), unsafe_allow_html=True)
 
         with st.expander("Show tax breakdown chart and deeper state comparison", expanded=False):
             st.pyplot(plot_personalized_tax_burden(personalized_df), use_container_width=True)
@@ -13928,26 +13912,7 @@ if active_page == PAGE_NAMES[10]:
                         phase3_display[col] = phase3_display[col].map(money)
                     phase3_display["Effective Tax Rate"] = phase3_display["Effective Tax Rate"].map(pct)
 
-                    st.dataframe(
-                        phase3_display[[
-                            "State",
-                            "Overall Score",
-                            "Personalized Score",
-                            "Estimated Annual Tax",
-                            "Income Tax",
-                            "Property Tax",
-                            "Sales Tax",
-                            "Effective Tax Rate",
-                            "Cost Score",
-                            "Healthcare Score",
-                            "Lifestyle Score",
-                            "Climate Score",
-                            "Example Places",
-                            "Watch Outs",
-                        ]],
-                        use_container_width=True,
-                        hide_index=True
-                    )
+                    st.markdown(html_table(phase3_display[["State","Overall Score","Personalized Score","Estimated Annual Tax","Income Tax","Property Tax","Sales Tax","Effective Tax Rate","Cost Score","Healthcare Score","Lifestyle Score","Climate Score"]]), unsafe_allow_html=True)
 
                     st.markdown("### Plain-English comparison notes")
                     for note in build_compare_narrative(phase3_compare_df):
@@ -14036,30 +14001,10 @@ if active_page == PAGE_NAMES[10]:
             location_display = location_recommendations.copy()
             location_display["Estimated Annual State/Local Tax"] = location_display["Estimated Annual State/Local Tax"].map(money)
 
-            st.dataframe(
-                location_display[[
-                    "Place",
-                    "State",
-                    "Type",
-                    "Recommended Fit Score",
-                    "Estimated Annual State/Local Tax",
-                    "Affordability",
-                    "Healthcare",
-                    "Lifestyle",
-                    "Climate",
-                    "Golf / Recreation",
-                    "Why It Fits",
-                    "Watch Outs",
-                ]].head(12),
-                use_container_width=True,
-                hide_index=True,
-                height=430
-            )
-
-            with st.expander("Show city chart and recommendation notes", expanded=False):
-                st.pyplot(plot_location_engine_scores(location_recommendations), use_container_width=True)
-                for note in build_location_recommendation_summary(location_recommendations):
-                    st.markdown(f"- {note}")
+            st.markdown(html_table(location_display[["Place","State","Type","Recommended Fit Score","Estimated Annual State/Local Tax","Affordability","Healthcare","Lifestyle","Climate","Golf / Recreation","Why It Fits","Watch Outs"]].head(12)), unsafe_allow_html=True)
+            st.pyplot(plot_location_engine_scores(location_recommendations), use_container_width=True)
+            for note in build_location_recommendation_summary(location_recommendations):
+                st.markdown(f"- {note}")
 
             if warm_weather_bonus:
                 snowbird_df = build_snowbird_recommendations(city_df, current_home_state="Michigan")
@@ -14068,7 +14013,7 @@ if active_page == PAGE_NAMES[10]:
                         snowbird_display = snowbird_df[[
                             "Place", "State", "Type", "Snowbird Fit Score", "Climate", "Lifestyle", "Golf / Recreation", "Snowbird Strategy", "Watch Outs"
                         ]].copy()
-                        st.dataframe(snowbird_display, use_container_width=True, hide_index=True)
+                        st.markdown(html_table(snowbird_display), unsafe_allow_html=True)
 
             # Save favorites
             st.divider()
@@ -14118,7 +14063,7 @@ if active_page == PAGE_NAMES[10]:
                     "Healthcare", "Affordability", "Lifestyle", "Climate", "Golf / Recreation", "Why It Fits", "Watch Outs"
                 ] if c in saved_display.columns]
 
-                st.dataframe(saved_display[show_cols], use_container_width=True, hide_index=True)
+                st.markdown(html_table(saved_display[show_cols]), unsafe_allow_html=True)
 
                 saved_csv = saved_df.to_csv(index=False).encode("utf-8")
                 st.download_button(
@@ -14623,15 +14568,7 @@ def render_resources_page():
 
     def show_resource_table(table_df, include_category=False):
         cols = (["Category"] if include_category else []) + ["Resource", "Summary", "Source", "Validate"]
-        st.dataframe(
-            table_df[cols],
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Summary": st.column_config.TextColumn("Summary", width="large"),
-                "Validate": st.column_config.LinkColumn("Validate", display_text="Open source", width="small"),
-            },
-        )
+        st.markdown(html_table(table_df[cols]), unsafe_allow_html=True)
 
     search = st.text_input(
         "Search resources",
@@ -14662,7 +14599,7 @@ def render_resources_page():
             ["8", "Places to Retire", "Compare states and cities for retirement taxes, cost, healthcare, lifestyle, and climate."],
             ["9", "Blueprint Report", "Export a premium report to save, review with a spouse, or discuss with a professional."],
         ], columns=["Step", "Section", "What to do"])
-        st.dataframe(path_df, use_container_width=True, hide_index=True)
+        st.markdown(html_table(path_df), unsafe_allow_html=True)
 
         st.subheader("Suggested path")
         st.write("1. Enter your best estimates in Start My Blueprint.\n\n2. Add spending and income.\n\n3. Review the dashboard and action plan.\n\n4. Run confidence and stress tests.\n\n5. Export your Blueprint Report.")
@@ -14771,7 +14708,7 @@ if active_page == "Help / Instructions":
         ["Roth Conversion", "Moving money from traditional pre-tax accounts to Roth accounts. This may create taxes today but can reduce future tax exposure."],
         ["Unmet Need", "Spending need that the plan could not cover in a projected year. Any unmet need is a major warning sign."],
     ], columns=["Term", "Meaning"])
-    st.dataframe(terms, use_container_width=True, hide_index=True)
+    st.markdown(html_table(terms), unsafe_allow_html=True)
 
     st.subheader("How to Interpret Results")
     st.write("""
