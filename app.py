@@ -2186,60 +2186,9 @@ def render_sidebar_auth_controls():
             unsafe_allow_html=True,
         )
         if st.button("Sign In / Create Account", use_container_width=True, key="sidebar_open_auth"):
-            st.session_state.show_auth_form = not st.session_state.get("show_auth_form", False)
-
-        if st.session_state.get("show_auth_form", False):
-            mode = st.radio(
-                "Account action",
-                ["Login", "Create Account", "Forgot Password"],
-                key="sidebar_auth_mode",
-                horizontal=True,
-            )
-            email = st.text_input("Email", key="sidebar_auth_email")
-
-            if mode in ["Login", "Create Account"]:
-                password = st.text_input("Password", type="password", key="sidebar_auth_password")
-                action_clicked = st.button(mode, use_container_width=True, key="sidebar_auth_submit")
-
-                if action_clicked:
-                    if not email or not password:
-                        st.error("Enter both email and password.")
-                    elif mode == "Create Account":
-                        try:
-                            res = supabase.auth.sign_up({"email": email, "password": password})
-
-                            # If Supabase returns a user/session immediately, start the first-blueprint wizard.
-                            if getattr(res, "user", None) is not None:
-                                st.session_state.user = res.user
-
-                            # Some Supabase setups require email confirmation. We still start the
-                            # friendly first-blueprint flow, and the user can sign in later if needed.
-                            st.session_state.show_auth_form = False
-                            st.session_state.first_blueprint_onboarding = True
-                            st.session_state.first_blueprint_step = 0
-                            st.session_state.first_blueprint_completed = False
-                            st.session_state.active_page = "Home"
-                            st.success("Account created. Let’s build your first blueprint.")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Create account failed: {e}")
-                    else:
-                        try:
-                            res = supabase.auth.sign_in_with_password({"email": email, "password": password})
-                            st.session_state.user = res.user
-                            st.session_state.show_auth_form = False
-                            st.success("Logged in.")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Login failed: {e}")
-            else:
-                st.caption("Enter your email and we’ll send a secure reset link. After resetting, come back and sign in.")
-                if st.button("Send Password Reset Email", use_container_width=True, key="sidebar_password_reset"):
-                    try:
-                        send_password_reset_email(email)
-                        st.success("Password reset email sent. Check your inbox and spam folder.")
-                    except Exception as e:
-                        st.error(f"Password reset failed: {e}")
+            # Show the full-page gate instead of an inline sidebar form.
+            st.session_state["_gate_intended_page"] = st.session_state.get("active_page", "Retirement Dashboard")
+            render_account_gate(reason="default")
 
 
 user = auth_box()
