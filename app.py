@@ -2788,25 +2788,25 @@ def build_blueprint_insight(df=None, page="general"):
     avg_cov = float(df["Income Coverage Ratio"].mean())
     tax_total = float(df.get("Estimated Federal Tax", pd.Series(dtype=float)).sum()) if "Estimated Federal Tax" in df.columns else 0
     if page == "tax":
-        return f"Taxes become most important once traditional withdrawals and taxable Social Security begin. This blueprint currently estimates {money(tax_total)} of federal tax across the plan."
+        return f"Taxes matter most once you start pulling from your 401k or IRA, because those withdrawals count as taxable income. This blueprint estimates about {money(tax_total)} in total federal taxes across your retirement — worth keeping an eye on."
     if page == "bucket":
-        return "Premium bucket planning separates near-term safety, medium-term income, and long-term growth so the plan is easier to understand and stress test."
+        return "The bucket strategy splits your savings into three groups: money you need soon (safe), money you need in a few years (steady), and money you won't touch for a long time (growth). It helps you avoid selling investments at a bad time just to pay everyday bills."
     if page == "places":
-        return "Location planning can change the plan through state taxes, property taxes, housing costs, healthcare access, and lifestyle fit."
+        return "Where you live in retirement can make a real difference. State income taxes, property taxes, housing costs, and healthcare access all affect how far your money goes. Some states are significantly cheaper than others for retirees."
     if max_wr > 0.07:
-        return f"Your biggest pressure point is withdrawal risk. The max projected withdrawal rate is {pct(max_wr)}, so spending, retirement age, income, or bucket design deserve attention."
+        return f"The main thing to watch: your savings may need to cover too much of your spending. Right now the plan shows your portfolio covering about {pct(max_wr)} of annual spending in its busiest year — ideally that stays under 5–7%. Retiring a bit later, spending a bit less, or adding income sources would help bring this down."
     if ending > float(df["Start Total"].iloc[0]) and score >= 80:
-        return f"Your plan has strong flexibility. It ends with {money(ending)}, which may create room for lifestyle upgrades, Roth conversions, gifting, or legacy planning."
+        return f"Your plan is in good shape. It projects about {money(ending)} still remaining at the end — which gives you flexibility for things like extra travel, helping family, or leaving something behind. The next step is stress testing it against a few bad market years to make sure it holds up."
     if avg_cov < 0.35:
-        return f"Your portfolio is doing most of the heavy lifting. Average outside-income coverage is {pct(avg_cov)}, so sequence risk and withdrawal order matter."
-    return f"Your current blueprint is rated {label} at {score}/100. The next best step is comparing nearby retirement ages and stress testing bad market years."
+        return f"Most of your retirement spending is coming from your savings rather than guaranteed income like Social Security or a pension. That's common, but it means the order you withdraw money — and what the market does early in retirement — matters more for your plan."
+    return f"Your current blueprint scores {score}/100 ({label}). A good next step is trying a slightly different retirement age and seeing how the score changes, then testing what happens if the market has a rough stretch early in retirement."
 
 
 def render_premium_insight(title="Blueprint Insight", df=None, page="general"):
     insight = build_blueprint_insight(df, page)
     st.markdown(f"""
     <div class="rb-insight-card">
-      <div class="rb-insight-kicker">Premium Insight</div>
+      <div class="rb-insight-kicker">Blueprint Insight</div>
       <div class="rb-insight-title">{title}</div>
       <div class="rb-insight-copy">{insight}</div>
     </div>
