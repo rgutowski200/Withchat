@@ -11323,19 +11323,29 @@ if active_page == PAGE_NAMES[7]:
                 deduped.append(row)
                 seen.add(row[0])
 
-        try_df = pd.DataFrame(
-            deduped[:6],
-            columns=["Thing to Try", "Why It Helps", "Simple Next Step", "Possible Score Impact"]
+        # Render as HTML table matching the "What the numbers mean" style — no truncation
+        try_rows_html = "".join(
+            f"""<tr>
+              <td style="padding:10px 14px;font-weight:700;color:#166534;white-space:nowrap;border-bottom:1px solid #F1F5F9;">{row[3]}</td>
+              <td style="padding:10px 14px;font-weight:600;color:#1E293B;white-space:nowrap;border-bottom:1px solid #F1F5F9;">{row[0]}</td>
+              <td style="padding:10px 14px;color:#0F172A;line-height:1.5;border-bottom:1px solid #F1F5F9;">{row[2]}</td>
+              <td style="padding:10px 14px;color:#475569;line-height:1.5;border-bottom:1px solid #F1F5F9;">{row[1]}</td>
+            </tr>"""
+            for row in deduped[:6]
         )
-
-        try_df = try_df[[
-            "Possible Score Impact",
-            "Thing to Try",
-            "Simple Next Step",
-            "Why It Helps",
-        ]]
-
-        st.dataframe(try_df, use_container_width=True, hide_index=True)
+        st.markdown(f"""
+        <table style="width:100%;border-collapse:collapse;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;font-size:.92rem;">
+          <thead>
+            <tr style="background:#F8FAFC;">
+              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;white-space:nowrap;">Score impact</th>
+              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;white-space:nowrap;">What to try</th>
+              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;">How to do it</th>
+              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;">Why it helps</th>
+            </tr>
+          </thead>
+          <tbody>{try_rows_html}</tbody>
+        </table>
+        """, unsafe_allow_html=True)
 
         st.subheader("What the numbers mean")
 
