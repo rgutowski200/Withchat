@@ -7869,7 +7869,7 @@ def render_navigation():
             "Legal / Disclaimers",
         ]
 
-        user_has_blueprint = can_run or st.session_state.get("quick_blueprint_saved", False)
+        user_has_blueprint = len(required_missing()) == 0 or st.session_state.get("quick_blueprint_saved", False)
 
         for page_name in core_pages:
             is_active = st.session_state.active_page == page_name
