@@ -8859,6 +8859,183 @@ def render_first_blueprint_card_wizard():
                     st.rerun()
 
 
+
+# ─────────────────────────────────────────────────────────
+# ACCOUNT GATE
+# ─────────────────────────────────────────────────────────
+
+def render_account_gate(reason: str = "default"):
+    """
+    Full-page account creation / sign-in screen shown to unauthenticated users
+    who try to access a gated page. Call require_account() instead of this directly.
+    """
+    if reason == "start_blueprint":
+        headline   = "Create your free account to build your blueprint"
+        subhead    = "Your retirement plan is one step away. Create a free account to get started."
+    else:
+        headline   = "Sign in to access your retirement plan"
+        subhead    = "Your blueprint, projections, and saved scenarios are waiting."
+
+    st.markdown(f"""
+    <style>
+    .rb-gate-wrap {{
+        max-width: 520px;
+        margin: 48px auto 0 auto;
+        padding: 0 12px;
+    }}
+    .rb-gate-logo-row {{
+        text-align: center;
+        margin-bottom: 24px;
+    }}
+    .rb-gate-headline {{
+        font-size: 1.65rem;
+        font-weight: 900;
+        color: #0F172A;
+        text-align: center;
+        line-height: 1.25;
+        margin-bottom: 10px;
+    }}
+    .rb-gate-subhead {{
+        font-size: 1rem;
+        color: #64748B;
+        text-align: center;
+        margin-bottom: 28px;
+        line-height: 1.5;
+    }}
+    .rb-gate-benefits {{
+        background: #F8FAFF;
+        border: 1px solid #DBEAFE;
+        border-radius: 18px;
+        padding: 18px 20px;
+        margin-bottom: 24px;
+    }}
+    .rb-gate-benefit-row {{
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 10px;
+        font-size: .95rem;
+        color: #1E293B;
+        line-height: 1.4;
+    }}
+    .rb-gate-benefit-row:last-child {{ margin-bottom: 0; }}
+    .rb-gate-check {{
+        color: #16A34A;
+        font-size: 1.1rem;
+        margin-top: 1px;
+        flex-shrink: 0;
+    }}
+    .rb-gate-divider {{
+        text-align: center;
+        color: #94A3B8;
+        font-size: .88rem;
+        margin: 10px 0 4px 0;
+    }}
+    </style>
+    <div class="rb-gate-wrap">
+      <div class="rb-gate-headline">{headline}</div>
+      <div class="rb-gate-subhead">{subhead}</div>
+      <div class="rb-gate-benefits">
+        <div class="rb-gate-benefit-row"><span class="rb-gate-check">✓</span><span>Full retirement projection with year-by-year details</span></div>
+        <div class="rb-gate-benefit-row"><span class="rb-gate-check">✓</span><span>Save and compare multiple blueprints</span></div>
+        <div class="rb-gate-benefit-row"><span class="rb-gate-check">✓</span><span>Income gap analysis, Monte Carlo, and stress tests</span></div>
+        <div class="rb-gate-benefit-row"><span class="rb-gate-check">✓</span><span>Downloadable PDF blueprint report</span></div>
+        <div class="rb-gate-benefit-row"><span class="rb-gate-check">✓</span><span>AI Retirement Coach — ask questions about your plan</span></div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Center the form
+    _, form_col, _ = st.columns([1, 3, 1])
+    with form_col:
+        mode = st.radio(
+            "Account action",
+            ["Create Free Account", "Sign In"],
+            horizontal=True,
+            key="gate_auth_mode",
+        )
+
+        if mode == "Create Free Account":
+            gate_name  = st.text_input("Your first name (optional)", key="gate_name")
+        else:
+            gate_name = ""
+
+        gate_email    = st.text_input("Email", key="gate_email")
+        gate_password = st.text_input("Password", type="password", key="gate_password")
+
+        if st.button(
+            "Create Free Account" if mode == "Create Free Account" else "Sign In",
+            use_container_width=True,
+            type="primary",
+            key="gate_submit",
+        ):
+            if not gate_email or not gate_password:
+                st.error("Please enter your email and password.")
+            elif len(gate_password) < 6:
+                st.error("Password must be at least 6 characters.")
+            elif mode == "Create Free Account":
+                try:
+                    res = supabase.auth.sign_up({"email": gate_email, "password": gate_password})
+                    if getattr(res, "user", None) is not None:
+                        st.session_state.user = res.user
+                    if gate_name.strip():
+                        st.session_state.onboard_name  = gate_name.strip()
+                        st.session_state.first_name    = gate_name.strip()
+                    # Drop straight into the personalised wizard
+                    st.session_state.first_blueprint_onboarding  = True
+                    st.session_state.first_blueprint_step         = 0
+                    st.session_state.first_blueprint_completed    = False
+                    st.session_state.active_page                  = "Home"
+                    st.success(f"Welcome{', ' + gate_name.strip() if gate_name.strip() else ''}! Let's build your first blueprint.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Couldn't create account: {e}")
+            else:
+                try:
+                    res = supabase.auth.sign_in_with_password(
+                        {"email": gate_email, "password": gate_password}
+                    )
+                    st.session_state.user        = res.user
+                    st.session_state.active_page = st.session_state.get(
+                        "_gate_intended_page", "Retirement Dashboard"
+                    )
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Sign-in failed: {e}")
+
+        st.caption("No credit card. No spam. Unsubscribe anytime.")
+
+        st.markdown("<div class='rb-gate-divider'>— or —</div>", unsafe_allow_html=True)
+
+        if st.button("Forgot password?", use_container_width=False, key="gate_forgot"):
+            st.session_state["_gate_show_reset"] = not st.session_state.get("_gate_show_reset", False)
+
+        if st.session_state.get("_gate_show_reset", False):
+            reset_email = st.text_input("Email for reset link", key="gate_reset_email")
+            if st.button("Send Reset Email", use_container_width=True, key="gate_send_reset"):
+                try:
+                    send_password_reset_email(reset_email)
+                    st.success("Reset email sent. Check your inbox and spam folder.")
+                    st.session_state["_gate_show_reset"] = False
+                except Exception as e:
+                    st.error(f"Reset failed: {e}")
+
+    st.stop()
+
+
+def require_account(intended_page: str = None, reason: str = "default"):
+    """
+    Call at the top of any gated page render block.
+    If the user is not signed in, shows the account gate and stops rendering.
+    Remembers which page they wanted so sign-in can redirect them there.
+    """
+    if st.session_state.get("user"):
+        return  # already signed in — let the page render normally
+    if intended_page:
+        st.session_state["_gate_intended_page"] = intended_page
+    render_account_gate(reason=reason)
+
+
 if active_page == "Home" and st.session_state.get("first_blueprint_onboarding", False):
     render_first_blueprint_card_wizard()
     st.stop()
@@ -9175,6 +9352,7 @@ if active_page == PAGE_NAMES[0]:
 
 
 if active_page == PAGE_NAMES[1]:
+    require_account(intended_page="Guided Questions", reason="start_blueprint")
     render_page_shell("Start My Blueprint", "Set the core numbers that drive your retirement blueprint: ages, savings, contributions, Social Security, other income, returns, and your bucket strategy.", "🧭")
     render_guided_progress(1)
     page_help(
@@ -9563,6 +9741,7 @@ if active_page == PAGE_NAMES[1]:
 
 
 if active_page == PAGE_NAMES[2]:
+    require_account(intended_page="Budget Builder", reason="default")
     render_page_shell("Spending Plan", "Estimate your retirement lifestyle costs using either a quick monthly number or a more detailed category-by-category budget.", "💳")
     render_guided_progress(2)
     page_help(
@@ -9719,6 +9898,7 @@ if active_page == PAGE_NAMES[2]:
 
 
 if active_page == PAGE_NAMES[3]:
+    require_account(intended_page="Income Builder", reason="default")
     render_page_shell("Income Plan", "Add pensions, rental income, side income, annuities, or any other cash flows that reduce pressure on your portfolio.", "💼")
     render_guided_progress(3)
     page_help(
@@ -9784,12 +9964,14 @@ if active_page == PAGE_NAMES[3]:
 
 
 if active_page == PAGE_NAMES[4]:
+    require_account(intended_page="Spouse Questions", reason="default")
     render_page_shell("Household Plan", "Household setup now lives inside Start My Blueprint.", "👥")
     st.info("Household planning is now included directly on the Start My Blueprint page. Use the spouse / partner checkbox there to include or hide household fields.")
     if st.button("Go to Start My Blueprint", use_container_width=True, key="go_guided_from_household_removed"):
         go_to_page("Guided Questions")
 
 if active_page == PAGE_NAMES[5]:
+    require_account(intended_page="Review Answers", reason="default")
     render_page_shell("Review Inputs", "See a clean summary of your current inputs before running deeper analysis or sharing the results.", "📝")
     render_guided_progress(3)
     page_help(
@@ -10548,6 +10730,7 @@ def render_basic_blueprint_dashboard():
         if st.button("Next: Retirement Dashboard", type="primary", use_container_width=True, key="review_inputs_to_retirement_dashboard"):
             go_to_page("Retirement Dashboard")
 if active_page == PAGE_NAMES[6]:
+    require_account(intended_page="Retirement Dashboard", reason="default")
     if st.session_state.get("dashboard_first_blueprint_ready", False):
         first = st.session_state.get("first_name", "there")
         st.success(f"Nice work, {first} — your first Retirement Blueprint is ready.")
@@ -10869,6 +11052,7 @@ if active_page == PAGE_NAMES[6]:
             go_to_page("Projection Table")
 
 if active_page == PAGE_NAMES[7]:
+    require_account(intended_page="Recommendations", reason="default")
     render_page_shell("Action Plan", "Plain-English next steps to help improve your retirement blueprint.", "💡")
     page_help(
         "Recommendations",
@@ -11185,6 +11369,7 @@ if active_page == PAGE_NAMES[7]:
 
 
 if active_page == PAGE_NAMES[8]:
+    require_account(intended_page="Projection Table", reason="default")
     render_page_shell("Projection", "A clean year-by-year view of how your retirement blueprint may play out.", "📈")
 
     if st.session_state.get("projection_focus"):
@@ -11369,6 +11554,7 @@ if active_page == PAGE_NAMES[8]:
 
 
 if active_page == PAGE_NAMES[9]:
+    require_account(intended_page="Saved Scenarios", reason="default")
     def _saved_blueprint_display_rows(saved_items):
         rows = []
         for i, item in enumerate(saved_items or []):
@@ -13330,6 +13516,7 @@ section[data-testid="stSidebar"] button {
 
 
 if active_page == PAGE_NAMES[10]:
+    require_account(intended_page="Best Places to Retire", reason="default")
     render_page_shell(
         "Places to Retire",
         "Find retirement locations that fit your money, lifestyle, healthcare needs, climate preferences, and tax situation.",
@@ -13872,6 +14059,7 @@ if active_page == PAGE_NAMES[10]:
 
 
 if active_page == PAGE_NAMES[11]:
+    require_account(intended_page="Monte Carlo", reason="default")
     render_page_shell("Confidence Test", "Stress test your blueprint across many market paths to understand the probability of success and the range of possible outcomes.", "🎲")
     page_help(
         "Monte Carlo Simulator",
@@ -14000,6 +14188,7 @@ if active_page == PAGE_NAMES[11]:
 
 
 if active_page == PAGE_NAMES[12]:
+    require_account(intended_page="Stress Tests", reason="default")
     render_page_shell("Stress Tests", "Try tougher scenarios like lower returns, higher spending, or inflation shocks to see where your plan bends or breaks.", "🛡️")
 
     st.caption("Tax estimates now include taxable Social Security when provisional income exceeds IRS thresholds. Roth and cash withdrawals are modeled as tax-free; taxable brokerage is still simplified until the capital-gains phase.")
@@ -14099,6 +14288,7 @@ if active_page == PAGE_NAMES[12]:
 
 
 if active_page == PAGE_NAMES[13]:
+    require_account(intended_page="PDF Report", reason="default")
     render_page_shell("Blueprint Report", "Create a shareable retirement blueprint you can save, print, or discuss with a spouse, advisor, or planner.", "📄")
     page_help(
         "PDF Report",
@@ -14150,6 +14340,7 @@ The PDF report includes:
 
 
 if active_page == PAGE_NAMES[14]:
+    require_account(intended_page="AI Retirement Coach", reason="default")
     render_page_shell("Blueprint Coach", "Ask follow-up questions, explore trade-offs, and get plain-English explanations of what your blueprint results mean.", "🤖")
     page_help(
         "AI Retirement Coach",
@@ -14458,6 +14649,7 @@ def render_resources_page():
 
 
 if active_page == "Retirement Age Optimizer":
+    require_account(intended_page="Retirement Age Optimizer")
     render_retirement_age_optimizer_page()
 
 
