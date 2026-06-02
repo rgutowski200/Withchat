@@ -7843,35 +7843,66 @@ def render_navigation():
         render_sidebar_auth_controls()
         st.caption("PLAN SECTIONS")
 
-        ordered_pages = [
+        # Core pages always visible
+        core_pages = [
             "Home",
             "Guided Questions",
             "Budget Builder",
             "Review Answers",
             "Retirement Dashboard",
-            "Saved Scenarios",
             "Recommendations",
+        ]
+
+        # Advanced pages only shown once the user has a blueprint (can_run = True)
+        advanced_pages = [
             "Projection Table",
+            "Saved Scenarios",
             "Retirement Age Optimizer",
             "Best Places to Retire",
             "PDF Report",
             "AI Retirement Coach",
-            "Resources",
-                    "Help / Instructions",
-                    "Legal / Disclaimers",
         ]
 
-        for page_name in ordered_pages:
+        info_pages = [
+            "Resources",
+            "Help / Instructions",
+            "Legal / Disclaimers",
+        ]
+
+        user_has_blueprint = can_run or st.session_state.get("quick_blueprint_saved", False)
+
+        for page_name in core_pages:
             is_active = st.session_state.active_page == page_name
             icon = PAGE_ICONS.get(page_name, "")
             display_name = NAV_LABELS.get(page_name, page_name)
             label = f"{icon} {display_name}"
-            if st.button(
-                label,
-                key=f"sidebar_nav_{page_name}",
-                use_container_width=True,
-                disabled=is_active,
-            ):
+            if st.button(label, key=f"sidebar_nav_{page_name}", use_container_width=True, disabled=is_active):
+                go_to_page(page_name)
+
+        if user_has_blueprint:
+            st.markdown("<div style='margin-top:6px;font-size:.72rem;font-weight:700;color:#94A3B8;letter-spacing:.06em;text-transform:uppercase;padding-left:4px;'>Advanced Tools</div>", unsafe_allow_html=True)
+            for page_name in advanced_pages:
+                is_active = st.session_state.active_page == page_name
+                icon = PAGE_ICONS.get(page_name, "")
+                display_name = NAV_LABELS.get(page_name, page_name)
+                label = f"{icon} {display_name}"
+                if st.button(label, key=f"sidebar_nav_{page_name}", use_container_width=True, disabled=is_active):
+                    go_to_page(page_name)
+        else:
+            st.markdown("""
+            <div style="border:1px solid #E2E8F0;border-radius:12px;padding:12px 14px;margin:10px 0 4px 0;background:#F8FAFF;">
+              <div style="font-size:.82rem;font-weight:700;color:#64748B;margin-bottom:4px;">🔓 More tools unlock after your first blueprint</div>
+              <div style="font-size:.78rem;color:#94A3B8;line-height:1.4;">Projection, stress tests, PDF report, AI Coach, and more.</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("<div style='margin-top:6px;font-size:.72rem;font-weight:700;color:#94A3B8;letter-spacing:.06em;text-transform:uppercase;padding-left:4px;'>Info</div>", unsafe_allow_html=True)
+        for page_name in info_pages:
+            is_active = st.session_state.active_page == page_name
+            icon = PAGE_ICONS.get(page_name, "")
+            display_name = NAV_LABELS.get(page_name, page_name)
+            label = f"{icon} {display_name}"
+            if st.button(label, key=f"sidebar_nav_{page_name}", use_container_width=True, disabled=is_active):
                 go_to_page(page_name)
 
         st.markdown("<div style='height:18px'></div>", unsafe_allow_html=True)
@@ -9327,155 +9358,177 @@ if active_page == PAGE_NAMES[1]:
     )
 
     if blueprint_mode == "Quick Blueprint":
-        st.subheader("Quick Blueprint")
-        st.caption("Simple starter version for free trial users. Enter the basics first, then use the detailed section below when you want a more precise plan.")
+        st.markdown("""
+        <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:14px;padding:16px 20px;margin-bottom:18px;">
+          <div style="font-weight:900;color:#166534;font-size:1rem;margin-bottom:4px;">✏️ Fill in what you know — estimates are fine</div>
+          <div style="color:#15803D;font-size:.92rem;line-height:1.5;">You don't need exact numbers. Round numbers work great for a first blueprint. You can refine later.</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        with st.expander("Open Quick Blueprint starter", expanded=True):
-            q1, q2, q3 = st.columns(3)
-            quick_current_age = q1.number_input("Current age", 0, 100, st.session_state.current_age, help=FIELD_HELP["current_age"])
-            quick_retire_age = q2.number_input("Target retirement age", 0, 100, st.session_state.retire_age, help=FIELD_HELP["retire_age"])
-            quick_end_age = q3.number_input("Plan through age", 0, 110, st.session_state.end_age, help=FIELD_HELP["end_age"])
+        # ── Section 1: About You ──
+        st.markdown("#### 👤 About You")
+        st.caption("When do you want to retire, and how long should the plan last?")
+        q1, q2, q3 = st.columns(3)
+        quick_current_age = q1.number_input("How old are you today?", 0, 100, st.session_state.current_age, help=FIELD_HELP["current_age"])
+        quick_retire_age = q2.number_input("What age do you want to retire?", 0, 100, st.session_state.retire_age, help=FIELD_HELP["retire_age"])
+        quick_end_age = q3.number_input("Plan through what age?", 0, 110, st.session_state.end_age, help=FIELD_HELP["end_age"])
 
-            q1, q2, q3 = st.columns(3)
-            quick_total_savings = q1.number_input(
-                "Total retirement savings",
-                min_value=0,
-                value=int(float(st.session_state.traditional or 0) + float(st.session_state.roth or 0) + float(st.session_state.taxable or 0) + float(st.session_state.cash or 0)),
-                step=10000,
-                help="A simple total of retirement savings across 401k, IRA, Roth, taxable accounts, and cash."
-            )
-            quick_monthly_spending = q2.number_input(
-                "Monthly retirement spending",
-                min_value=0,
-                value=int(float(st.session_state.get("monthly_spending", 0) or 0)),
-                step=500,
-                help="A simple estimate of how much you expect to spend each month in retirement."
-            )
-            quick_annual_contribution = q3.number_input(
-                "Annual savings until retirement",
-                min_value=0,
-                value=int(st.session_state.annual_contribution),
-                step=5000,
-                help=FIELD_HELP["annual_contribution"]
-            )
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-            q1, q2, q3 = st.columns(3)
-            quick_ss_age = q1.number_input("Social Security start age", 62, 70, st.session_state.user_ss_age, help=FIELD_HELP["user_ss_age"])
-            quick_ss = q2.number_input("Annual Social Security at 62", min_value=0, value=st.session_state.user_ss, step=1000, help=FIELD_HELP["user_ss"])
-            quick_other_income_monthly = q3.number_input(
-                "Other monthly retirement income",
-                min_value=0,
-                value=int(float(st.session_state.simple_income or 0) / 12),
-                step=100,
-                help="Include pension, rental income, part-time work, annuity income, or anything else you expect each month in retirement. Use 0 if none."
-            )
+        # ── Section 2: Your Money ──
+        st.markdown("#### 💰 Your Money")
+        st.caption("Total savings you have now, how much you spend in retirement, and how much you're still adding each year.")
+        q1, q2, q3 = st.columns(3)
+        quick_total_savings = q1.number_input(
+            "Total retirement savings today",
+            min_value=0,
+            value=int(float(st.session_state.traditional or 0) + float(st.session_state.roth or 0) + float(st.session_state.taxable or 0) + float(st.session_state.cash or 0)),
+            step=10000,
+            help="Add up everything: 401k, IRA, Roth, brokerage, and cash savings. Round to the nearest $10,000 — that's close enough."
+        )
+        quick_monthly_spending = q2.number_input(
+            "Monthly spending in retirement",
+            min_value=0,
+            value=int(float(st.session_state.get("monthly_spending", 0) or 0)),
+            step=500,
+            help="What do you expect to spend each month in retirement? Include housing, food, travel, and fun. Don't include healthcare — there's a separate field for that."
+        )
+        quick_annual_contribution = q3.number_input(
+            "How much do you save each year now?",
+            min_value=0,
+            value=int(st.session_state.annual_contribution),
+            step=5000,
+            help=FIELD_HELP["annual_contribution"]
+        )
 
-            market_options = [
-                "Conservative — I prefer a steadier, safer plan",
-                "Balanced — I can handle normal market ups and downs",
-                "Aggressive — I am comfortable with more ups and downs for more growth potential",
-            ]
-            market_defaults = {
-                "Conservative — I prefer a steadier, safer plan": 0.055,
-                "Balanced — I can handle normal market ups and downs": 0.075,
-                "Aggressive — I am comfortable with more ups and downs for more growth potential": 0.085,
-            }
-            prior_quick_market = st.session_state.get("quick_market_comfort", "Balanced — I can handle normal market ups and downs")
-            q1, q2 = st.columns([1.5, 1])
-            quick_market_comfort = q1.selectbox(
-                "Market comfort level",
-                market_options,
-                index=market_options.index(prior_quick_market) if prior_quick_market in market_options else 1,
-                help="Quick Blueprint keeps this simple. Pick how comfortable you are with market ups and downs, and the app chooses a starter return assumption for you. You can choose custom returns in Detailed Blueprint.",
-            )
-            quick_growth_return = market_defaults[quick_market_comfort]
-            q2.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-            q2.info(f"Quick Blueprint will use a {quick_growth_return * 100:.1f}% starter return assumption.")
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-            quick_save = st.button("Save Quick Blueprint", type="primary", use_container_width=True, key="save_quick_blueprint_button")
+        # ── Section 3: Your Income ──
+        st.markdown("#### 📬 Your Retirement Income")
+        st.caption("Social Security and any other income you expect in retirement — like a pension or part-time work.")
+        q1, q2, q3 = st.columns(3)
+        quick_ss_age = q1.number_input("What age will you start Social Security?", 62, 70, st.session_state.user_ss_age, help=FIELD_HELP["user_ss_age"])
+        quick_ss = q2.number_input("Estimated annual Social Security benefit", min_value=0, value=st.session_state.user_ss, step=1000, help="Check ssa.gov for your estimate, or use a rough guess. Enter as a yearly number (e.g. $24,000 = $2,000/month).")
+        quick_other_income_monthly = q3.number_input(
+            "Other monthly income (pension, rent, etc.)",
+            min_value=0,
+            value=int(float(st.session_state.simple_income or 0) / 12),
+            step=100,
+            help="Pension, rental income, part-time work, annuity, or anything else. Use 0 if none."
+        )
 
-            if quick_save:
-                quick_traditional = int(quick_total_savings * 0.80)
-                quick_roth = int(quick_total_savings * 0.20)
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-                for k, v in {
-                    "current_age": quick_current_age,
-                    "retire_age": quick_retire_age,
-                    "end_age": quick_end_age,
-                    "traditional": quick_traditional,
-                    "roth": quick_roth,
-                    "taxable": 0,
-                    "cash": 0,
-                    "annual_contribution": quick_annual_contribution,
-                    "user_ss_age": quick_ss_age,
-                    "user_ss": quick_ss,
-                    "income_mode": "Simple income",
-                    "simple_income": quick_other_income_monthly * 12,
-                    "simple_income_start": quick_retire_age if quick_other_income_monthly > 0 else 0,
-                    "simple_income_end": quick_end_age if quick_other_income_monthly > 0 else 0,
-                    "simple_income_inflation": True,
-                    "simple_income_reliability": "Guaranteed",
-                    "growth_return": quick_growth_return,
-                    "quick_growth_return": quick_growth_return,
-                    "quick_market_comfort": quick_market_comfort,
-                    "safe_return": 0.045,
-                    "inflation": 0.03,
-                    "bucket1_years": 3.0,
+        # ── Section 4: Market Comfort ──
+        st.markdown("#### 📈 Investment Approach")
+        st.caption("How do you feel about market ups and downs? This sets your starting return assumption.")
+        market_options = [
+            "Conservative — I prefer a steadier, safer plan",
+            "Balanced — I can handle normal market ups and downs",
+            "Aggressive — I am comfortable with more ups and downs for more growth potential",
+        ]
+        market_defaults = {
+            "Conservative — I prefer a steadier, safer plan": 0.055,
+            "Balanced — I can handle normal market ups and downs": 0.075,
+            "Aggressive — I am comfortable with more ups and downs for more growth potential": 0.085,
+        }
+        prior_quick_market = st.session_state.get("quick_market_comfort", "Balanced — I can handle normal market ups and downs")
+        q1, q2 = st.columns([2, 1])
+        quick_market_comfort = q1.selectbox(
+            "Pick the one that fits you best",
+            market_options,
+            index=market_options.index(prior_quick_market) if prior_quick_market in market_options else 1,
+            help="This is just a starting point. You can change it anytime.",
+        )
+        quick_growth_return = market_defaults[quick_market_comfort]
+        q2.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+        q2.info(f"Uses a {quick_growth_return * 100:.1f}% return assumption.")
 
-                    # CRITICAL MATH FIX:
-                    # Quick Blueprint spending must feed the same fields used by run_projection().
-                    "budget_mode": "Flat monthly number",
-                    "flat_monthly_spending": quick_monthly_spending,
+        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+        quick_save = st.button("✅  Build My Blueprint", type="primary", use_container_width=True, key="save_quick_blueprint_button")
 
-                    # Backward-compatible aliases used by the Basic Blueprint dashboard and older page logic.
-                    "monthly_spending": quick_monthly_spending,
-                    "spending_quick_monthly": quick_monthly_spending,
-                    "basic_blueprint_monthly_spending": quick_monthly_spending,
-                    "basic_blueprint_annual_spending": quick_monthly_spending * 12,
-                    "monthly_expenses": quick_monthly_spending,
-                    "annual_spending": quick_monthly_spending * 12,
-                    "monthly_needs": quick_monthly_spending,
-                    "retirement_monthly_spending": quick_monthly_spending,
-                }.items():
-                    st.session_state[k] = v
+    if quick_save:
+        quick_traditional = int(quick_total_savings * 0.80)
+        quick_roth = int(quick_total_savings * 0.20)
 
+        for k, v in {
+            "current_age": quick_current_age,
+            "retire_age": quick_retire_age,
+            "end_age": quick_end_age,
+            "traditional": quick_traditional,
+            "roth": quick_roth,
+            "taxable": 0,
+            "cash": 0,
+            "annual_contribution": quick_annual_contribution,
+            "user_ss_age": quick_ss_age,
+            "user_ss": quick_ss,
+            "income_mode": "Simple income",
+            "simple_income": quick_other_income_monthly * 12,
+            "simple_income_start": quick_retire_age if quick_other_income_monthly > 0 else 0,
+            "simple_income_end": quick_end_age if quick_other_income_monthly > 0 else 0,
+            "simple_income_inflation": True,
+            "simple_income_reliability": "Guaranteed",
+            "growth_return": quick_growth_return,
+            "quick_growth_return": quick_growth_return,
+            "quick_market_comfort": quick_market_comfort,
+            "safe_return": 0.045,
+            "inflation": 0.03,
+            "bucket1_years": 3.0,
+
+            # CRITICAL MATH FIX:
+            # Quick Blueprint spending must feed the same fields used by run_projection().
+            "budget_mode": "Flat monthly number",
+            "flat_monthly_spending": quick_monthly_spending,
+
+            # Backward-compatible aliases used by the Basic Blueprint dashboard and older page logic.
+            "monthly_spending": quick_monthly_spending,
+            "spending_quick_monthly": quick_monthly_spending,
+            "basic_blueprint_monthly_spending": quick_monthly_spending,
+            "basic_blueprint_annual_spending": quick_monthly_spending * 12,
+            "monthly_expenses": quick_monthly_spending,
+            "annual_spending": quick_monthly_spending * 12,
+            "monthly_needs": quick_monthly_spending,
+            "retirement_monthly_spending": quick_monthly_spending,
+        }.items():
+            st.session_state[k] = v
+
+        st.session_state.quick_blueprint_saved = True
+        if quick_monthly_spending <= 0:
+            st.warning("Quick Blueprint saved, but monthly retirement spending is still $0. Add a spending estimate before relying on the dashboard.")
+        else:
+            st.success("Quick Blueprint saved. Your Basic Blueprint is ready.")
+
+    if st.session_state.get("quick_blueprint_saved"):
+        st.markdown("""
+        <div class="rb-next-box">
+          <div class="rb-next-heading">Basic Blueprint ready</div>
+          <div class="rb-muted">
+            Your starter blueprint uses the basics you entered: age, target retirement age, savings,
+            monthly retirement spending, Social Security, other retirement income, annual savings, and your market comfort level.
+            Next, review the dashboard to see your first retirement snapshot.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        b1, b2 = st.columns(2)
+        with b1:
+            if st.button("View My Basic Blueprint", type="primary", use_container_width=True, key="quick_next_dashboard"):
                 st.session_state.quick_blueprint_saved = True
-                if quick_monthly_spending <= 0:
-                    st.warning("Quick Blueprint saved, but monthly retirement spending is still $0. Add a spending estimate before relying on the dashboard.")
-                else:
-                    st.success("Quick Blueprint saved. Your Basic Blueprint is ready.")
+                st.session_state.active_page = "Retirement Dashboard"
+                st.rerun()
+        with b2:
+            if st.button("Unlock Detailed Blueprint", use_container_width=True, key="quick_next_unlock"):
+                st.session_state.show_premium_prompt = True
+                st.rerun()
 
-        if st.session_state.get("quick_blueprint_saved"):
-            st.markdown("""
-            <div class="rb-next-box">
-              <div class="rb-next-heading">Basic Blueprint ready</div>
-              <div class="rb-muted">
-                Your starter blueprint uses the basics you entered: age, target retirement age, savings,
-                monthly retirement spending, Social Security, other retirement income, annual savings, and your market comfort level.
-                Next, review the dashboard to see your first retirement snapshot.
-              </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            b1, b2 = st.columns(2)
-            with b1:
-                if st.button("View My Basic Blueprint", type="primary", use_container_width=True, key="quick_next_dashboard"):
-                    st.session_state.quick_blueprint_saved = True
-                    st.session_state.active_page = "Retirement Dashboard"
-                    st.rerun()
-            with b2:
-                if st.button("Unlock Detailed Blueprint", use_container_width=True, key="quick_next_unlock"):
-                    st.session_state.show_premium_prompt = True
-                    st.rerun()
-
-            st.caption("Detailed spending, account-level planning, tax settings, Roth conversions, home equity, and bucket strategy are part of Detailed Blueprint.")
+        st.caption("Detailed spending, account-level planning, tax settings, Roth conversions, home equity, and bucket strategy are part of Detailed Blueprint.")
 
         if st.session_state.get("show_premium_prompt"):
             st.info("Detailed Blueprint is a Premium feature. Free trial users can continue with Quick Blueprint. Detailed Blueprint keeps the custom return sliders, so advanced users can test their own return, inflation, and bucket assumptions separately.")
 
-    if blueprint_mode == "Detailed Blueprint":
-        st.subheader("Detailed Blueprint")
-        st.caption("Premium planning section. Use this when you want the full planning model: account types, tax settings, home equity, Roth conversions, and bucket strategy.")
+        if blueprint_mode == "Detailed Blueprint":
+            st.subheader("Detailed Blueprint")
+            st.caption("Premium planning section. Use this when you want the full planning model: account types, tax settings, home equity, Roth conversions, and bucket strategy.")
 
         is_premium_user = bool(st.session_state.get("is_premium_user", False))
 
@@ -10471,21 +10524,7 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
             "This is still an estimate, so the next smart step is to stress test it against a few bad market years."
         )
 
-    st.markdown(f"""
-    <div class="rb-blueprint-mock-hero">
-      <div class="rb-blueprint-mock-icon">📊</div>
-      <div>
-        <div class="rb-blueprint-mock-kicker-pill">Planner Section</div>
-        <div class="rb-blueprint-mock-title">Blueprint Dashboard</div>
-        <div class="rb-blueprint-mock-sub">Review your blueprint outcome, year-by-year trends, and the key retirement metrics that show whether your plan is on track.</div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    with st.expander("💬 What this page means: Dashboard", expanded=False):
-        st.write("This page turns the retirement math into plain English. It shows whether your plan appears workable, which numbers matter most, and what to review next.")
-
-    st.caption("Tax estimates now include taxable Social Security when provisional income exceeds IRS thresholds. Roth and cash withdrawals are modeled as tax-free; taxable brokerage is still simplified until the capital-gains phase.")
+    st.caption("Tax estimates include taxable Social Security when provisional income exceeds IRS thresholds. Roth and cash withdrawals are modeled as tax-free.")
 
     st.markdown(f"""
     <div class="rb-score-banner" style="border-color:{banner_border};background:{banner_bg};">
@@ -10494,36 +10533,7 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
         <div class="rb-score-banner-pill" style="background:{dashboard_pill_bg};color:{dashboard_pill_color};">{xml_escape(score_pill)}</div>
         <div class="rb-score-banner-title">{xml_escape(score_title)}</div>
         <div class="rb-score-banner-copy">{xml_escape(score_copy)}</div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown('<div class="rb-dashboard-section-kicker">The 4 numbers that matter most</div>', unsafe_allow_html=True)
-    st.markdown(f"""
-    <div class="rb-card-grid">
-      <div class="rb-card">
-        <div class="rb-card-label">Can I retire at {retire_age}?</div>
-        <div class="rb-card-value" style="color:{dashboard_status_color};">{xml_escape(status_short)}</div>
-        <div class="rb-kpi-pill" style="background:{dashboard_pill_bg};color:{dashboard_pill_color};">{xml_escape(status_pill)}</div>
-        <div class="rb-card-note">Your savings and income vs. when you want to stop working.</div>
-      </div>
-      <div class="rb-card">
-        <div class="rb-card-label">Will my money last?</div>
-        <div class="rb-card-value" style="color:{dashboard_status_color};">{xml_escape(longevity_value)}</div>
-        <div class="rb-kpi-pill" style="background:{dashboard_pill_bg};color:{dashboard_pill_color};">{xml_escape(longevity_pill)}</div>
-        <div class="rb-card-note">Whether your money outlasts your plan, or runs out early.</div>
-      </div>
-      <div class="rb-card">
-        <div class="rb-card-label">Money Left at {end_age}</div>
-        <div class="rb-card-value" style="color:{'#15803D' if ending_balance > 0 and unmet_need <= 0 else '#B91C1C'};">{money(ending_balance)}</div>
-        <div class="rb-kpi-pill" style="background:{'#DCFCE7' if ending_balance > 0 and unmet_need <= 0 else '#FEE2E2'};color:{'#166534' if ending_balance > 0 and unmet_need <= 0 else '#991B1B'};">Projected</div>
-        <div class="rb-card-note">Estimated money left after the plan pays for retirement spending.</div>
-      </div>
-      <div class="rb-card">
-        <div class="rb-card-label">Monthly Gap From Savings</div>
-        <div class="rb-card-value">{money(monthly_gap)}</div>
-        <div class="rb-kpi-pill" style="background:{dashboard_pill_bg if rtv_score < 80 else '#DCFCE7'};color:{dashboard_pill_color if rtv_score < 80 else '#166534'};">Savings need</div>
-        <div class="rb-card-note">First-year retirement gap: lifestyle + healthcare + est. taxes, minus Social Security and other income.</div>
+        <div style="font-size:.78rem;color:#94A3B8;margin-top:6px;">Blueprint Score = 0–100 estimate of whether your money lasts through your plan. Above 80 is strong.</div>
       </div>
     </div>
     """, unsafe_allow_html=True)
@@ -10534,6 +10544,37 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
       <div class="rb-explain-copy">{summary_text}</div>
     </div>
     """, unsafe_allow_html=True)
+
+    st.markdown('<div class="rb-dashboard-section-kicker">The 4 numbers that matter most</div>', unsafe_allow_html=True)
+    st.markdown(f"""
+    <div class="rb-card-grid">
+      <div class="rb-card">
+        <div class="rb-card-label">Can I retire at {retire_age}?</div>
+        <div class="rb-card-value" style="color:{dashboard_status_color};">{xml_escape(status_short)}</div>
+        <div class="rb-kpi-pill" style="background:{dashboard_pill_bg};color:{dashboard_pill_color};">{xml_escape(status_pill)}</div>
+        <div class="rb-card-note">Based on whether your savings and income can cover spending from retirement through your plan end age.</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-label">Will my money last?</div>
+        <div class="rb-card-value" style="color:{dashboard_status_color};">{xml_escape(longevity_value)}</div>
+        <div class="rb-kpi-pill" style="background:{dashboard_pill_bg};color:{dashboard_pill_color};">{xml_escape(longevity_pill)}</div>
+        <div class="rb-card-note">Whether your projected balance stays above zero through the end of the plan.</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-label">Money Left at {end_age}</div>
+        <div class="rb-card-value" style="color:{'#15803D' if ending_balance > 0 and unmet_need <= 0 else '#B91C1C'}">{money(ending_balance)}</div>
+        <div class="rb-kpi-pill" style="background:{'#DCFCE7' if ending_balance > 0 and unmet_need <= 0 else '#FEE2E2'};color:{'#166534' if ending_balance > 0 and unmet_need <= 0 else '#991B1B'}">Projected</div>
+        <div class="rb-card-note">The projected balance left at age {end_age} after paying for all retirement spending.</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-label">Monthly Gap From Savings</div>
+        <div class="rb-card-value">{money(monthly_gap)}</div>
+        <div class="rb-kpi-pill" style="background:{dashboard_pill_bg if rtv_score < 80 else '#DCFCE7'};color:{dashboard_pill_color if rtv_score < 80 else '#166534'}">Savings need</div>
+        <div class="rb-card-note">First-year retirement gap: lifestyle + healthcare + est. taxes, minus Social Security and other income.</div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 
     st.markdown(f"""
     <div class="rb-health-timeline-grid">
