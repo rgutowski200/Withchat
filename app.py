@@ -7438,19 +7438,21 @@ def render_suggested_spending_target_tool():
     st.markdown("""
     <div class="rb-spend-control-box">
       <div class="rb-spend-control-title">Set your target Blueprint Score</div>
-      <div class="rb-spend-control-note">Move the slider, then run the test to calculate the suggested monthly spending target.</div>
+      <div class="rb-spend-control-note">Enter a score between 50 and 100, then run the test to see what monthly spending would hit that target. Above 80 is strong.</div>
     </div>
     """, unsafe_allow_html=True)
 
-    target_score = st.slider(
-        "Target Blueprint Score",
-        min_value=50,
-        max_value=100,
-        value=int(st.session_state.get("action_target_blueprint_score", 80) or 80),
-        step=1,
-        key="action_target_blueprint_score",
-        help="A higher target usually means the plan needs more cushion, lower spending, more income, or more assets.",
-    )
+    _ts_col, _ = st.columns([1, 3])
+    with _ts_col:
+        target_score = st.number_input(
+            "Target Blueprint Score (50–100)",
+            min_value=50,
+            max_value=100,
+            value=int(st.session_state.get("action_target_blueprint_score", 80) or 80),
+            step=1,
+            key="action_target_blueprint_score",
+            help="A higher target usually means the plan needs more cushion, lower spending, more income, or more assets.",
+        )
 
     run_col, note_col = st.columns([1, 2.4])
     with run_col:
@@ -13781,12 +13783,13 @@ if active_page == PAGE_NAMES[10]:
         )
 
     st.markdown("### What matters most to you?")
+    st.caption("Rate each factor 0–10. Higher = more important to you. These adjust which places rise to the top.")
     w1, w2, w3, w4, w5 = st.columns(5)
-    tax_weight = w1.slider("Taxes", 0, 10, 8)
-    cost_weight = w2.slider("Cost", 0, 10, 7)
-    healthcare_weight = w3.slider("Healthcare", 0, 10, 8)
-    lifestyle_weight = w4.slider("Lifestyle", 0, 10, 7)
-    climate_weight = w5.slider("Climate", 0, 10, 6)
+    tax_weight        = w1.number_input("Taxes",       0, 10, 8, step=1, help="How much low state income and property taxes matter to you.")
+    cost_weight       = w2.number_input("Cost of living", 0, 10, 7, step=1, help="How much overall affordability matters.")
+    healthcare_weight = w3.number_input("Healthcare",  0, 10, 8, step=1, help="Proximity and quality of healthcare and hospitals.")
+    lifestyle_weight  = w4.number_input("Lifestyle",   0, 10, 7, step=1, help="Culture, dining, arts, walkability, and community fit.")
+    climate_weight    = w5.number_input("Climate",     0, 10, 6, step=1, help="Weather preferences — warm, mild, or four seasons.")
 
     p1, p2, p3 = st.columns(3)
     preferred_states = p1.multiselect(
@@ -13980,11 +13983,12 @@ if active_page == PAGE_NAMES[10]:
                 key="optimized_city_priority"
             )
         with c3:
-            golf_weight = st.slider(
-                "Golf / recreation importance",
+            golf_weight = st.number_input(
+                "Golf / outdoor recreation (0–10)",
                 min_value=0,
                 max_value=10,
                 value=7,
+                step=1,
                 key="optimized_golf_weight",
                 help="Adds another preference factor for golf, outdoor recreation, and active lifestyle."
             )
