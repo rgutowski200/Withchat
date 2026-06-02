@@ -8983,6 +8983,18 @@ def render_account_gate(reason: str = "default"):
                         "_gate_intended_page", "Retirement Dashboard"
                     )
                     st.session_state.pop("_show_account_gate", None)
+                    # Auto-load the most recent saved blueprint so the user
+                    # sees their data immediately instead of empty defaults.
+                    try:
+                        _saved = load_scenarios(res.user)
+                        if _saved:
+                            _latest = _saved[0]
+                            _data = _latest.get("scenario_data", {})
+                            if isinstance(_data, dict) and _data:
+                                apply_scenario_data(_data)
+                                st.session_state["_auto_loaded_blueprint"] = _latest.get("scenario_name", "your saved blueprint")
+                    except Exception:
+                        pass  # silently skip if load fails
                     st.rerun()
                 except Exception as e:
                     st.error(f"Sign-in failed: {e}")
@@ -10737,6 +10749,12 @@ if active_page == PAGE_NAMES[6]:
         elif st.session_state.get("first_blueprint_saved_to_db") is False:
             st.caption("Your blueprint is ready in this session. It could not be saved to your account yet.")
         st.session_state.dashboard_first_blueprint_ready = False
+    # Show a welcome back message if we auto-loaded a saved blueprint on sign-in
+    if st.session_state.get("_auto_loaded_blueprint"):
+        name = st.session_state.get("_auto_loaded_blueprint", "your saved blueprint")
+        st.success(f"Welcome back! We loaded '{name}' so your numbers are ready.")
+        st.session_state.pop("_auto_loaded_blueprint", None)
+
 
     render_guided_progress(4)
     if st.session_state.get("dashboard_focus"):
@@ -10871,23 +10889,17 @@ if active_page == PAGE_NAMES[6]:
         retirement_dashboard_reason_html = "<br/><br/>".join(retirement_dashboard_reason_bits)
         retirement_dashboard_ideas_html = "".join([f"<li>{idea}</li>" for idea in cleaned_dashboard_ideas[:5]])
 
-        st.markdown(f"""
-        <div class="rb-dashboard-explain rb-dashboard-explain-top">
-          <div class="rb-explain-kicker">Plain-English Dashboard Explanation</div>
-          <div class="rb-explain-title">What these numbers are telling you</div>
-          <div class="rb-explain-copy">
-            {retirement_dashboard_reason_html}
-          </div>
-          <div class="rb-explain-next">
-            <div class="rb-explain-next-title">What to look at next</div>
-            <ul>{retirement_dashboard_ideas_html}</ul>
-          </div>
-          <div class="rb-explain-note">
-            <b>Important:</b> The age shown is your <b>current target age being tested</b>, not a recommendation that you should retire at that age.
-            The Action Plan is the next step to see what changes may improve the score.
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
+        if cleaned_dashboard_ideas:
+            st.markdown(f"""
+            <div class="rb-dashboard-explain rb-dashboard-explain-top">
+              <div class="rb-explain-next-title">💡 Things worth looking at next</div>
+              <ul>{retirement_dashboard_ideas_html}</ul>
+              <div style="font-size:.82rem;color:#94A3B8;margin-top:10px;">
+                The age shown is your <b>current target age being tested</b> — not a recommendation.
+                Use the Action Plan to explore what changes improve the score.
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
 
         dashboard_explain_cols = st.columns([1, 1])
         with dashboard_explain_cols[0]:
