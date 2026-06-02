@@ -2186,9 +2186,11 @@ def render_sidebar_auth_controls():
             unsafe_allow_html=True,
         )
         if st.button("Sign In / Create Account", use_container_width=True, key="sidebar_open_auth"):
-            # Show the full-page gate instead of an inline sidebar form.
+            # Set a flag — render_account_gate is defined later in the file so we cannot
+            # call it here directly. The main routing block checks this flag and shows the gate.
+            st.session_state["_show_account_gate"] = True
             st.session_state["_gate_intended_page"] = st.session_state.get("active_page", "Retirement Dashboard")
-            render_account_gate(reason="default")
+            st.rerun()
 
 
 user = auth_box()
@@ -8984,6 +8986,10 @@ def require_account(intended_page: str = None, reason: str = "default"):
         st.session_state["_gate_intended_page"] = intended_page
     render_account_gate(reason=reason)
 
+
+# If the sidebar "Sign In / Create Account" button was clicked, show the account gate.
+if st.session_state.pop("_show_account_gate", False):
+    render_account_gate(reason="default")
 
 if active_page == "Home" and st.session_state.get("first_blueprint_onboarding", False):
     render_first_blueprint_card_wizard()
