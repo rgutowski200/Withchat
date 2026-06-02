@@ -11337,27 +11337,53 @@ if active_page == PAGE_NAMES[7]:
 
         st.dataframe(try_df, use_container_width=True, hide_index=True)
 
-        st.subheader("Plain-English Explanation of the Numbers")
+        st.subheader("What the numbers mean")
+
+        # Plain-English descriptions for each key metric
+        _savings_pct = min(max_wr * 100, 100)
+        _income_pct = min(avg_income_coverage * 100, 100)
+        _savings_note = "That is on the high side — ideally below 5–7%." if max_wr > 0.07 else "That is in a healthy range."
+        _income_note = "Most of your spending depends on savings." if avg_income_coverage < 0.35 else "A good portion is covered by guaranteed income."
 
         explain_df = pd.DataFrame([
-            ["Blueprint Score", f"{rtv_score}/100", "A simple readiness score. Higher means the plan has more cushion."],
-            ["Money Left at End", compact_money(ending_portfolio), "Estimated money remaining at the final planning age."],
-            ["Monthly Gap From Savings", money(monthly_gap), "The part of monthly spending not covered by Social Security, pension, or other income."],
-            ["Withdrawal Pressure", pct(max_wr), "How hard your spending is pulling from your savings. Lower is usually safer."],
-            ["Income Coverage", pct(avg_income_coverage), "How much of your spending is covered by income instead of savings."],
-        ], columns=["Item", "Your Result", "What It Means"])
+            [
+                "Blueprint Score",
+                f"{rtv_score}/100",
+                f"How well the plan holds up — 0 to 100. Think of it like a grade. Above 80 is strong, 60–80 needs some work, below 60 needs real changes."
+            ],
+            [
+                "Money left at the end",
+                compact_money(ending_portfolio),
+                f"What the projection shows remaining at age {int(st.session_state.get('end_age', 85))}. More cushion is better, but even a lower number can be fine if the plan runs smoothly."
+            ],
+            [
+                "Monthly amount from savings",
+                money(monthly_gap),
+                "How much your savings need to cover each month in year one of retirement — after Social Security and any other income. Lower means less pressure on your nest egg."
+            ],
+            [
+                "How hard savings is working",
+                f"{_savings_pct:.0f}% of spending",
+                f"In the busiest year, your savings covers about {_savings_pct:.0f}% of your total spending. {_savings_note}"
+            ],
+            [
+                "How much income covers",
+                f"{_income_pct:.0f}% of spending",
+                f"On average, {_income_pct:.0f}% of your retirement spending is covered by Social Security, pension, or other guaranteed income. {_income_note}"
+            ],
+        ], columns=["What we're measuring", "Your number", "What it means in plain English"])
         st.dataframe(explain_df, use_container_width=True, hide_index=True)
 
-        with st.expander("Show advanced numbers"):
-            st.caption("These are helpful for deeper analysis, but the plain-English summary above is the main takeaway.")
+        with st.expander("Show the detailed numbers"):
+            st.caption("These are the technical numbers behind the plain-English summary above.")
             advanced_df = pd.DataFrame([{
                 "Blueprint Score": f"{rtv_score}/100",
-                "Label": rtv_label,
+                "Rating": rtv_label,
                 "Ending Portfolio": money(ending_portfolio),
-                "Max Withdrawal Rate": pct(max_wr),
-                "Average Withdrawal Rate": pct(avg_wr),
-                "Average Income Coverage": pct(avg_income_coverage),
-                "Unmet Need": money(df["Unmet Need"].sum()),
+                "Highest yearly savings draw (%)": pct(max_wr),
+                "Average yearly savings draw (%)": pct(avg_wr),
+                "Average income coverage (%)": pct(avg_income_coverage),
+                "Spending not covered": money(df["Unmet Need"].sum()),
             }])
             st.dataframe(advanced_df, use_container_width=True, hide_index=True)
 
