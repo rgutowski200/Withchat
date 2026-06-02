@@ -11339,50 +11339,74 @@ if active_page == PAGE_NAMES[7]:
 
         st.subheader("What the numbers mean")
 
-        # Plain-English descriptions for each key metric
-        _savings_pct = min(max_wr * 100, 100)
-        _income_pct = min(avg_income_coverage * 100, 100)
-        _savings_note = "That is on the high side — ideally below 5–7%." if max_wr > 0.07 else "That is in a healthy range."
-        _income_note = "Most of your spending depends on savings." if avg_income_coverage < 0.35 else "A good portion is covered by guaranteed income."
+        # Build plain-English row values
+        _end_age     = int(st.session_state.get("end_age", 85))
+        _income_pct  = min(avg_income_coverage * 100, 100)
+        _savings_pct = max(0, 100 - _income_pct)   # income + savings = 100% of spending
+        _score_note  = ("Above 80 is strong." if rtv_score >= 80
+                        else "60–80 means it needs some adjustments."
+                        if rtv_score >= 60 else "Below 60 — some real changes needed.")
+        _gap_note    = ("That is manageable." if monthly_gap < 3000
+                        else "Worth looking at ways to reduce this." if monthly_gap > 6000
+                        else "")
+        _income_note = ("Most spending depends on savings — common, but worth knowing."
+                        if avg_income_coverage < 0.35
+                        else "A solid portion is covered by guaranteed income — that reduces pressure on savings.")
+        _savings_note = ("That is on the high side — the less your savings has to cover, the more cushion you have."
+                         if _savings_pct > 65
+                         else "That is a reasonable split.")
 
-        explain_df = pd.DataFrame([
-            [
-                "Blueprint Score",
-                f"{rtv_score}/100",
-                f"How well the plan holds up — 0 to 100. Think of it like a grade. Above 80 is strong, 60–80 needs some work, below 60 needs real changes."
-            ],
-            [
-                "Money left at the end",
-                compact_money(ending_portfolio),
-                f"What the projection shows remaining at age {int(st.session_state.get('end_age', 85))}. More cushion is better, but even a lower number can be fine if the plan runs smoothly."
-            ],
-            [
-                "Monthly amount from savings",
-                money(monthly_gap),
-                "How much your savings need to cover each month in year one of retirement — after Social Security and any other income. Lower means less pressure on your nest egg."
-            ],
-            [
-                "How hard savings is working",
-                f"{_savings_pct:.0f}% of spending",
-                f"In the busiest year, your savings covers about {_savings_pct:.0f}% of your total spending. {_savings_note}"
-            ],
-            [
-                "How much income covers",
-                f"{_income_pct:.0f}% of spending",
-                f"On average, {_income_pct:.0f}% of your retirement spending is covered by Social Security, pension, or other guaranteed income. {_income_note}"
-            ],
-        ], columns=["What we're measuring", "Your number", "What it means in plain English"])
-        st.dataframe(explain_df, use_container_width=True, hide_index=True)
+        # Render as HTML table so text wraps and nothing gets cut off
+        rows = [
+            ("Blueprint Score",
+             f"{rtv_score}/100",
+             f"Think of it like a grade for your plan. {_score_note}"),
+            ("Money left at the end",
+             compact_money(ending_portfolio),
+             f"What the projection shows still in savings at age {_end_age}. More cushion means more room for surprises."),
+            ("Monthly gap from savings",
+             money(monthly_gap),
+             f"After Social Security and other income, your savings needs to cover this much each month in year one. {_gap_note}"),
+            ("Covered by guaranteed income",
+             f"{_income_pct:.0f}%",
+             f"About {_income_pct:.0f}% of your retirement spending is covered by Social Security, a pension, or similar. {_income_note}"),
+            ("Covered by savings",
+             f"{_savings_pct:.0f}%",
+             f"The remaining {_savings_pct:.0f}% of spending needs to come from your savings. {_savings_note}"),
+        ]
+
+        rows_html = "".join(
+            f"""<tr>
+              <td style="padding:10px 14px;font-weight:600;color:#1E293B;white-space:nowrap;border-bottom:1px solid #F1F5F9;">{r[0]}</td>
+              <td style="padding:10px 14px;font-weight:700;color:#0F172A;white-space:nowrap;border-bottom:1px solid #F1F5F9;">{r[1]}</td>
+              <td style="padding:10px 14px;color:#475569;line-height:1.5;border-bottom:1px solid #F1F5F9;">{r[2]}</td>
+            </tr>"""
+            for r in rows
+        )
+        st.markdown(f"""
+        <table style="width:100%;border-collapse:collapse;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;font-size:.92rem;">
+          <thead>
+            <tr style="background:#F8FAFC;">
+              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;">What we're measuring</th>
+              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;">Your number</th>
+              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;">What it means</th>
+            </tr>
+          </thead>
+          <tbody>{rows_html}</tbody>
+        </table>
+        """, unsafe_allow_html=True)
+
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
         with st.expander("Show the detailed numbers"):
-            st.caption("These are the technical numbers behind the plain-English summary above.")
+            st.caption("These are the technical numbers behind the summary above.")
             advanced_df = pd.DataFrame([{
                 "Blueprint Score": f"{rtv_score}/100",
                 "Rating": rtv_label,
                 "Ending Portfolio": money(ending_portfolio),
-                "Highest yearly savings draw (%)": pct(max_wr),
-                "Average yearly savings draw (%)": pct(avg_wr),
-                "Average income coverage (%)": pct(avg_income_coverage),
+                "Highest yearly savings draw": pct(max_wr),
+                "Average yearly savings draw": pct(avg_wr),
+                "Average income coverage": pct(avg_income_coverage),
                 "Spending not covered": money(df["Unmet Need"].sum()),
             }])
             st.dataframe(advanced_df, use_container_width=True, hide_index=True)
