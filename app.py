@@ -9459,84 +9459,84 @@ if active_page == PAGE_NAMES[1]:
         st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
         quick_save = st.button("✅  Build My Blueprint", type="primary", use_container_width=True, key="save_quick_blueprint_button")
 
-    if quick_save:
-        quick_traditional = int(quick_total_savings * 0.80)
-        quick_roth = int(quick_total_savings * 0.20)
+        if quick_save:
+            quick_traditional = int(quick_total_savings * 0.80)
+            quick_roth = int(quick_total_savings * 0.20)
 
-        for k, v in {
-            "current_age": quick_current_age,
-            "retire_age": quick_retire_age,
-            "end_age": quick_end_age,
-            "traditional": quick_traditional,
-            "roth": quick_roth,
-            "taxable": 0,
-            "cash": 0,
-            "annual_contribution": quick_annual_contribution,
-            "user_ss_age": quick_ss_age,
-            "user_ss": quick_ss,
-            "income_mode": "Simple income",
-            "simple_income": quick_other_income_monthly * 12,
-            "simple_income_start": quick_retire_age if quick_other_income_monthly > 0 else 0,
-            "simple_income_end": quick_end_age if quick_other_income_monthly > 0 else 0,
-            "simple_income_inflation": True,
-            "simple_income_reliability": "Guaranteed",
-            "growth_return": quick_growth_return,
-            "quick_growth_return": quick_growth_return,
-            "quick_market_comfort": quick_market_comfort,
-            "safe_return": 0.045,
-            "inflation": 0.03,
-            "bucket1_years": 3.0,
+            for k, v in {
+                "current_age": quick_current_age,
+                "retire_age": quick_retire_age,
+                "end_age": quick_end_age,
+                "traditional": quick_traditional,
+                "roth": quick_roth,
+                "taxable": 0,
+                "cash": 0,
+                "annual_contribution": quick_annual_contribution,
+                "user_ss_age": quick_ss_age,
+                "user_ss": quick_ss,
+                "income_mode": "Simple income",
+                "simple_income": quick_other_income_monthly * 12,
+                "simple_income_start": quick_retire_age if quick_other_income_monthly > 0 else 0,
+                "simple_income_end": quick_end_age if quick_other_income_monthly > 0 else 0,
+                "simple_income_inflation": True,
+                "simple_income_reliability": "Guaranteed",
+                "growth_return": quick_growth_return,
+                "quick_growth_return": quick_growth_return,
+                "quick_market_comfort": quick_market_comfort,
+                "safe_return": 0.045,
+                "inflation": 0.03,
+                "bucket1_years": 3.0,
 
-            # CRITICAL MATH FIX:
-            # Quick Blueprint spending must feed the same fields used by run_projection().
-            "budget_mode": "Flat monthly number",
-            "flat_monthly_spending": quick_monthly_spending,
+                # CRITICAL MATH FIX:
+                # Quick Blueprint spending must feed the same fields used by run_projection().
+                "budget_mode": "Flat monthly number",
+                "flat_monthly_spending": quick_monthly_spending,
 
-            # Backward-compatible aliases used by the Basic Blueprint dashboard and older page logic.
-            "monthly_spending": quick_monthly_spending,
-            "spending_quick_monthly": quick_monthly_spending,
-            "basic_blueprint_monthly_spending": quick_monthly_spending,
-            "basic_blueprint_annual_spending": quick_monthly_spending * 12,
-            "monthly_expenses": quick_monthly_spending,
-            "annual_spending": quick_monthly_spending * 12,
-            "monthly_needs": quick_monthly_spending,
-            "retirement_monthly_spending": quick_monthly_spending,
-        }.items():
-            st.session_state[k] = v
+                # Backward-compatible aliases used by the Basic Blueprint dashboard and older page logic.
+                "monthly_spending": quick_monthly_spending,
+                "spending_quick_monthly": quick_monthly_spending,
+                "basic_blueprint_monthly_spending": quick_monthly_spending,
+                "basic_blueprint_annual_spending": quick_monthly_spending * 12,
+                "monthly_expenses": quick_monthly_spending,
+                "annual_spending": quick_monthly_spending * 12,
+                "monthly_needs": quick_monthly_spending,
+                "retirement_monthly_spending": quick_monthly_spending,
+            }.items():
+                st.session_state[k] = v
 
-        st.session_state.quick_blueprint_saved = True
-        if quick_monthly_spending <= 0:
-            st.warning("Quick Blueprint saved, but monthly retirement spending is still $0. Add a spending estimate before relying on the dashboard.")
-        else:
-            st.success("Quick Blueprint saved. Your Basic Blueprint is ready.")
+            st.session_state.quick_blueprint_saved = True
+            if quick_monthly_spending <= 0:
+                st.warning("Quick Blueprint saved, but monthly retirement spending is still $0. Add a spending estimate before relying on the dashboard.")
+            else:
+                st.success("Quick Blueprint saved. Your Basic Blueprint is ready.")
 
-    if st.session_state.get("quick_blueprint_saved"):
-        st.markdown("""
-        <div class="rb-next-box">
-          <div class="rb-next-heading">Basic Blueprint ready</div>
-          <div class="rb-muted">
-            Your starter blueprint uses the basics you entered: age, target retirement age, savings,
-            monthly retirement spending, Social Security, other retirement income, annual savings, and your market comfort level.
-            Next, review the dashboard to see your first retirement snapshot.
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
+        if st.session_state.get("quick_blueprint_saved"):
+            st.markdown("""
+            <div class="rb-next-box">
+              <div class="rb-next-heading">Basic Blueprint ready</div>
+              <div class="rb-muted">
+                Your starter blueprint uses the basics you entered: age, target retirement age, savings,
+                monthly retirement spending, Social Security, other retirement income, annual savings, and your market comfort level.
+                Next, review the dashboard to see your first retirement snapshot.
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
 
-        b1, b2 = st.columns(2)
-        with b1:
-            if st.button("View My Basic Blueprint", type="primary", use_container_width=True, key="quick_next_dashboard"):
-                st.session_state.quick_blueprint_saved = True
-                st.session_state.active_page = "Retirement Dashboard"
-                st.rerun()
-        with b2:
-            if st.button("Unlock Detailed Blueprint", use_container_width=True, key="quick_next_unlock"):
-                st.session_state.show_premium_prompt = True
-                st.rerun()
+            b1, b2 = st.columns(2)
+            with b1:
+                if st.button("View My Basic Blueprint", type="primary", use_container_width=True, key="quick_next_dashboard"):
+                    st.session_state.quick_blueprint_saved = True
+                    st.session_state.active_page = "Retirement Dashboard"
+                    st.rerun()
+            with b2:
+                if st.button("Unlock Detailed Blueprint", use_container_width=True, key="quick_next_unlock"):
+                    st.session_state.show_premium_prompt = True
+                    st.rerun()
 
-        st.caption("Detailed spending, account-level planning, tax settings, Roth conversions, home equity, and bucket strategy are part of Detailed Blueprint.")
+            st.caption("Detailed spending, account-level planning, tax settings, Roth conversions, home equity, and bucket strategy are part of Detailed Blueprint.")
 
-        if st.session_state.get("show_premium_prompt"):
-            st.info("Detailed Blueprint is a Premium feature. Free trial users can continue with Quick Blueprint. Detailed Blueprint keeps the custom return sliders, so advanced users can test their own return, inflation, and bucket assumptions separately.")
+            if st.session_state.get("show_premium_prompt"):
+                st.info("Detailed Blueprint is a Premium feature. Free trial users can continue with Quick Blueprint. Detailed Blueprint keeps the custom return sliders, so advanced users can test their own return, inflation, and bucket assumptions separately.")
 
         if blueprint_mode == "Detailed Blueprint":
             st.subheader("Detailed Blueprint")
