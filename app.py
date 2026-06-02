@@ -2242,6 +2242,37 @@ def calculate_risk_scores(summary):
     }
 
 
+
+
+def html_table(df, green_col=None):
+    """Render a DataFrame as a styled HTML table matching app design. Text wraps, nothing truncates."""
+    header = "".join(
+        f'<th style="padding:9px 14px;text-align:left;color:#64748B;font-weight:600;'
+        f'border-bottom:2px solid #E2E8F0;white-space:nowrap;">{col}</th>'
+        for col in df.columns
+    )
+    rows_html = ""
+    for _, row in df.iterrows():
+        cells = ""
+        for col, val in row.items():
+            is_green = green_col and col == green_col
+            style = (
+                "padding:9px 14px;font-weight:700;color:#166534;white-space:nowrap;border-bottom:1px solid #F1F5F9;"
+                if is_green else
+                "padding:9px 14px;color:#1E293B;line-height:1.5;border-bottom:1px solid #F1F5F9;"
+            )
+            cells += f'<td style="{style}">{val}</td>'
+        rows_html += f"<tr>{cells}</tr>"
+        rows_html += "<tr>" + cells + "</tr>"
+    table_style = "width:100%;border-collapse:collapse;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;font-size:.91rem;"
+    head_style = "background:#F8FAFC;"
+    return (
+        "<table style="" + table_style + "">"
+        + "<thead><tr style="" + head_style + "">" + header + "</tr></thead>"
+        + "<tbody>" + rows_html + "</tbody></table>"
+    )
+
+
 def explain_scenario_changes(current_summary, compare_summary):
     changes = []
 
