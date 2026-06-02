@@ -9505,7 +9505,9 @@ if active_page == PAGE_NAMES[1]:
                 st.session_state[k] = v
 
             st.session_state.quick_blueprint_saved = True
-            if quick_monthly_spending <= 0:
+            if st.session_state.get("detailed_blueprint_saved"):
+                st.info("Quick Blueprint updated your basic numbers. Your Detailed Blueprint account and tax settings are preserved — head to Spending Plan to keep those precise.")
+            elif quick_monthly_spending <= 0:
                 st.warning("Quick Blueprint saved, but monthly retirement spending is still $0. Add a spending estimate before relying on the dashboard.")
             else:
                 st.success("Quick Blueprint saved. Your Basic Blueprint is ready.")
@@ -9750,7 +9752,19 @@ if active_page == PAGE_NAMES[1]:
                 "retirement_housing_plan": retirement_housing_plan,
             }.items():
                 st.session_state[k] = v
-            st.success("Main answers saved.")
+            # Detailed Blueprint takes precedence over Quick Blueprint.
+            # Clear Quick Blueprint spending overrides so the Budget Builder
+            # and detailed inputs drive the projection, not the quick estimates.
+            st.session_state.pop("quick_blueprint_saved", None)
+            st.session_state.pop("spending_quick_monthly", None)
+            st.session_state.pop("basic_blueprint_monthly_spending", None)
+            st.session_state.pop("retirement_monthly_spending", None)
+            # Switch budget_mode to Detailed if the user has built a category budget,
+            # otherwise leave it as-is so they can set it in the Budget Builder.
+            if st.session_state.get("budget_mode") == "Flat monthly number" and st.session_state.get("flat_monthly_spending", 0) == 0:
+                st.session_state.budget_mode = "Flat monthly number"  # keep default, let Budget Builder set it
+            st.session_state["detailed_blueprint_saved"] = True
+            st.success("Detailed Blueprint saved. Head to Spending Plan next to set your retirement spending.")
 
         render_premium_insight("Premium bucket strategy", df if can_run else None, "bucket")
         render_three_bucket_strategy(df if can_run else None)
