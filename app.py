@@ -13726,7 +13726,7 @@ if active_page == PAGE_NAMES[10]:
     st.subheader("Top state rankings")
     st.caption("These are broad state-level rankings. Use them as a shortlist, not a final answer.")
 
-    display = ranked_df.head(10).copy()
+    display = ranked_df.drop_duplicates(subset="State").head(10).copy()
     display["Best For"] = display["Best Fit"]
     display["Watch Out For"] = display["Watch Outs"]
     state_table = display[[
@@ -13905,7 +13905,7 @@ if active_page == PAGE_NAMES[10]:
         k3.metric("Est. Annual Tax", money(best_personal["Estimated Annual Tax"]))
         k4.metric("Effective Rate", pct(best_personal["Effective Tax Rate"]))
 
-        personal_display = personalized_df.copy()
+        personal_display = personalized_df.drop_duplicates(subset="State").copy()
         for col in ["Estimated Annual Tax", "Income Tax", "Property Tax", "Sales Tax"]:
             personal_display[col] = personal_display[col].map(money)
         personal_display["Effective Tax Rate"] = personal_display["Effective Tax Rate"].map(pct)
@@ -13938,7 +13938,7 @@ if active_page == PAGE_NAMES[10]:
                     st.pyplot(plot_state_comparison_scores(phase3_compare_df), use_container_width=True)
                     st.pyplot(plot_state_tax_stack(phase3_compare_df), use_container_width=True)
 
-                    phase3_display = phase3_compare_df.copy()
+                    phase3_display = phase3_compare_df.drop_duplicates(subset="State").copy()
                     for col in ["Estimated Annual Tax", "Income Tax", "Property Tax", "Sales Tax"]:
                         phase3_display[col] = phase3_display[col].map(money)
                     phase3_display["Effective Tax Rate"] = phase3_display["Effective Tax Rate"].map(pct)
@@ -14012,6 +14012,7 @@ if active_page == PAGE_NAMES[10]:
             wants_snowbird=warm_weather_bonus,
         )
 
+        location_recommendations = location_recommendations.drop_duplicates(subset="Place")
         if location_recommendations.empty:
             st.warning("No city recommendations match the current filters. Widen the state filter or change the lifestyle priority.")
         else:
