@@ -8938,6 +8938,7 @@ def render_account_gate(reason: str = "default"):
                     st.session_state.first_blueprint_completed    = False
                     st.session_state.active_page                  = "Home"
                     st.success(f"Welcome{', ' + gate_name.strip() if gate_name.strip() else ''}! Let's build your first blueprint.")
+                    st.session_state.pop("_show_account_gate", None)
                     st.rerun()
                 except Exception as e:
                     st.error(f"Couldn't create account: {e}")
@@ -8950,6 +8951,7 @@ def render_account_gate(reason: str = "default"):
                     st.session_state.active_page = st.session_state.get(
                         "_gate_intended_page", "Retirement Dashboard"
                     )
+                    st.session_state.pop("_show_account_gate", None)
                     st.rerun()
                 except Exception as e:
                     st.error(f"Sign-in failed: {e}")
@@ -8988,7 +8990,7 @@ def require_account(intended_page: str = None, reason: str = "default"):
 
 
 # If the sidebar "Sign In / Create Account" button was clicked, show the account gate.
-if st.session_state.pop("_show_account_gate", False):
+if st.session_state.get("_show_account_gate", False):
     render_account_gate(reason="default")
 
 if active_page == "Home" and st.session_state.get("first_blueprint_onboarding", False):
