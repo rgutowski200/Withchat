@@ -2263,7 +2263,6 @@ def html_table(df, green_col=None):
             )
             cells += f'<td style="{style}">{val}</td>'
         rows_html += f"<tr>{cells}</tr>"
-        rows_html += "<tr>" + cells + "</tr>"
     table_style = "width:100%;border-collapse:collapse;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;font-size:.91rem;"
     head_style = "background:#F8FAFC;"
     return (
