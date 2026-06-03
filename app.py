@@ -2242,6 +2242,36 @@ def calculate_risk_scores(summary):
     }
 
 
+
+
+def html_table(df, green_col=None):
+    """Render a DataFrame as a styled HTML table matching app design. Text wraps, nothing truncates."""
+    header = "".join(
+        f'<th style="padding:9px 14px;text-align:left;color:#64748B;font-weight:600;'
+        f'border-bottom:2px solid #E2E8F0;white-space:nowrap;">{col}</th>'
+        for col in df.columns
+    )
+    rows_html = ""
+    for _, row in df.iterrows():
+        cells = ""
+        for col, val in row.items():
+            is_green = green_col and col == green_col
+            style = (
+                "padding:9px 14px;font-weight:700;color:#166534;white-space:nowrap;border-bottom:1px solid #F1F5F9;"
+                if is_green else
+                "padding:9px 14px;color:#1E293B;line-height:1.5;border-bottom:1px solid #F1F5F9;"
+            )
+            cells += f'<td style="{style}">{val}</td>'
+        rows_html += f"<tr>{cells}</tr>"
+    table_style = "width:100%;border-collapse:collapse;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;font-size:.91rem;"
+    head_style = "background:#F8FAFC;"
+    return (
+        "<table style="" + table_style + "">"
+        + "<thead><tr style="" + head_style + "">" + header + "</tr></thead>"
+        + "<tbody>" + rows_html + "</tbody></table>"
+    )
+
+
 def explain_scenario_changes(current_summary, compare_summary):
     changes = []
 
@@ -2788,25 +2818,25 @@ def build_blueprint_insight(df=None, page="general"):
     avg_cov = float(df["Income Coverage Ratio"].mean())
     tax_total = float(df.get("Estimated Federal Tax", pd.Series(dtype=float)).sum()) if "Estimated Federal Tax" in df.columns else 0
     if page == "tax":
-        return f"Taxes become most important once traditional withdrawals and taxable Social Security begin. This blueprint currently estimates {money(tax_total)} of federal tax across the plan."
+        return f"Taxes matter most once you start pulling from your 401k or IRA, because those withdrawals count as taxable income. This blueprint estimates about {money(tax_total)} in total federal taxes across your retirement — worth keeping an eye on."
     if page == "bucket":
-        return "Premium bucket planning separates near-term safety, medium-term income, and long-term growth so the plan is easier to understand and stress test."
+        return "The bucket strategy splits your savings into three groups: money you need soon (safe), money you need in a few years (steady), and money you won't touch for a long time (growth). It helps you avoid selling investments at a bad time just to pay everyday bills."
     if page == "places":
-        return "Location planning can change the plan through state taxes, property taxes, housing costs, healthcare access, and lifestyle fit."
+        return "Where you live in retirement can make a real difference. State income taxes, property taxes, housing costs, and healthcare access all affect how far your money goes. Some states are significantly cheaper than others for retirees."
     if max_wr > 0.07:
-        return f"Your biggest pressure point is withdrawal risk. The max projected withdrawal rate is {pct(max_wr)}, so spending, retirement age, income, or bucket design deserve attention."
+        return f"The main thing to watch: your savings may need to cover too much of your spending. Right now the plan shows your portfolio covering about {pct(max_wr)} of annual spending in its busiest year — ideally that stays under 5–7%. Retiring a bit later, spending a bit less, or adding income sources would help bring this down."
     if ending > float(df["Start Total"].iloc[0]) and score >= 80:
-        return f"Your plan has strong flexibility. It ends with {money(ending)}, which may create room for lifestyle upgrades, Roth conversions, gifting, or legacy planning."
+        return f"Your plan is in good shape. It projects about {money(ending)} still remaining at the end — which gives you flexibility for things like extra travel, helping family, or leaving something behind. The next step is stress testing it against a few bad market years to make sure it holds up."
     if avg_cov < 0.35:
-        return f"Your portfolio is doing most of the heavy lifting. Average outside-income coverage is {pct(avg_cov)}, so sequence risk and withdrawal order matter."
-    return f"Your current blueprint is rated {label} at {score}/100. The next best step is comparing nearby retirement ages and stress testing bad market years."
+        return f"Most of your retirement spending is coming from your savings rather than guaranteed income like Social Security or a pension. That's common, but it means the order you withdraw money — and what the market does early in retirement — matters more for your plan."
+    return f"Your current blueprint scores {score}/100 ({label}). A good next step is trying a slightly different retirement age and seeing how the score changes, then testing what happens if the market has a rough stretch early in retirement."
 
 
 def render_premium_insight(title="Blueprint Insight", df=None, page="general"):
     insight = build_blueprint_insight(df, page)
     st.markdown(f"""
     <div class="rb-insight-card">
-      <div class="rb-insight-kicker">Premium Insight</div>
+      <div class="rb-insight-kicker">Blueprint Insight</div>
       <div class="rb-insight-title">{title}</div>
       <div class="rb-insight-copy">{insight}</div>
     </div>
@@ -2990,7 +3020,7 @@ def render_two_bucket_strategy(df=None):
     show["Target Years"] = show["Target Years"].map(lambda x: f"{x:g}" if isinstance(x, (int, float)) else x)
     if "Assumed Return" in show.columns:
         show["Assumed Return"] = show["Assumed Return"].map(pct)
-    st.dataframe(show, use_container_width=True, hide_index=True)
+    st.markdown(html_table(show), unsafe_allow_html=True)
 
     st.info(
         "Simple version: Bucket 1 holds only the chosen number of years of expenses. Bucket 2 holds the rest."
@@ -3374,7 +3404,7 @@ def render_bucket_strategy_comparison_panel(df=None):
         }
     ]
 
-    st.dataframe(pd.DataFrame(simple_rows), use_container_width=True, hide_index=True)
+    st.markdown(html_table(pd.DataFrame(simple_rows)), unsafe_allow_html=True)
 
     st.markdown("### Bottom line")
     if one_shortfall > 0 and two_shortfall > 0:
@@ -3410,7 +3440,7 @@ def render_bucket_strategy_comparison_panel(df=None):
         for rate_col in ["Safety Bucket Return", "Growth Bucket Return"]:
             if rate_col in show.columns:
                 show[rate_col] = show[rate_col].map(lambda x: "N/A" if pd.isna(x) else pct(x))
-        st.dataframe(show, use_container_width=True, hide_index=True)
+        st.markdown(html_table(show), unsafe_allow_html=True)
 
     if not paths_df.empty:
         fig, ax = plt.subplots(figsize=(9, 4.5))
@@ -3588,7 +3618,7 @@ def render_scenario_comparison_panel():
         "Simple Status": "Status",
         "Plain-English Takeaway": "What it means",
     })
-    st.dataframe(simple_show, use_container_width=True, hide_index=True)
+    st.markdown(html_table(simple_show), unsafe_allow_html=True)
     st.caption(
         f"Projected Money Left at {planning_age} means the estimated portfolio balance remaining at the end of the plan. "
         "It uses the same numbers from the projection: savings, contributions, retirement spending, income, taxes, and investment return assumptions."
@@ -3612,7 +3642,7 @@ def render_scenario_comparison_panel():
             "Retirement Age": "Retire at Age",
             "Label": "Detailed Label",
         })
-        st.dataframe(advanced, use_container_width=True, hide_index=True)
+        st.markdown(html_table(advanced), unsafe_allow_html=True)
         st.caption(
             "Advanced numbers are useful for deeper analysis, but the simple comparison above is the user-friendly summary."
         )
@@ -3946,7 +3976,7 @@ def render_retirement_age_optimizer_page():
         "Years Until Social Security",
         "Unmet Need",
     ]
-    st.dataframe(display[display_columns], use_container_width=True, hide_index=True)
+    st.markdown(html_table(display[display_columns]), unsafe_allow_html=True)
 
     with st.expander("What each column means", expanded=False):
         st.markdown(
@@ -7438,19 +7468,21 @@ def render_suggested_spending_target_tool():
     st.markdown("""
     <div class="rb-spend-control-box">
       <div class="rb-spend-control-title">Set your target Blueprint Score</div>
-      <div class="rb-spend-control-note">Move the slider, then run the test to calculate the suggested monthly spending target.</div>
+      <div class="rb-spend-control-note">Enter a score between 50 and 100, then run the test to see what monthly spending would hit that target. Above 80 is strong.</div>
     </div>
     """, unsafe_allow_html=True)
 
-    target_score = st.slider(
-        "Target Blueprint Score",
-        min_value=50,
-        max_value=100,
-        value=int(st.session_state.get("action_target_blueprint_score", 80) or 80),
-        step=1,
-        key="action_target_blueprint_score",
-        help="A higher target usually means the plan needs more cushion, lower spending, more income, or more assets.",
-    )
+    _ts_col, _ = st.columns([1, 3])
+    with _ts_col:
+        target_score = st.number_input(
+            "Target Blueprint Score (50–100)",
+            min_value=50,
+            max_value=100,
+            value=int(st.session_state.get("action_target_blueprint_score", 80) or 80),
+            step=1,
+            key="action_target_blueprint_score",
+            help="A higher target usually means the plan needs more cushion, lower spending, more income, or more assets.",
+        )
 
     run_col, note_col = st.columns([1, 2.4])
     with run_col:
@@ -7843,35 +7875,66 @@ def render_navigation():
         render_sidebar_auth_controls()
         st.caption("PLAN SECTIONS")
 
-        ordered_pages = [
+        # Core pages always visible
+        core_pages = [
             "Home",
             "Guided Questions",
             "Budget Builder",
             "Review Answers",
             "Retirement Dashboard",
-            "Saved Scenarios",
             "Recommendations",
+        ]
+
+        # Advanced pages only shown once the user has a blueprint (can_run = True)
+        advanced_pages = [
             "Projection Table",
+            "Saved Scenarios",
             "Retirement Age Optimizer",
             "Best Places to Retire",
             "PDF Report",
             "AI Retirement Coach",
-            "Resources",
-                    "Help / Instructions",
-                    "Legal / Disclaimers",
         ]
 
-        for page_name in ordered_pages:
+        info_pages = [
+            "Resources",
+            "Help / Instructions",
+            "Legal / Disclaimers",
+        ]
+
+        user_has_blueprint = len(required_missing()) == 0 or st.session_state.get("quick_blueprint_saved", False)
+
+        for page_name in core_pages:
             is_active = st.session_state.active_page == page_name
             icon = PAGE_ICONS.get(page_name, "")
             display_name = NAV_LABELS.get(page_name, page_name)
             label = f"{icon} {display_name}"
-            if st.button(
-                label,
-                key=f"sidebar_nav_{page_name}",
-                use_container_width=True,
-                disabled=is_active,
-            ):
+            if st.button(label, key=f"sidebar_nav_{page_name}", use_container_width=True, disabled=is_active):
+                go_to_page(page_name)
+
+        if user_has_blueprint:
+            st.markdown("<div style='margin-top:6px;font-size:.72rem;font-weight:700;color:#94A3B8;letter-spacing:.06em;text-transform:uppercase;padding-left:4px;'>Advanced Tools</div>", unsafe_allow_html=True)
+            for page_name in advanced_pages:
+                is_active = st.session_state.active_page == page_name
+                icon = PAGE_ICONS.get(page_name, "")
+                display_name = NAV_LABELS.get(page_name, page_name)
+                label = f"{icon} {display_name}"
+                if st.button(label, key=f"sidebar_nav_{page_name}", use_container_width=True, disabled=is_active):
+                    go_to_page(page_name)
+        else:
+            st.markdown("""
+            <div style="border:1px solid #E2E8F0;border-radius:12px;padding:12px 14px;margin:10px 0 4px 0;background:#F8FAFF;">
+              <div style="font-size:.82rem;font-weight:700;color:#64748B;margin-bottom:4px;">🔓 More tools unlock after your first blueprint</div>
+              <div style="font-size:.78rem;color:#94A3B8;line-height:1.4;">Projection, stress tests, PDF report, AI Coach, and more.</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("<div style='margin-top:6px;font-size:.72rem;font-weight:700;color:#94A3B8;letter-spacing:.06em;text-transform:uppercase;padding-left:4px;'>Info</div>", unsafe_allow_html=True)
+        for page_name in info_pages:
+            is_active = st.session_state.active_page == page_name
+            icon = PAGE_ICONS.get(page_name, "")
+            display_name = NAV_LABELS.get(page_name, page_name)
+            label = f"{icon} {display_name}"
+            if st.button(label, key=f"sidebar_nav_{page_name}", use_container_width=True, disabled=is_active):
                 go_to_page(page_name)
 
         st.markdown("<div style='height:18px'></div>", unsafe_allow_html=True)
@@ -8148,7 +8211,7 @@ def render_tax_aware_withdrawal_plan(projection_df=None):
         return
 
     st.subheader("Suggested withdrawal order")
-    st.dataframe(pd.DataFrame(order_rows), use_container_width=True, hide_index=True)
+    st.markdown(html_table(pd.DataFrame(order_rows)), unsafe_allow_html=True)
 
     st.subheader("What this means for your blueprint")
     notes = []
@@ -8952,6 +9015,18 @@ def render_account_gate(reason: str = "default"):
                         "_gate_intended_page", "Retirement Dashboard"
                     )
                     st.session_state.pop("_show_account_gate", None)
+                    # Auto-load the most recent saved blueprint so the user
+                    # sees their data immediately instead of empty defaults.
+                    try:
+                        _saved = load_scenarios(res.user)
+                        if _saved:
+                            _latest = _saved[0]
+                            _data = _latest.get("scenario_data", {})
+                            if isinstance(_data, dict) and _data:
+                                apply_scenario_data(_data)
+                                st.session_state["_auto_loaded_blueprint"] = _latest.get("scenario_name", "your saved blueprint")
+                    except Exception:
+                        pass  # silently skip if load fails
                     st.rerun()
                 except Exception as e:
                     st.error(f"Sign-in failed: {e}")
@@ -9327,123 +9402,147 @@ if active_page == PAGE_NAMES[1]:
     )
 
     if blueprint_mode == "Quick Blueprint":
-        st.subheader("Quick Blueprint")
-        st.caption("Simple starter version for free trial users. Enter the basics first, then use the detailed section below when you want a more precise plan.")
+        st.markdown("""
+        <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:14px;padding:16px 20px;margin-bottom:18px;">
+          <div style="font-weight:900;color:#166534;font-size:1rem;margin-bottom:4px;">✏️ Fill in what you know — estimates are fine</div>
+          <div style="color:#15803D;font-size:.92rem;line-height:1.5;">You don't need exact numbers. Round numbers work great for a first blueprint. You can refine later.</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        with st.expander("Open Quick Blueprint starter", expanded=True):
-            q1, q2, q3 = st.columns(3)
-            quick_current_age = q1.number_input("Current age", 0, 100, st.session_state.current_age, help=FIELD_HELP["current_age"])
-            quick_retire_age = q2.number_input("Target retirement age", 0, 100, st.session_state.retire_age, help=FIELD_HELP["retire_age"])
-            quick_end_age = q3.number_input("Plan through age", 0, 110, st.session_state.end_age, help=FIELD_HELP["end_age"])
+        # ── Section 1: About You ──
+        st.markdown("#### 👤 About You")
+        st.caption("When do you want to retire, and how long should the plan last?")
+        q1, q2, q3 = st.columns(3)
+        quick_current_age = q1.number_input("How old are you today?", 0, 100, st.session_state.current_age, help=FIELD_HELP["current_age"])
+        quick_retire_age = q2.number_input("What age do you want to retire?", 0, 100, st.session_state.retire_age, help=FIELD_HELP["retire_age"])
+        quick_end_age = q3.number_input("Plan through what age?", 0, 110, st.session_state.end_age, help=FIELD_HELP["end_age"])
 
-            q1, q2, q3 = st.columns(3)
-            quick_total_savings = q1.number_input(
-                "Total retirement savings",
-                min_value=0,
-                value=int(float(st.session_state.traditional or 0) + float(st.session_state.roth or 0) + float(st.session_state.taxable or 0) + float(st.session_state.cash or 0)),
-                step=10000,
-                help="A simple total of retirement savings across 401k, IRA, Roth, taxable accounts, and cash."
-            )
-            quick_monthly_spending = q2.number_input(
-                "Monthly retirement spending",
-                min_value=0,
-                value=int(float(st.session_state.get("monthly_spending", 0) or 0)),
-                step=500,
-                help="A simple estimate of how much you expect to spend each month in retirement."
-            )
-            quick_annual_contribution = q3.number_input(
-                "Annual savings until retirement",
-                min_value=0,
-                value=int(st.session_state.annual_contribution),
-                step=5000,
-                help=FIELD_HELP["annual_contribution"]
-            )
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-            q1, q2, q3 = st.columns(3)
-            quick_ss_age = q1.number_input("Social Security start age", 62, 70, st.session_state.user_ss_age, help=FIELD_HELP["user_ss_age"])
-            quick_ss = q2.number_input("Annual Social Security at 62", min_value=0, value=st.session_state.user_ss, step=1000, help=FIELD_HELP["user_ss"])
-            quick_other_income_monthly = q3.number_input(
-                "Other monthly retirement income",
-                min_value=0,
-                value=int(float(st.session_state.simple_income or 0) / 12),
-                step=100,
-                help="Include pension, rental income, part-time work, annuity income, or anything else you expect each month in retirement. Use 0 if none."
-            )
+        # ── Section 2: Your Money ──
+        st.markdown("#### 💰 Your Money")
+        st.caption("Total savings you have now, how much you spend in retirement, and how much you're still adding each year.")
+        q1, q2, q3 = st.columns(3)
+        quick_total_savings = q1.number_input(
+            "Total retirement savings today",
+            min_value=0,
+            value=int(float(st.session_state.traditional or 0) + float(st.session_state.roth or 0) + float(st.session_state.taxable or 0) + float(st.session_state.cash or 0)),
+            step=10000,
+            help="Add up everything: 401k, IRA, Roth, brokerage, and cash savings. Round to the nearest $10,000 — that's close enough."
+        )
+        quick_monthly_spending = q2.number_input(
+            "Monthly spending in retirement",
+            min_value=0,
+            value=int(float(st.session_state.get("monthly_spending", 0) or 0)),
+            step=500,
+            help="What do you expect to spend each month in retirement? Include housing, food, travel, and fun. Don't include healthcare — there's a separate field for that."
+        )
+        quick_annual_contribution = q3.number_input(
+            "How much do you save each year now?",
+            min_value=0,
+            value=int(st.session_state.annual_contribution),
+            step=5000,
+            help=FIELD_HELP["annual_contribution"]
+        )
 
-            market_options = [
-                "Conservative — I prefer a steadier, safer plan",
-                "Balanced — I can handle normal market ups and downs",
-                "Aggressive — I am comfortable with more ups and downs for more growth potential",
-            ]
-            market_defaults = {
-                "Conservative — I prefer a steadier, safer plan": 0.055,
-                "Balanced — I can handle normal market ups and downs": 0.075,
-                "Aggressive — I am comfortable with more ups and downs for more growth potential": 0.085,
-            }
-            prior_quick_market = st.session_state.get("quick_market_comfort", "Balanced — I can handle normal market ups and downs")
-            q1, q2 = st.columns([1.5, 1])
-            quick_market_comfort = q1.selectbox(
-                "Market comfort level",
-                market_options,
-                index=market_options.index(prior_quick_market) if prior_quick_market in market_options else 1,
-                help="Quick Blueprint keeps this simple. Pick how comfortable you are with market ups and downs, and the app chooses a starter return assumption for you. You can choose custom returns in Detailed Blueprint.",
-            )
-            quick_growth_return = market_defaults[quick_market_comfort]
-            q2.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-            q2.info(f"Quick Blueprint will use a {quick_growth_return * 100:.1f}% starter return assumption.")
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-            quick_save = st.button("Save Quick Blueprint", type="primary", use_container_width=True, key="save_quick_blueprint_button")
+        # ── Section 3: Your Income ──
+        st.markdown("#### 📬 Your Retirement Income")
+        st.caption("Social Security and any other income you expect in retirement — like a pension or part-time work.")
+        q1, q2, q3 = st.columns(3)
+        quick_ss_age = q1.number_input("What age will you start Social Security?", 62, 70, st.session_state.user_ss_age, help=FIELD_HELP["user_ss_age"])
+        quick_ss = q2.number_input("Estimated annual Social Security benefit", min_value=0, value=st.session_state.user_ss, step=1000, help="Check ssa.gov for your estimate, or use a rough guess. Enter as a yearly number (e.g. $24,000 = $2,000/month).")
+        quick_other_income_monthly = q3.number_input(
+            "Other monthly income (pension, rent, etc.)",
+            min_value=0,
+            value=int(float(st.session_state.simple_income or 0) / 12),
+            step=100,
+            help="Pension, rental income, part-time work, annuity, or anything else. Use 0 if none."
+        )
 
-            if quick_save:
-                quick_traditional = int(quick_total_savings * 0.80)
-                quick_roth = int(quick_total_savings * 0.20)
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-                for k, v in {
-                    "current_age": quick_current_age,
-                    "retire_age": quick_retire_age,
-                    "end_age": quick_end_age,
-                    "traditional": quick_traditional,
-                    "roth": quick_roth,
-                    "taxable": 0,
-                    "cash": 0,
-                    "annual_contribution": quick_annual_contribution,
-                    "user_ss_age": quick_ss_age,
-                    "user_ss": quick_ss,
-                    "income_mode": "Simple income",
-                    "simple_income": quick_other_income_monthly * 12,
-                    "simple_income_start": quick_retire_age if quick_other_income_monthly > 0 else 0,
-                    "simple_income_end": quick_end_age if quick_other_income_monthly > 0 else 0,
-                    "simple_income_inflation": True,
-                    "simple_income_reliability": "Guaranteed",
-                    "growth_return": quick_growth_return,
-                    "quick_growth_return": quick_growth_return,
-                    "quick_market_comfort": quick_market_comfort,
-                    "safe_return": 0.045,
-                    "inflation": 0.03,
-                    "bucket1_years": 3.0,
+        # ── Section 4: Market Comfort ──
+        st.markdown("#### 📈 Investment Approach")
+        st.caption("How do you feel about market ups and downs? This sets your starting return assumption.")
+        market_options = [
+            "Conservative — I prefer a steadier, safer plan",
+            "Balanced — I can handle normal market ups and downs",
+            "Aggressive — I am comfortable with more ups and downs for more growth potential",
+        ]
+        market_defaults = {
+            "Conservative — I prefer a steadier, safer plan": 0.055,
+            "Balanced — I can handle normal market ups and downs": 0.075,
+            "Aggressive — I am comfortable with more ups and downs for more growth potential": 0.085,
+        }
+        prior_quick_market = st.session_state.get("quick_market_comfort", "Balanced — I can handle normal market ups and downs")
+        q1, q2 = st.columns([2, 1])
+        quick_market_comfort = q1.selectbox(
+            "Pick the one that fits you best",
+            market_options,
+            index=market_options.index(prior_quick_market) if prior_quick_market in market_options else 1,
+            help="This is just a starting point. You can change it anytime.",
+        )
+        quick_growth_return = market_defaults[quick_market_comfort]
+        q2.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+        q2.info(f"Uses a {quick_growth_return * 100:.1f}% return assumption.")
 
-                    # CRITICAL MATH FIX:
-                    # Quick Blueprint spending must feed the same fields used by run_projection().
-                    "budget_mode": "Flat monthly number",
-                    "flat_monthly_spending": quick_monthly_spending,
+        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+        quick_save = st.button("✅  Build My Blueprint", type="primary", use_container_width=True, key="save_quick_blueprint_button")
 
-                    # Backward-compatible aliases used by the Basic Blueprint dashboard and older page logic.
-                    "monthly_spending": quick_monthly_spending,
-                    "spending_quick_monthly": quick_monthly_spending,
-                    "basic_blueprint_monthly_spending": quick_monthly_spending,
-                    "basic_blueprint_annual_spending": quick_monthly_spending * 12,
-                    "monthly_expenses": quick_monthly_spending,
-                    "annual_spending": quick_monthly_spending * 12,
-                    "monthly_needs": quick_monthly_spending,
-                    "retirement_monthly_spending": quick_monthly_spending,
-                }.items():
-                    st.session_state[k] = v
+        if quick_save:
+            quick_traditional = int(quick_total_savings * 0.80)
+            quick_roth = int(quick_total_savings * 0.20)
 
-                st.session_state.quick_blueprint_saved = True
-                if quick_monthly_spending <= 0:
-                    st.warning("Quick Blueprint saved, but monthly retirement spending is still $0. Add a spending estimate before relying on the dashboard.")
-                else:
-                    st.success("Quick Blueprint saved. Your Basic Blueprint is ready.")
+            for k, v in {
+                "current_age": quick_current_age,
+                "retire_age": quick_retire_age,
+                "end_age": quick_end_age,
+                "traditional": quick_traditional,
+                "roth": quick_roth,
+                "taxable": 0,
+                "cash": 0,
+                "annual_contribution": quick_annual_contribution,
+                "user_ss_age": quick_ss_age,
+                "user_ss": quick_ss,
+                "income_mode": "Simple income",
+                "simple_income": quick_other_income_monthly * 12,
+                "simple_income_start": quick_retire_age if quick_other_income_monthly > 0 else 0,
+                "simple_income_end": quick_end_age if quick_other_income_monthly > 0 else 0,
+                "simple_income_inflation": True,
+                "simple_income_reliability": "Guaranteed",
+                "growth_return": quick_growth_return,
+                "quick_growth_return": quick_growth_return,
+                "quick_market_comfort": quick_market_comfort,
+                "safe_return": 0.045,
+                "inflation": 0.03,
+                "bucket1_years": 3.0,
+
+                # CRITICAL MATH FIX:
+                # Quick Blueprint spending must feed the same fields used by run_projection().
+                "budget_mode": "Flat monthly number",
+                "flat_monthly_spending": quick_monthly_spending,
+
+                # Backward-compatible aliases used by the Basic Blueprint dashboard and older page logic.
+                "monthly_spending": quick_monthly_spending,
+                "spending_quick_monthly": quick_monthly_spending,
+                "basic_blueprint_monthly_spending": quick_monthly_spending,
+                "basic_blueprint_annual_spending": quick_monthly_spending * 12,
+                "monthly_expenses": quick_monthly_spending,
+                "annual_spending": quick_monthly_spending * 12,
+                "monthly_needs": quick_monthly_spending,
+                "retirement_monthly_spending": quick_monthly_spending,
+            }.items():
+                st.session_state[k] = v
+
+            st.session_state.quick_blueprint_saved = True
+            if st.session_state.get("detailed_blueprint_saved"):
+                st.info("Quick Blueprint updated your basic numbers. Your Detailed Blueprint account and tax settings are preserved — head to Spending Plan to keep those precise.")
+            elif quick_monthly_spending <= 0:
+                st.warning("Quick Blueprint saved, but monthly retirement spending is still $0. Add a spending estimate before relying on the dashboard.")
+            else:
+                st.success("Quick Blueprint saved. Your Basic Blueprint is ready.")
 
         if st.session_state.get("quick_blueprint_saved"):
             st.markdown("""
@@ -9470,227 +9569,239 @@ if active_page == PAGE_NAMES[1]:
 
             st.caption("Detailed spending, account-level planning, tax settings, Roth conversions, home equity, and bucket strategy are part of Detailed Blueprint.")
 
-        if st.session_state.get("show_premium_prompt"):
-            st.info("Detailed Blueprint is a Premium feature. Free trial users can continue with Quick Blueprint. Detailed Blueprint keeps the custom return sliders, so advanced users can test their own return, inflation, and bucket assumptions separately.")
+            if st.session_state.get("show_premium_prompt"):
+                st.info("Detailed Blueprint is a Premium feature. Free trial users can continue with Quick Blueprint. Detailed Blueprint keeps the custom return sliders, so advanced users can test their own return, inflation, and bucket assumptions separately.")
 
     if blueprint_mode == "Detailed Blueprint":
         st.subheader("Detailed Blueprint")
         st.caption("Premium planning section. Use this when you want the full planning model: account types, tax settings, home equity, Roth conversions, and bucket strategy.")
 
-        is_premium_user = bool(st.session_state.get("is_premium_user", False))
+    is_premium_user = bool(st.session_state.get("is_premium_user", False))
 
-        if not is_premium_user:
-            st.markdown("""
-            <div class="rb-insight-card">
-              <div class="rb-insight-kicker">Premium Feature</div>
-              <div class="rb-insight-title">Unlock Detailed Blueprint</div>
-              <div class="rb-insight-copy">
-                Detailed Blueprint adds detailed spending, account-level savings, tax settings, home equity, Roth conversions,
-                household planning, and bucket strategy. Quick Blueprint remains available for the free trial.
-              </div>
-            </div>
-            """, unsafe_allow_html=True)
-            st.info("Free trial users can use Quick Blueprint above. Detailed Blueprint is reserved for Premium users.")
-        else:
-            # Live spouse/partner selector.
-            # This stays OUTSIDE st.form so spouse fields appear/disappear immediately when clicked.
+    if not is_premium_user:
+        st.markdown("""
+        <div class="rb-insight-card">
+          <div class="rb-insight-kicker">Premium Feature</div>
+          <div class="rb-insight-title">Unlock Detailed Blueprint</div>
+          <div class="rb-insight-copy">
+            Detailed Blueprint adds detailed spending, account-level savings, tax settings, home equity, Roth conversions,
+            household planning, and bucket strategy. Quick Blueprint remains available for the free trial.
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.info("Free trial users can use Quick Blueprint above. Detailed Blueprint is reserved for Premium users.")
+    else:
+        # Live spouse/partner selector.
+        # This stays OUTSIDE st.form so spouse fields appear/disappear immediately when clicked.
+        st.subheader("Household")
+        has_spouse_live = st.checkbox(
+            "Include spouse or partner in this blueprint?",
+            value=bool(st.session_state.get("has_spouse", False)),
+            help="Turn this on if the retirement plan should include a spouse or partner. Leave it off for an individual plan.",
+            key="spouse_live_selector",
+        )
+        st.session_state.has_spouse = has_spouse_live
+
+        with st.form("guided_form"):
+            st.subheader("Timeline")
+            c1, c2, c3 = st.columns(3)
+            current_age = c1.number_input("How old are you today?", 0, 100, st.session_state.current_age, help=FIELD_HELP["current_age"])
+            retire_age = c2.number_input("What age do you want to retire?", 0, 100, st.session_state.retire_age, help=FIELD_HELP["retire_age"])
+            end_age = c3.number_input("What age should the plan last until?", 0, 110, st.session_state.end_age, help=FIELD_HELP["end_age"])
+
+            st.subheader("Savings")
+            c1, c2, c3, c4 = st.columns(4)
+            traditional = c1.number_input("Traditional 401k/IRA total", min_value=0, value=st.session_state.traditional, step=10000, help=FIELD_HELP["traditional"])
+            roth = c2.number_input("Roth total", min_value=0, value=st.session_state.roth, step=10000, help=FIELD_HELP["roth"])
+            taxable = c3.number_input("Taxable brokerage", min_value=0, value=st.session_state.taxable, step=10000, help=FIELD_HELP["taxable"])
+            cash = c4.number_input("Bucket 1 / cash / safe money", min_value=0, value=st.session_state.cash, step=10000, help=FIELD_HELP["cash"])
+
+            st.subheader("Contributions, healthcare, Social Security")
+            c1, c2, c3, c4 = st.columns(4)
+            annual_contribution = c1.number_input("Annual contributions until retirement", min_value=0, value=st.session_state.annual_contribution, step=5000, help=FIELD_HELP["annual_contribution"])
+            healthcare = c2.number_input("Your annual healthcare in retirement", min_value=0, value=st.session_state.healthcare, step=1000, help=FIELD_HELP["healthcare"])
+            user_ss_age = c3.number_input("Your Social Security start age", 62, 70, st.session_state.user_ss_age, help=FIELD_HELP["user_ss_age"])
+            user_ss = c4.number_input("Your annual Social Security at 62", min_value=0, value=st.session_state.user_ss, step=1000, help=FIELD_HELP["user_ss"])
+
+            st.subheader("Other Retirement Income")
+            st.caption("Optional. Add income besides Social Security, such as a pension, rental income, part-time work, annuity income, or business income.")
+            c1, c2, c3, c4 = st.columns(4)
+            simple_income = c1.number_input("Other annual income", min_value=0, value=int(st.session_state.simple_income), step=1000, help=FIELD_HELP["simple_income"])
+            simple_income_start = c2.number_input("Other income start age", min_value=0, max_value=110, value=int(st.session_state.simple_income_start), help=FIELD_HELP["simple_income_start"])
+            simple_income_end = c3.number_input("Other income end age", min_value=0, max_value=120, value=int(st.session_state.simple_income_end), help=FIELD_HELP["simple_income_end"])
+            simple_income_reliability = c4.selectbox("Income reliability", ["Guaranteed", "Variable"], index=0 if st.session_state.simple_income_reliability == "Guaranteed" else 1, help=FIELD_HELP["simple_income_reliability"])
+            simple_income_inflation = st.checkbox("Other income rises with inflation?", value=bool(st.session_state.simple_income_inflation), help=FIELD_HELP["simple_income_inflation"])
+
             st.subheader("Household")
-            has_spouse_live = st.checkbox(
-                "Include spouse or partner in this blueprint?",
-                value=bool(st.session_state.get("has_spouse", False)),
-                help="Turn this on if the retirement plan should include a spouse or partner. Leave it off for an individual plan.",
-                key="spouse_live_selector",
+            has_spouse = bool(st.session_state.get("has_spouse", False))
+
+            if has_spouse:
+                st.info("Spouse / partner fields are included in this blueprint.")
+                c1, c2, c3 = st.columns(3)
+                spouse_age = c1.number_input("Spouse current age", min_value=0, max_value=110, value=st.session_state.spouse_age, help=FIELD_HELP["spouse_age"])
+                spouse_retire_age = c2.number_input("Spouse retirement age", min_value=0, max_value=110, value=st.session_state.spouse_retire_age, help=FIELD_HELP["spouse_retire_age"])
+                spouse_plan_age = c3.number_input("Spouse plan-through age", min_value=0, max_value=120, value=st.session_state.spouse_plan_age, help=FIELD_HELP["spouse_plan_age"])
+
+                c1, c2, c3, c4 = st.columns(4)
+                spouse_annual_contribution = c1.number_input("Spouse annual contributions", min_value=0, value=st.session_state.spouse_annual_contribution, step=5000, help=FIELD_HELP["spouse_annual_contribution"])
+                spouse_healthcare = c2.number_input("Spouse annual healthcare", min_value=0, value=st.session_state.spouse_healthcare, step=1000, help=FIELD_HELP["spouse_healthcare"])
+                spouse_ss_age = c3.number_input("Spouse Social Security age", 62, 70, st.session_state.spouse_ss_age, help=FIELD_HELP["spouse_ss_age"])
+                spouse_ss = c4.number_input("Spouse annual Social Security at 62", min_value=0, value=st.session_state.spouse_ss, step=1000, help=FIELD_HELP["spouse_ss"])
+
+                survivor_ss_strategy = st.selectbox(
+                    "Survivor Social Security strategy",
+                    ["Higher benefit continues", "User benefit only"],
+                    index=0 if st.session_state.survivor_ss_strategy == "Higher benefit continues" else 1,
+                    help="Usually, the surviving spouse keeps the higher Social Security benefit and loses the smaller one."
+                )
+            else:
+                spouse_age = 0
+                spouse_retire_age = 0
+                spouse_plan_age = 90
+                spouse_annual_contribution = 0
+                spouse_healthcare = 0
+                spouse_ss_age = 62
+                spouse_ss = 0
+                survivor_ss_strategy = "Higher benefit continues"
+                st.caption("Individual plan selected. Spouse / partner fields are hidden and will not affect the projection.")
+
+            st.subheader("Assumptions")
+            c1, c2, c3 = st.columns(3)
+            growth_return = c1.slider(
+            "Growth return",
+            min_value=0.0,
+            max_value=30.0,
+            value=min(max(float(st.session_state.growth_return) * 100, 0.0), 30.0),
+            step=0.25,
+            format="%.2f%%",
+            help=FIELD_HELP["growth_return"],
+        ) / 100
+            safe_return = c2.slider(
+            "Bucket 1 safe return",
+            min_value=0.0,
+            max_value=10.0,
+            value=min(max(float(st.session_state.safe_return) * 100, 0.0), 10.0),
+            step=0.25,
+            format="%.2f%%",
+            help=FIELD_HELP["safe_return"],
+        ) / 100
+            inflation = c3.slider(
+            "Inflation",
+            min_value=0.0,
+            max_value=10.0,
+            value=min(max(float(st.session_state.inflation) * 100, 0.0), 10.0),
+            step=0.25,
+            format="%.2f%%",
+            help=FIELD_HELP["inflation"],
+        ) / 100
+
+            st.subheader("Strategy")
+            c1, c2 = st.columns(2)
+            annual_conversion = c1.number_input("Annual Roth conversion to test", min_value=0, value=int(st.session_state.annual_conversion), step=5000, help=FIELD_HELP["annual_conversion"])
+            bucket1_years = c2.number_input("Bucket 1 safety years of spending", min_value=0.0, max_value=10.0, value=float(st.session_state.bucket1_years), step=0.5, help="How many years of near-term retirement spending to keep in the safer Safety Bucket.")
+            bucket2_years = float(st.session_state.get("bucket2_years", 5.0))
+            c2.caption("Bucket 2 is the remaining long-term Growth Bucket. No extra bucket setup needed.")
+
+            st.subheader("Federal Tax Estimate")
+            st.caption("Phase 2: estimates federal ordinary income tax using IRS brackets, filing status, standard deduction, traditional withdrawals, Roth conversions, and taxable Social Security.")
+            t1, t2 = st.columns(2)
+            tax_year_options = sorted(TAX_TABLES.keys())
+            tax_year = t1.selectbox(
+                "Tax year",
+                tax_year_options,
+                index=tax_year_options.index(get_tax_year()) if get_tax_year() in tax_year_options else len(tax_year_options) - 1,
+                help=FIELD_HELP["tax_year"],
             )
-            st.session_state.has_spouse = has_spouse_live
+            filing_keys = list(FILING_STATUS_OPTIONS.keys())
+            filing_status_label = t2.selectbox(
+                "Federal filing status",
+                [FILING_STATUS_OPTIONS[k] for k in filing_keys],
+                index=filing_keys.index(get_filing_status()) if get_filing_status() in filing_keys else 1,
+                help=FIELD_HELP["filing_status"],
+            )
+            filing_status = filing_keys[[FILING_STATUS_OPTIONS[k] for k in filing_keys].index(filing_status_label)]
+            tax_settings_preview = get_tax_settings(tax_year, filing_status)
+            st.info(f"Using {tax_year} federal brackets, {tax_settings_preview['label']}, and a standard deduction of {money(tax_settings_preview['standard_deduction'])}. Taxable Social Security is now estimated using provisional income thresholds. State taxes come in a later phase.")
 
-            with st.form("guided_form"):
-                st.subheader("Timeline")
-                c1, c2, c3 = st.columns(3)
-                current_age = c1.number_input("How old are you today?", 0, 100, st.session_state.current_age, help=FIELD_HELP["current_age"])
-                retire_age = c2.number_input("What age do you want to retire?", 0, 100, st.session_state.retire_age, help=FIELD_HELP["retire_age"])
-                end_age = c3.number_input("What age should the plan last until?", 0, 110, st.session_state.end_age, help=FIELD_HELP["end_age"])
+            if st.session_state.enable_spending_change and int(st.session_state.spending_change_age or 0) > 0:
+                st.subheader("Planned Spending Change")
+                s1, s2 = st.columns(2)
+                s1.metric("Spending Change Age", int(st.session_state.spending_change_age))
+                s2.metric("New Monthly Spending", money(st.session_state.spending_change_monthly))
+                st.info("The projection uses this new spending amount starting at the selected age, then continues applying inflation.")
 
-                st.subheader("Savings")
-                c1, c2, c3, c4 = st.columns(4)
-                traditional = c1.number_input("Traditional 401k/IRA total", min_value=0, value=st.session_state.traditional, step=10000, help=FIELD_HELP["traditional"])
-                roth = c2.number_input("Roth total", min_value=0, value=st.session_state.roth, step=10000, help=FIELD_HELP["roth"])
-                taxable = c3.number_input("Taxable brokerage", min_value=0, value=st.session_state.taxable, step=10000, help=FIELD_HELP["taxable"])
-                cash = c4.number_input("Bucket 1 / cash / safe money", min_value=0, value=st.session_state.cash, step=10000, help=FIELD_HELP["cash"])
+            st.subheader("Home & Housing Strategy")
+            st.caption("Optional, but useful. Your home can affect retirement flexibility, mortgage cash flow, downsizing options, taxes, and relocation decisions.")
 
-                st.subheader("Contributions, healthcare, Social Security")
-                c1, c2, c3, c4 = st.columns(4)
-                annual_contribution = c1.number_input("Annual contributions until retirement", min_value=0, value=st.session_state.annual_contribution, step=5000, help=FIELD_HELP["annual_contribution"])
-                healthcare = c2.number_input("Your annual healthcare in retirement", min_value=0, value=st.session_state.healthcare, step=1000, help=FIELD_HELP["healthcare"])
-                user_ss_age = c3.number_input("Your Social Security start age", 62, 70, st.session_state.user_ss_age, help=FIELD_HELP["user_ss_age"])
-                user_ss = c4.number_input("Your annual Social Security at 62", min_value=0, value=st.session_state.user_ss, step=1000, help=FIELD_HELP["user_ss"])
+            c1, c2, c3 = st.columns(3)
+            home_value = c1.number_input("Current home value", min_value=0, value=int(st.session_state.home_value), step=10000, help="Estimated current market value of your primary home.")
+            mortgage_balance = c2.number_input("Remaining mortgage balance", min_value=0, value=int(st.session_state.mortgage_balance), step=5000, help="How much you still owe on the home.")
+            monthly_mortgage = c3.number_input("Monthly mortgage payment", min_value=0, value=int(st.session_state.monthly_mortgage), step=100, help="Principal and interest payment. If taxes and insurance are escrowed, you can include the full payment here.")
 
-                st.subheader("Other Retirement Income")
-                st.caption("Optional. Add income besides Social Security, such as a pension, rental income, part-time work, annuity income, or business income.")
-                c1, c2, c3, c4 = st.columns(4)
-                simple_income = c1.number_input("Other annual income", min_value=0, value=int(st.session_state.simple_income), step=1000, help=FIELD_HELP["simple_income"])
-                simple_income_start = c2.number_input("Other income start age", min_value=0, max_value=110, value=int(st.session_state.simple_income_start), help=FIELD_HELP["simple_income_start"])
-                simple_income_end = c3.number_input("Other income end age", min_value=0, max_value=120, value=int(st.session_state.simple_income_end), help=FIELD_HELP["simple_income_end"])
-                simple_income_reliability = c4.selectbox("Income reliability", ["Guaranteed", "Variable"], index=0 if st.session_state.simple_income_reliability == "Guaranteed" else 1, help=FIELD_HELP["simple_income_reliability"])
-                simple_income_inflation = st.checkbox("Other income rises with inflation?", value=bool(st.session_state.simple_income_inflation), help=FIELD_HELP["simple_income_inflation"])
+            c1, c2, c3 = st.columns(3)
+            annual_property_taxes_home = c1.number_input("Annual property taxes", min_value=0, value=int(st.session_state.annual_property_taxes_home), step=500, help="Estimated yearly property tax bill for the home.")
+            mortgage_payoff_age = c2.number_input("Mortgage payoff age", min_value=0, max_value=110, value=int(st.session_state.mortgage_payoff_age), step=1, help="Age when the mortgage is expected to be paid off. Use 0 if unknown.")
+            retirement_housing_plan = c3.selectbox(
+                "Retirement housing plan",
+                ["Stay in Current Home", "Downsize", "Relocate", "Snowbird", "Unsure"],
+                index=["Stay in Current Home", "Downsize", "Relocate", "Snowbird", "Unsure"].index(st.session_state.retirement_housing_plan) if st.session_state.retirement_housing_plan in ["Stay in Current Home", "Downsize", "Relocate", "Snowbird", "Unsure"] else 4,
+                help="How you expect housing to change in retirement."
+            )
 
-                st.subheader("Household")
-                has_spouse = bool(st.session_state.get("has_spouse", False))
+            st.info(f"Estimated home equity: {money(max(home_value - mortgage_balance, 0))}")
 
-                if has_spouse:
-                    st.info("Spouse / partner fields are included in this blueprint.")
-                    c1, c2, c3 = st.columns(3)
-                    spouse_age = c1.number_input("Spouse current age", min_value=0, max_value=110, value=st.session_state.spouse_age, help=FIELD_HELP["spouse_age"])
-                    spouse_retire_age = c2.number_input("Spouse retirement age", min_value=0, max_value=110, value=st.session_state.spouse_retire_age, help=FIELD_HELP["spouse_retire_age"])
-                    spouse_plan_age = c3.number_input("Spouse plan-through age", min_value=0, max_value=120, value=st.session_state.spouse_plan_age, help=FIELD_HELP["spouse_plan_age"])
+            save = st.form_submit_button("Save main answers", type="primary", use_container_width=True)
 
-                    c1, c2, c3, c4 = st.columns(4)
-                    spouse_annual_contribution = c1.number_input("Spouse annual contributions", min_value=0, value=st.session_state.spouse_annual_contribution, step=5000, help=FIELD_HELP["spouse_annual_contribution"])
-                    spouse_healthcare = c2.number_input("Spouse annual healthcare", min_value=0, value=st.session_state.spouse_healthcare, step=1000, help=FIELD_HELP["spouse_healthcare"])
-                    spouse_ss_age = c3.number_input("Spouse Social Security age", 62, 70, st.session_state.spouse_ss_age, help=FIELD_HELP["spouse_ss_age"])
-                    spouse_ss = c4.number_input("Spouse annual Social Security at 62", min_value=0, value=st.session_state.spouse_ss, step=1000, help=FIELD_HELP["spouse_ss"])
+        if save:
+            for k, v in {
+                "current_age": current_age, "retire_age": retire_age, "end_age": end_age,
+                "traditional": traditional, "roth": roth, "taxable": taxable, "cash": cash,
+                "annual_contribution": annual_contribution, "healthcare": healthcare,
+                "user_ss_age": user_ss_age, "user_ss": user_ss,
+                "income_mode": "Simple income",
+                "simple_income": simple_income,
+                "simple_income_start": simple_income_start,
+                "simple_income_end": simple_income_end,
+                "simple_income_inflation": simple_income_inflation,
+                "simple_income_reliability": simple_income_reliability,
+                "has_spouse": has_spouse,
+                "spouse_age": spouse_age,
+                "spouse_retire_age": spouse_retire_age,
+                "spouse_plan_age": spouse_plan_age,
+                "spouse_annual_contribution": spouse_annual_contribution,
+                "spouse_healthcare": spouse_healthcare,
+                "spouse_ss_age": spouse_ss_age,
+                "spouse_ss": spouse_ss,
+                "survivor_ss_strategy": survivor_ss_strategy,
+                "growth_return": growth_return, "safe_return": safe_return, "inflation": inflation,
+                "annual_conversion": annual_conversion, "bucket1_years": bucket1_years, "bucket2_years": bucket2_years,
+                "tax_year": tax_year, "filing_status": filing_status,
+                "home_value": home_value,
+                "mortgage_balance": mortgage_balance,
+                "monthly_mortgage": monthly_mortgage,
+                "annual_property_taxes_home": annual_property_taxes_home,
+                "mortgage_payoff_age": mortgage_payoff_age,
+                "retirement_housing_plan": retirement_housing_plan,
+            }.items():
+                st.session_state[k] = v
+            # Detailed Blueprint takes precedence over Quick Blueprint.
+            # Clear Quick Blueprint spending overrides so the Budget Builder
+            # and detailed inputs drive the projection, not the quick estimates.
+            st.session_state.pop("quick_blueprint_saved", None)
+            st.session_state.pop("spending_quick_monthly", None)
+            st.session_state.pop("basic_blueprint_monthly_spending", None)
+            st.session_state.pop("retirement_monthly_spending", None)
+            # Switch budget_mode to Detailed if the user has built a category budget,
+            # otherwise leave it as-is so they can set it in the Budget Builder.
+            if st.session_state.get("budget_mode") == "Flat monthly number" and st.session_state.get("flat_monthly_spending", 0) == 0:
+                st.session_state.budget_mode = "Flat monthly number"  # keep default, let Budget Builder set it
+            st.session_state["detailed_blueprint_saved"] = True
+            st.success("Detailed Blueprint saved. Head to Spending Plan next to set your retirement spending.")
 
-                    survivor_ss_strategy = st.selectbox(
-                        "Survivor Social Security strategy",
-                        ["Higher benefit continues", "User benefit only"],
-                        index=0 if st.session_state.survivor_ss_strategy == "Higher benefit continues" else 1,
-                        help="Usually, the surviving spouse keeps the higher Social Security benefit and loses the smaller one."
-                    )
-                else:
-                    spouse_age = 0
-                    spouse_retire_age = 0
-                    spouse_plan_age = 90
-                    spouse_annual_contribution = 0
-                    spouse_healthcare = 0
-                    spouse_ss_age = 62
-                    spouse_ss = 0
-                    survivor_ss_strategy = "Higher benefit continues"
-                    st.caption("Individual plan selected. Spouse / partner fields are hidden and will not affect the projection.")
-
-                st.subheader("Assumptions")
-                c1, c2, c3 = st.columns(3)
-                growth_return = c1.slider(
-                "Growth return",
-                min_value=0.0,
-                max_value=30.0,
-                value=min(max(float(st.session_state.growth_return) * 100, 0.0), 30.0),
-                step=0.25,
-                format="%.2f%%",
-                help=FIELD_HELP["growth_return"],
-            ) / 100
-                safe_return = c2.slider(
-                "Bucket 1 safe return",
-                min_value=0.0,
-                max_value=10.0,
-                value=min(max(float(st.session_state.safe_return) * 100, 0.0), 10.0),
-                step=0.25,
-                format="%.2f%%",
-                help=FIELD_HELP["safe_return"],
-            ) / 100
-                inflation = c3.slider(
-                "Inflation",
-                min_value=0.0,
-                max_value=10.0,
-                value=min(max(float(st.session_state.inflation) * 100, 0.0), 10.0),
-                step=0.25,
-                format="%.2f%%",
-                help=FIELD_HELP["inflation"],
-            ) / 100
-
-                st.subheader("Strategy")
-                c1, c2 = st.columns(2)
-                annual_conversion = c1.number_input("Annual Roth conversion to test", min_value=0, value=int(st.session_state.annual_conversion), step=5000, help=FIELD_HELP["annual_conversion"])
-                bucket1_years = c2.number_input("Bucket 1 safety years of spending", min_value=0.0, max_value=10.0, value=float(st.session_state.bucket1_years), step=0.5, help="How many years of near-term retirement spending to keep in the safer Safety Bucket.")
-                bucket2_years = float(st.session_state.get("bucket2_years", 5.0))
-                c2.caption("Bucket 2 is the remaining long-term Growth Bucket. No extra bucket setup needed.")
-
-                st.subheader("Federal Tax Estimate")
-                st.caption("Phase 2: estimates federal ordinary income tax using IRS brackets, filing status, standard deduction, traditional withdrawals, Roth conversions, and taxable Social Security.")
-                t1, t2 = st.columns(2)
-                tax_year_options = sorted(TAX_TABLES.keys())
-                tax_year = t1.selectbox(
-                    "Tax year",
-                    tax_year_options,
-                    index=tax_year_options.index(get_tax_year()) if get_tax_year() in tax_year_options else len(tax_year_options) - 1,
-                    help=FIELD_HELP["tax_year"],
-                )
-                filing_keys = list(FILING_STATUS_OPTIONS.keys())
-                filing_status_label = t2.selectbox(
-                    "Federal filing status",
-                    [FILING_STATUS_OPTIONS[k] for k in filing_keys],
-                    index=filing_keys.index(get_filing_status()) if get_filing_status() in filing_keys else 1,
-                    help=FIELD_HELP["filing_status"],
-                )
-                filing_status = filing_keys[[FILING_STATUS_OPTIONS[k] for k in filing_keys].index(filing_status_label)]
-                tax_settings_preview = get_tax_settings(tax_year, filing_status)
-                st.info(f"Using {tax_year} federal brackets, {tax_settings_preview['label']}, and a standard deduction of {money(tax_settings_preview['standard_deduction'])}. Taxable Social Security is now estimated using provisional income thresholds. State taxes come in a later phase.")
-
-                if st.session_state.enable_spending_change and int(st.session_state.spending_change_age or 0) > 0:
-                    st.subheader("Planned Spending Change")
-                    s1, s2 = st.columns(2)
-                    s1.metric("Spending Change Age", int(st.session_state.spending_change_age))
-                    s2.metric("New Monthly Spending", money(st.session_state.spending_change_monthly))
-                    st.info("The projection uses this new spending amount starting at the selected age, then continues applying inflation.")
-
-                st.subheader("Home & Housing Strategy")
-                st.caption("Optional, but useful. Your home can affect retirement flexibility, mortgage cash flow, downsizing options, taxes, and relocation decisions.")
-
-                c1, c2, c3 = st.columns(3)
-                home_value = c1.number_input("Current home value", min_value=0, value=int(st.session_state.home_value), step=10000, help="Estimated current market value of your primary home.")
-                mortgage_balance = c2.number_input("Remaining mortgage balance", min_value=0, value=int(st.session_state.mortgage_balance), step=5000, help="How much you still owe on the home.")
-                monthly_mortgage = c3.number_input("Monthly mortgage payment", min_value=0, value=int(st.session_state.monthly_mortgage), step=100, help="Principal and interest payment. If taxes and insurance are escrowed, you can include the full payment here.")
-
-                c1, c2, c3 = st.columns(3)
-                annual_property_taxes_home = c1.number_input("Annual property taxes", min_value=0, value=int(st.session_state.annual_property_taxes_home), step=500, help="Estimated yearly property tax bill for the home.")
-                mortgage_payoff_age = c2.number_input("Mortgage payoff age", min_value=0, max_value=110, value=int(st.session_state.mortgage_payoff_age), step=1, help="Age when the mortgage is expected to be paid off. Use 0 if unknown.")
-                retirement_housing_plan = c3.selectbox(
-                    "Retirement housing plan",
-                    ["Stay in Current Home", "Downsize", "Relocate", "Snowbird", "Unsure"],
-                    index=["Stay in Current Home", "Downsize", "Relocate", "Snowbird", "Unsure"].index(st.session_state.retirement_housing_plan) if st.session_state.retirement_housing_plan in ["Stay in Current Home", "Downsize", "Relocate", "Snowbird", "Unsure"] else 4,
-                    help="How you expect housing to change in retirement."
-                )
-
-                st.info(f"Estimated home equity: {money(max(home_value - mortgage_balance, 0))}")
-
-                save = st.form_submit_button("Save main answers", type="primary", use_container_width=True)
-
-            if save:
-                for k, v in {
-                    "current_age": current_age, "retire_age": retire_age, "end_age": end_age,
-                    "traditional": traditional, "roth": roth, "taxable": taxable, "cash": cash,
-                    "annual_contribution": annual_contribution, "healthcare": healthcare,
-                    "user_ss_age": user_ss_age, "user_ss": user_ss,
-                    "income_mode": "Simple income",
-                    "simple_income": simple_income,
-                    "simple_income_start": simple_income_start,
-                    "simple_income_end": simple_income_end,
-                    "simple_income_inflation": simple_income_inflation,
-                    "simple_income_reliability": simple_income_reliability,
-                    "has_spouse": has_spouse,
-                    "spouse_age": spouse_age,
-                    "spouse_retire_age": spouse_retire_age,
-                    "spouse_plan_age": spouse_plan_age,
-                    "spouse_annual_contribution": spouse_annual_contribution,
-                    "spouse_healthcare": spouse_healthcare,
-                    "spouse_ss_age": spouse_ss_age,
-                    "spouse_ss": spouse_ss,
-                    "survivor_ss_strategy": survivor_ss_strategy,
-                    "growth_return": growth_return, "safe_return": safe_return, "inflation": inflation,
-                    "annual_conversion": annual_conversion, "bucket1_years": bucket1_years, "bucket2_years": bucket2_years,
-                    "tax_year": tax_year, "filing_status": filing_status,
-                    "home_value": home_value,
-                    "mortgage_balance": mortgage_balance,
-                    "monthly_mortgage": monthly_mortgage,
-                    "annual_property_taxes_home": annual_property_taxes_home,
-                    "mortgage_payoff_age": mortgage_payoff_age,
-                    "retirement_housing_plan": retirement_housing_plan,
-                }.items():
-                    st.session_state[k] = v
-                st.success("Main answers saved.")
-
-            render_premium_insight("Premium bucket strategy", df if can_run else None, "bucket")
-            render_three_bucket_strategy(df if can_run else None)
-            st.subheader("Compare 1 Bucket vs 2 Bucket")
-            render_bucket_strategy_comparison_panel(df if can_run else None)
+        render_premium_insight("Premium bucket strategy", df if can_run else None, "bucket")
+        render_three_bucket_strategy(df if can_run else None)
+        st.subheader("Compare 1 Bucket vs 2 Bucket")
+        render_bucket_strategy_comparison_panel(df if can_run else None)
 
     st.divider()
     if st.button("Next: Spending Plan", type="primary", use_container_width=True, key="next_from_guided_to_budget"):
@@ -9972,7 +10083,7 @@ if active_page == PAGE_NAMES[5]:
         ["Mortgage payoff age", st.session_state.mortgage_payoff_age if st.session_state.mortgage_payoff_age else "Unknown"],
         ["Housing plan", st.session_state.retirement_housing_plan],
     ], columns=["Input", "Answer"])
-    st.dataframe(review, use_container_width=True)
+    st.markdown(html_table(review), unsafe_allow_html=True)
 
 # can_run and df are initialized safely before page rendering above.
 
@@ -10471,21 +10582,7 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
             "This is still an estimate, so the next smart step is to stress test it against a few bad market years."
         )
 
-    st.markdown(f"""
-    <div class="rb-blueprint-mock-hero">
-      <div class="rb-blueprint-mock-icon">📊</div>
-      <div>
-        <div class="rb-blueprint-mock-kicker-pill">Planner Section</div>
-        <div class="rb-blueprint-mock-title">Blueprint Dashboard</div>
-        <div class="rb-blueprint-mock-sub">Review your blueprint outcome, year-by-year trends, and the key retirement metrics that show whether your plan is on track.</div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    with st.expander("💬 What this page means: Dashboard", expanded=False):
-        st.write("This page turns the retirement math into plain English. It shows whether your plan appears workable, which numbers matter most, and what to review next.")
-
-    st.caption("Tax estimates now include taxable Social Security when provisional income exceeds IRS thresholds. Roth and cash withdrawals are modeled as tax-free; taxable brokerage is still simplified until the capital-gains phase.")
+    st.caption("Tax estimates include taxable Social Security when provisional income exceeds IRS thresholds. Roth and cash withdrawals are modeled as tax-free.")
 
     st.markdown(f"""
     <div class="rb-score-banner" style="border-color:{banner_border};background:{banner_bg};">
@@ -10494,36 +10591,7 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
         <div class="rb-score-banner-pill" style="background:{dashboard_pill_bg};color:{dashboard_pill_color};">{xml_escape(score_pill)}</div>
         <div class="rb-score-banner-title">{xml_escape(score_title)}</div>
         <div class="rb-score-banner-copy">{xml_escape(score_copy)}</div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown('<div class="rb-dashboard-section-kicker">The 4 numbers that matter most</div>', unsafe_allow_html=True)
-    st.markdown(f"""
-    <div class="rb-card-grid">
-      <div class="rb-card">
-        <div class="rb-card-label">Can I retire at {retire_age}?</div>
-        <div class="rb-card-value" style="color:{dashboard_status_color};">{xml_escape(status_short)}</div>
-        <div class="rb-kpi-pill" style="background:{dashboard_pill_bg};color:{dashboard_pill_color};">{xml_escape(status_pill)}</div>
-        <div class="rb-card-note">Your savings and income vs. when you want to stop working.</div>
-      </div>
-      <div class="rb-card">
-        <div class="rb-card-label">Will my money last?</div>
-        <div class="rb-card-value" style="color:{dashboard_status_color};">{xml_escape(longevity_value)}</div>
-        <div class="rb-kpi-pill" style="background:{dashboard_pill_bg};color:{dashboard_pill_color};">{xml_escape(longevity_pill)}</div>
-        <div class="rb-card-note">Whether your money outlasts your plan, or runs out early.</div>
-      </div>
-      <div class="rb-card">
-        <div class="rb-card-label">Money Left at {end_age}</div>
-        <div class="rb-card-value" style="color:{'#15803D' if ending_balance > 0 and unmet_need <= 0 else '#B91C1C'};">{money(ending_balance)}</div>
-        <div class="rb-kpi-pill" style="background:{'#DCFCE7' if ending_balance > 0 and unmet_need <= 0 else '#FEE2E2'};color:{'#166534' if ending_balance > 0 and unmet_need <= 0 else '#991B1B'};">Projected</div>
-        <div class="rb-card-note">Estimated money left after the plan pays for retirement spending.</div>
-      </div>
-      <div class="rb-card">
-        <div class="rb-card-label">Monthly Gap From Savings</div>
-        <div class="rb-card-value">{money(monthly_gap)}</div>
-        <div class="rb-kpi-pill" style="background:{dashboard_pill_bg if rtv_score < 80 else '#DCFCE7'};color:{dashboard_pill_color if rtv_score < 80 else '#166534'};">Savings need</div>
-        <div class="rb-card-note">First-year retirement gap: lifestyle + healthcare + est. taxes, minus Social Security and other income.</div>
+        <div style="font-size:.78rem;color:#94A3B8;margin-top:6px;">Blueprint Score = 0–100 estimate of whether your money lasts through your plan. Above 80 is strong.</div>
       </div>
     </div>
     """, unsafe_allow_html=True)
@@ -10534,6 +10602,37 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
       <div class="rb-explain-copy">{summary_text}</div>
     </div>
     """, unsafe_allow_html=True)
+
+    st.markdown('<div class="rb-dashboard-section-kicker">The 4 numbers that matter most</div>', unsafe_allow_html=True)
+    st.markdown(f"""
+    <div class="rb-card-grid">
+      <div class="rb-card">
+        <div class="rb-card-label">Can I retire at {retire_age}?</div>
+        <div class="rb-card-value" style="color:{dashboard_status_color};">{xml_escape(status_short)}</div>
+        <div class="rb-kpi-pill" style="background:{dashboard_pill_bg};color:{dashboard_pill_color};">{xml_escape(status_pill)}</div>
+        <div class="rb-card-note">Based on whether your savings and income can cover spending from retirement through your plan end age.</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-label">Will my money last?</div>
+        <div class="rb-card-value" style="color:{dashboard_status_color};">{xml_escape(longevity_value)}</div>
+        <div class="rb-kpi-pill" style="background:{dashboard_pill_bg};color:{dashboard_pill_color};">{xml_escape(longevity_pill)}</div>
+        <div class="rb-card-note">Whether your projected balance stays above zero through the end of the plan.</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-label">Money Left at {end_age}</div>
+        <div class="rb-card-value" style="color:{'#15803D' if ending_balance > 0 and unmet_need <= 0 else '#B91C1C'}">{money(ending_balance)}</div>
+        <div class="rb-kpi-pill" style="background:{'#DCFCE7' if ending_balance > 0 and unmet_need <= 0 else '#FEE2E2'};color:{'#166534' if ending_balance > 0 and unmet_need <= 0 else '#991B1B'}">Projected</div>
+        <div class="rb-card-note">The projected balance left at age {end_age} after paying for all retirement spending.</div>
+      </div>
+      <div class="rb-card">
+        <div class="rb-card-label">Monthly Gap From Savings</div>
+        <div class="rb-card-value">{money(monthly_gap)}</div>
+        <div class="rb-kpi-pill" style="background:{dashboard_pill_bg if rtv_score < 80 else '#DCFCE7'};color:{dashboard_pill_color if rtv_score < 80 else '#166534'}">Savings need</div>
+        <div class="rb-card-note">First-year retirement gap: lifestyle + healthcare + est. taxes, minus Social Security and other income.</div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 
     st.markdown(f"""
     <div class="rb-health-timeline-grid">
@@ -10696,6 +10795,12 @@ if active_page == PAGE_NAMES[6]:
         elif st.session_state.get("first_blueprint_saved_to_db") is False:
             st.caption("Your blueprint is ready in this session. It could not be saved to your account yet.")
         st.session_state.dashboard_first_blueprint_ready = False
+    # Show a welcome back message if we auto-loaded a saved blueprint on sign-in
+    if st.session_state.get("_auto_loaded_blueprint"):
+        name = st.session_state.get("_auto_loaded_blueprint", "your saved blueprint")
+        st.success(f"Welcome back! We loaded '{name}' so your numbers are ready.")
+        st.session_state.pop("_auto_loaded_blueprint", None)
+
 
     render_guided_progress(4)
     if st.session_state.get("dashboard_focus"):
@@ -10830,23 +10935,17 @@ if active_page == PAGE_NAMES[6]:
         retirement_dashboard_reason_html = "<br/><br/>".join(retirement_dashboard_reason_bits)
         retirement_dashboard_ideas_html = "".join([f"<li>{idea}</li>" for idea in cleaned_dashboard_ideas[:5]])
 
-        st.markdown(f"""
-        <div class="rb-dashboard-explain rb-dashboard-explain-top">
-          <div class="rb-explain-kicker">Plain-English Dashboard Explanation</div>
-          <div class="rb-explain-title">What these numbers are telling you</div>
-          <div class="rb-explain-copy">
-            {retirement_dashboard_reason_html}
-          </div>
-          <div class="rb-explain-next">
-            <div class="rb-explain-next-title">What to look at next</div>
-            <ul>{retirement_dashboard_ideas_html}</ul>
-          </div>
-          <div class="rb-explain-note">
-            <b>Important:</b> The age shown is your <b>current target age being tested</b>, not a recommendation that you should retire at that age.
-            The Action Plan is the next step to see what changes may improve the score.
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
+        if cleaned_dashboard_ideas:
+            st.markdown(f"""
+            <div class="rb-dashboard-explain rb-dashboard-explain-top">
+              <div class="rb-explain-next-title">💡 Things worth looking at next</div>
+              <ul>{retirement_dashboard_ideas_html}</ul>
+              <div style="font-size:.82rem;color:#94A3B8;margin-top:10px;">
+                The age shown is your <b>current target age being tested</b> — not a recommendation.
+                Use the Action Plan to explore what changes improve the score.
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
 
         dashboard_explain_cols = st.columns([1, 1])
         with dashboard_explain_cols[0]:
@@ -11256,43 +11355,103 @@ if active_page == PAGE_NAMES[7]:
                 deduped.append(row)
                 seen.add(row[0])
 
-        try_df = pd.DataFrame(
-            deduped[:6],
-            columns=["Thing to Try", "Why It Helps", "Simple Next Step", "Possible Score Impact"]
+        # Render as HTML table matching the "What the numbers mean" style — no truncation
+        try_rows_html = "".join(
+            f"""<tr>
+              <td style="padding:10px 14px;font-weight:700;color:#166534;white-space:nowrap;border-bottom:1px solid #F1F5F9;">{row[3]}</td>
+              <td style="padding:10px 14px;font-weight:600;color:#1E293B;white-space:nowrap;border-bottom:1px solid #F1F5F9;">{row[0]}</td>
+              <td style="padding:10px 14px;color:#0F172A;line-height:1.5;border-bottom:1px solid #F1F5F9;">{row[2]}</td>
+              <td style="padding:10px 14px;color:#475569;line-height:1.5;border-bottom:1px solid #F1F5F9;">{row[1]}</td>
+            </tr>"""
+            for row in deduped[:6]
         )
+        st.markdown(f"""
+        <table style="width:100%;border-collapse:collapse;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;font-size:.92rem;">
+          <thead>
+            <tr style="background:#F8FAFC;">
+              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;white-space:nowrap;">Score impact</th>
+              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;white-space:nowrap;">What to try</th>
+              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;">How to do it</th>
+              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;">Why it helps</th>
+            </tr>
+          </thead>
+          <tbody>{try_rows_html}</tbody>
+        </table>
+        """, unsafe_allow_html=True)
 
-        try_df = try_df[[
-            "Possible Score Impact",
-            "Thing to Try",
-            "Simple Next Step",
-            "Why It Helps",
-        ]]
+        st.subheader("What the numbers mean")
 
-        st.dataframe(try_df, use_container_width=True, hide_index=True)
+        # Build plain-English row values
+        _end_age     = int(st.session_state.get("end_age", 85))
+        _income_pct  = min(avg_income_coverage * 100, 100)
+        _savings_pct = max(0, 100 - _income_pct)   # income + savings = 100% of spending
+        _score_note  = ("Above 80 is strong." if rtv_score >= 80
+                        else "60–80 means it needs some adjustments."
+                        if rtv_score >= 60 else "Below 60 — some real changes needed.")
+        _gap_note    = ("That is manageable." if monthly_gap < 3000
+                        else "Worth looking at ways to reduce this." if monthly_gap > 6000
+                        else "")
+        _income_note = ("Most spending depends on savings — common, but worth knowing."
+                        if avg_income_coverage < 0.35
+                        else "A solid portion is covered by guaranteed income — that reduces pressure on savings.")
+        _savings_note = ("That is on the high side — the less your savings has to cover, the more cushion you have."
+                         if _savings_pct > 65
+                         else "That is a reasonable split.")
 
-        st.subheader("Plain-English Explanation of the Numbers")
+        # Render as HTML table so text wraps and nothing gets cut off
+        rows = [
+            ("Blueprint Score",
+             f"{rtv_score}/100",
+             f"Think of it like a grade for your plan. {_score_note}"),
+            ("Money left at the end",
+             compact_money(ending_portfolio),
+             f"What the projection shows still in savings at age {_end_age}. More cushion means more room for surprises."),
+            ("Monthly gap from savings",
+             money(monthly_gap),
+             f"After Social Security and other income, your savings needs to cover this much each month in year one. {_gap_note}"),
+            ("Covered by guaranteed income",
+             f"{_income_pct:.0f}%",
+             f"About {_income_pct:.0f}% of your retirement spending is covered by Social Security, a pension, or similar. {_income_note}"),
+            ("Covered by savings",
+             f"{_savings_pct:.0f}%",
+             f"The remaining {_savings_pct:.0f}% of spending needs to come from your savings. {_savings_note}"),
+        ]
 
-        explain_df = pd.DataFrame([
-            ["Blueprint Score", f"{rtv_score}/100", "A simple readiness score. Higher means the plan has more cushion."],
-            ["Money Left at End", compact_money(ending_portfolio), "Estimated money remaining at the final planning age."],
-            ["Monthly Gap From Savings", money(monthly_gap), "The part of monthly spending not covered by Social Security, pension, or other income."],
-            ["Withdrawal Pressure", pct(max_wr), "How hard your spending is pulling from your savings. Lower is usually safer."],
-            ["Income Coverage", pct(avg_income_coverage), "How much of your spending is covered by income instead of savings."],
-        ], columns=["Item", "Your Result", "What It Means"])
-        st.dataframe(explain_df, use_container_width=True, hide_index=True)
+        rows_html = "".join(
+            f"""<tr>
+              <td style="padding:10px 14px;font-weight:600;color:#1E293B;white-space:nowrap;border-bottom:1px solid #F1F5F9;">{r[0]}</td>
+              <td style="padding:10px 14px;font-weight:700;color:#0F172A;white-space:nowrap;border-bottom:1px solid #F1F5F9;">{r[1]}</td>
+              <td style="padding:10px 14px;color:#475569;line-height:1.5;border-bottom:1px solid #F1F5F9;">{r[2]}</td>
+            </tr>"""
+            for r in rows
+        )
+        st.markdown(f"""
+        <table style="width:100%;border-collapse:collapse;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;font-size:.92rem;">
+          <thead>
+            <tr style="background:#F8FAFC;">
+              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;">What we're measuring</th>
+              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;">Your number</th>
+              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;">What it means</th>
+            </tr>
+          </thead>
+          <tbody>{rows_html}</tbody>
+        </table>
+        """, unsafe_allow_html=True)
 
-        with st.expander("Show advanced numbers"):
-            st.caption("These are helpful for deeper analysis, but the plain-English summary above is the main takeaway.")
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+        with st.expander("Show the detailed numbers"):
+            st.caption("These are the technical numbers behind the summary above.")
             advanced_df = pd.DataFrame([{
                 "Blueprint Score": f"{rtv_score}/100",
-                "Label": rtv_label,
+                "Rating": rtv_label,
                 "Ending Portfolio": money(ending_portfolio),
-                "Max Withdrawal Rate": pct(max_wr),
-                "Average Withdrawal Rate": pct(avg_wr),
-                "Average Income Coverage": pct(avg_income_coverage),
-                "Unmet Need": money(df["Unmet Need"].sum()),
+                "Highest yearly savings draw": pct(max_wr),
+                "Average yearly savings draw": pct(avg_wr),
+                "Average income coverage": pct(avg_income_coverage),
+                "Spending not covered": money(df["Unmet Need"].sum()),
             }])
-            st.dataframe(advanced_df, use_container_width=True, hide_index=True)
+            st.markdown(html_table(advanced_df), unsafe_allow_html=True)
 
             if rtv_reasons:
                 st.markdown("**Why this score?**")
@@ -13162,7 +13321,7 @@ section[data-testid="stSidebar"] button {
                         "Max Withdrawal Rate": pct(s["rough_wr"]),
                     })
 
-                st.dataframe(pd.DataFrame(compare_rows), use_container_width=True, hide_index=True)
+                st.markdown(html_table(pd.DataFrame(compare_rows)), unsafe_allow_html=True)
 
                 if len(compare_items) >= 2:
                     sorted_items = sorted(compare_items, key=lambda x: x["summary"]["score"], reverse=True)
@@ -13566,7 +13725,7 @@ if active_page == PAGE_NAMES[10]:
     st.subheader("Top state rankings")
     st.caption("These are broad state-level rankings. Use them as a shortlist, not a final answer.")
 
-    display = ranked_df.head(10).copy()
+    display = ranked_df.drop_duplicates(subset="State").head(10).copy()
     display["Best For"] = display["Best Fit"]
     display["Watch Out For"] = display["Watch Outs"]
     state_table = display[[
@@ -13578,7 +13737,7 @@ if active_page == PAGE_NAMES[10]:
         "Watch Out For",
         "Example Places",
     ]]
-    st.dataframe(state_table, use_container_width=True, hide_index=True, height=390)
+    st.markdown(html_table(state_table), unsafe_allow_html=True)
 
     with st.expander("What the scores mean", expanded=False):
         explain = pd.DataFrame([
@@ -13588,7 +13747,7 @@ if active_page == PAGE_NAMES[10]:
             ["Lifestyle", "Retirement should fit how you actually want to live."],
             ["Climate", "Weather, snowbird plans, and seasonal comfort matter."],
         ], columns=["Factor", "Why It Matters"])
-        st.dataframe(explain, use_container_width=True, hide_index=True)
+        st.markdown(html_table(explain), unsafe_allow_html=True)
 
     # Personalized ranking
     st.divider()
@@ -13654,12 +13813,13 @@ if active_page == PAGE_NAMES[10]:
         )
 
     st.markdown("### What matters most to you?")
+    st.caption("Rate each factor 0–10. Higher = more important to you. These adjust which places rise to the top.")
     w1, w2, w3, w4, w5 = st.columns(5)
-    tax_weight = w1.slider("Taxes", 0, 10, 8)
-    cost_weight = w2.slider("Cost", 0, 10, 7)
-    healthcare_weight = w3.slider("Healthcare", 0, 10, 8)
-    lifestyle_weight = w4.slider("Lifestyle", 0, 10, 7)
-    climate_weight = w5.slider("Climate", 0, 10, 6)
+    tax_weight        = w1.number_input("Taxes",       0, 10, 8, step=1, help="How much low state income and property taxes matter to you.")
+    cost_weight       = w2.number_input("Cost of living", 0, 10, 7, step=1, help="How much overall affordability matters.")
+    healthcare_weight = w3.number_input("Healthcare",  0, 10, 8, step=1, help="Proximity and quality of healthcare and hospitals.")
+    lifestyle_weight  = w4.number_input("Lifestyle",   0, 10, 7, step=1, help="Culture, dining, arts, walkability, and community fit.")
+    climate_weight    = w5.number_input("Climate",     0, 10, 6, step=1, help="Weather preferences — warm, mild, or four seasons.")
 
     p1, p2, p3 = st.columns(3)
     preferred_states = p1.multiselect(
@@ -13744,32 +13904,16 @@ if active_page == PAGE_NAMES[10]:
         k3.metric("Est. Annual Tax", money(best_personal["Estimated Annual Tax"]))
         k4.metric("Effective Rate", pct(best_personal["Effective Tax Rate"]))
 
-        personal_display = personalized_df.copy()
+        personal_display = personalized_df.drop_duplicates(subset="State").copy()
         for col in ["Estimated Annual Tax", "Income Tax", "Property Tax", "Sales Tax"]:
             personal_display[col] = personal_display[col].map(money)
         personal_display["Effective Tax Rate"] = personal_display["Effective Tax Rate"].map(pct)
 
         st.subheader("Personalized top states")
-        st.dataframe(
-            personal_display[
-                [
-                    "Personal Rank",
-                    "State",
-                    "Preference Fit Score",
-                    "Estimated Annual Tax",
-                    "Effective Tax Rate",
-                    "Cost Score",
-                    "Healthcare Score",
-                    "Lifestyle Score",
-                    "Climate Score",
-                    "Example Places",
-                    "Best Fit",
-                ]
-            ].head(12),
-            use_container_width=True,
-            hide_index=True,
-            height=430
-        )
+        st.markdown(html_table(personal_display[[
+                    "Personal Rank","State","Preference Fit Score","Estimated Annual Tax",
+                    "Effective Tax Rate","Cost Score","Healthcare Score","Lifestyle Score",
+                    "Climate Score","Example Places"]]), unsafe_allow_html=True)
 
         with st.expander("Show tax breakdown chart and deeper state comparison", expanded=False):
             st.pyplot(plot_personalized_tax_burden(personalized_df), use_container_width=True)
@@ -13793,31 +13937,12 @@ if active_page == PAGE_NAMES[10]:
                     st.pyplot(plot_state_comparison_scores(phase3_compare_df), use_container_width=True)
                     st.pyplot(plot_state_tax_stack(phase3_compare_df), use_container_width=True)
 
-                    phase3_display = phase3_compare_df.copy()
+                    phase3_display = phase3_compare_df.drop_duplicates(subset="State").copy()
                     for col in ["Estimated Annual Tax", "Income Tax", "Property Tax", "Sales Tax"]:
                         phase3_display[col] = phase3_display[col].map(money)
                     phase3_display["Effective Tax Rate"] = phase3_display["Effective Tax Rate"].map(pct)
 
-                    st.dataframe(
-                        phase3_display[[
-                            "State",
-                            "Overall Score",
-                            "Personalized Score",
-                            "Estimated Annual Tax",
-                            "Income Tax",
-                            "Property Tax",
-                            "Sales Tax",
-                            "Effective Tax Rate",
-                            "Cost Score",
-                            "Healthcare Score",
-                            "Lifestyle Score",
-                            "Climate Score",
-                            "Example Places",
-                            "Watch Outs",
-                        ]],
-                        use_container_width=True,
-                        hide_index=True
-                    )
+                    st.markdown(html_table(phase3_display[["State","Overall Score","Personalized Score","Estimated Annual Tax","Income Tax","Property Tax","Sales Tax","Effective Tax Rate","Cost Score","Healthcare Score","Lifestyle Score","Climate Score"]]), unsafe_allow_html=True)
 
                     st.markdown("### Plain-English comparison notes")
                     for note in build_compare_narrative(phase3_compare_df):
@@ -13853,11 +13978,12 @@ if active_page == PAGE_NAMES[10]:
                 key="optimized_city_priority"
             )
         with c3:
-            golf_weight = st.slider(
-                "Golf / recreation importance",
+            golf_weight = st.number_input(
+                "Golf / outdoor recreation (0–10)",
                 min_value=0,
                 max_value=10,
                 value=7,
+                step=1,
                 key="optimized_golf_weight",
                 help="Adds another preference factor for golf, outdoor recreation, and active lifestyle."
             )
@@ -13885,6 +14011,7 @@ if active_page == PAGE_NAMES[10]:
             wants_snowbird=warm_weather_bonus,
         )
 
+        location_recommendations = location_recommendations.drop_duplicates(subset="Place")
         if location_recommendations.empty:
             st.warning("No city recommendations match the current filters. Widen the state filter or change the lifestyle priority.")
         else:
@@ -13905,30 +14032,10 @@ if active_page == PAGE_NAMES[10]:
             location_display = location_recommendations.copy()
             location_display["Estimated Annual State/Local Tax"] = location_display["Estimated Annual State/Local Tax"].map(money)
 
-            st.dataframe(
-                location_display[[
-                    "Place",
-                    "State",
-                    "Type",
-                    "Recommended Fit Score",
-                    "Estimated Annual State/Local Tax",
-                    "Affordability",
-                    "Healthcare",
-                    "Lifestyle",
-                    "Climate",
-                    "Golf / Recreation",
-                    "Why It Fits",
-                    "Watch Outs",
-                ]].head(12),
-                use_container_width=True,
-                hide_index=True,
-                height=430
-            )
-
-            with st.expander("Show city chart and recommendation notes", expanded=False):
-                st.pyplot(plot_location_engine_scores(location_recommendations), use_container_width=True)
-                for note in build_location_recommendation_summary(location_recommendations):
-                    st.markdown(f"- {note}")
+            st.markdown(html_table(location_display[["Place","State","Type","Recommended Fit Score","Estimated Annual State/Local Tax","Affordability","Healthcare","Lifestyle","Climate","Golf / Recreation","Why It Fits","Watch Outs"]].head(12)), unsafe_allow_html=True)
+            st.pyplot(plot_location_engine_scores(location_recommendations), use_container_width=True)
+            for note in build_location_recommendation_summary(location_recommendations):
+                st.markdown(f"- {note}")
 
             if warm_weather_bonus:
                 snowbird_df = build_snowbird_recommendations(city_df, current_home_state="Michigan")
@@ -13937,7 +14044,7 @@ if active_page == PAGE_NAMES[10]:
                         snowbird_display = snowbird_df[[
                             "Place", "State", "Type", "Snowbird Fit Score", "Climate", "Lifestyle", "Golf / Recreation", "Snowbird Strategy", "Watch Outs"
                         ]].copy()
-                        st.dataframe(snowbird_display, use_container_width=True, hide_index=True)
+                        st.markdown(html_table(snowbird_display), unsafe_allow_html=True)
 
             # Save favorites
             st.divider()
@@ -13987,7 +14094,7 @@ if active_page == PAGE_NAMES[10]:
                     "Healthcare", "Affordability", "Lifestyle", "Climate", "Golf / Recreation", "Why It Fits", "Watch Outs"
                 ] if c in saved_display.columns]
 
-                st.dataframe(saved_display[show_cols], use_container_width=True, hide_index=True)
+                st.markdown(html_table(saved_display[show_cols]), unsafe_allow_html=True)
 
                 saved_csv = saved_df.to_csv(index=False).encode("utf-8")
                 st.download_button(
@@ -14492,15 +14599,7 @@ def render_resources_page():
 
     def show_resource_table(table_df, include_category=False):
         cols = (["Category"] if include_category else []) + ["Resource", "Summary", "Source", "Validate"]
-        st.dataframe(
-            table_df[cols],
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Summary": st.column_config.TextColumn("Summary", width="large"),
-                "Validate": st.column_config.LinkColumn("Validate", display_text="Open source", width="small"),
-            },
-        )
+        st.markdown(html_table(table_df[cols]), unsafe_allow_html=True)
 
     search = st.text_input(
         "Search resources",
@@ -14531,7 +14630,7 @@ def render_resources_page():
             ["8", "Places to Retire", "Compare states and cities for retirement taxes, cost, healthcare, lifestyle, and climate."],
             ["9", "Blueprint Report", "Export a premium report to save, review with a spouse, or discuss with a professional."],
         ], columns=["Step", "Section", "What to do"])
-        st.dataframe(path_df, use_container_width=True, hide_index=True)
+        st.markdown(html_table(path_df), unsafe_allow_html=True)
 
         st.subheader("Suggested path")
         st.write("1. Enter your best estimates in Start My Blueprint.\n\n2. Add spending and income.\n\n3. Review the dashboard and action plan.\n\n4. Run confidence and stress tests.\n\n5. Export your Blueprint Report.")
@@ -14640,7 +14739,7 @@ if active_page == "Help / Instructions":
         ["Roth Conversion", "Moving money from traditional pre-tax accounts to Roth accounts. This may create taxes today but can reduce future tax exposure."],
         ["Unmet Need", "Spending need that the plan could not cover in a projected year. Any unmet need is a major warning sign."],
     ], columns=["Term", "Meaning"])
-    st.dataframe(terms, use_container_width=True, hide_index=True)
+    st.markdown(html_table(terms), unsafe_allow_html=True)
 
     st.subheader("How to Interpret Results")
     st.write("""
