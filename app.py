@@ -14194,63 +14194,70 @@ if active_page == PAGE_NAMES[10]:
 
 if active_page == PAGE_NAMES[11]:
     require_account(intended_page="Monte Carlo", reason="default")
-    render_page_shell("Confidence Test", "Stress test your blueprint across many market paths to understand the probability of success and the range of possible outcomes.", "🎲")
-    page_help(
-        "Monte Carlo Simulator",
-        "This page runs hundreds or thousands of randomized market-return paths to estimate how often the retirement plan survives. It helps show sequence-of-return risk and the range of possible ending portfolio balances."
-    )
-
-    st.caption("Tax estimates now include taxable Social Security when provisional income exceeds IRS thresholds. Roth and cash withdrawals are modeled as tax-free; taxable brokerage is still simplified until the capital-gains phase.")
+    render_page_shell("Confidence Test", "See how often your retirement plan succeeds across different market scenarios.", "🎲")
+    
     if not can_run:
         st.info("Complete required inputs first.")
     else:
-        st.warning("Educational estimate only. Monte Carlo results depend heavily on the return, volatility, inflation, and spending assumptions you enter.")
+        st.markdown("""
+        ### What This Test Does
+        
+        Retirement is risky because **markets go up and down unpredictably**. Some years you'll get great returns; other years you'll lose money. This test simulates hundreds of different "what-if" market paths to show you: **How often does your plan survive?**
+        
+        It's like asking: "If I retire today, and the markets behave the way they have in the past (but in random order), how many times out of 100 would I still have money left at age 95?"
+        
+        **Why this matters:** A plan that looks great in a "typical" market scenario might fail if bad years hit early in retirement. This test helps you see if your plan is resilient.
+        """)
+        
+        st.warning("Educational estimate only. Results depend on your return, volatility, inflation, and spending assumptions.")
 
-        st.subheader("Simulation Settings")
+        st.markdown("---")
+        st.markdown("### Set Up Your Assumptions")
+        st.markdown("Adjust these settings to test different scenarios. The app starts with your current growth assumption and typical market volatility.")
 
         c1, c2, c3, c4 = st.columns(4)
 
         num_simulations = c1.number_input(
-            "Number of simulations",
+            "How many different market paths to test?",
             min_value=100,
             max_value=2000,
             value=500,
             step=100,
-            help="More simulations give a smoother estimate, but may run slower."
+            help="More = smoother results, but slightly slower to run. 500 is usually plenty."
         )
 
         mean_return = c2.slider(
-            "Average annual return",
+            "Expected average annual return (%)",
             min_value=0.0,
             max_value=30.0,
             value=min(max(float(st.session_state.growth_return) * 100, 0.0), 30.0),
             step=0.25,
             format="%.2f%%",
-            help="Expected average annual return for growth assets."
+            help="Long-term average return. Based on your current assumption."
         ) / 100
 
         volatility = c3.slider(
-            "Annual volatility",
+            "Market volatility (%)",
             min_value=1.0,
             max_value=25.0,
             value=12.0,
             step=0.5,
-            help="How much yearly returns vary. Higher volatility increases sequence risk."
+            help="How wild the ups and downs are. Higher = choppier rides. 12% is typical for a balanced portfolio."
         ) / 100
 
         seed = c4.number_input(
-            "Random seed",
+            "Random seed (for repeating results)",
             min_value=1,
             max_value=99999,
             value=42,
             step=1,
-            help="Keeps results repeatable. Change this to generate a different random set."
+            help="Keep this the same to get identical results. Change it to see a different set of random paths."
         )
 
-        run_mc = st.button("Run Monte Carlo Simulation", type="primary", use_container_width=True)
+        run_mc = st.button("Run Confidence Test", type="primary", use_container_width=True)
 
         if run_mc:
-            with st.spinner("Running Monte Carlo simulations..."):
+            with st.spinner("Testing your plan across different market paths..."):
                 st.session_state.mc_result = run_monte_carlo_simulation(
                     int(num_simulations),
                     float(mean_return),
@@ -14259,13 +14266,14 @@ if active_page == PAGE_NAMES[11]:
                 )
 
         if "mc_result" not in st.session_state:
-            st.info("Click **Run Monte Carlo Simulation** to generate probability-of-success results.")
+            st.info("👆 Click **Run Confidence Test** to see the results.")
         else:
             mc = st.session_state.mc_result
             results_df = mc["results_df"]
             paths_df = mc["paths_df"]
 
-            st.subheader("Monte Carlo Results")
+            st.markdown("---")
+            st.markdown("### Your Results")
 
             success_rate = mc["success_rate"]
             median_ending = mc["median_ending"]
@@ -14273,36 +14281,57 @@ if active_page == PAGE_NAMES[11]:
             p90_ending = mc["p90_ending"]
 
             m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Probability of Success", pct(success_rate))
-            m2.metric("Median Ending Portfolio", money(median_ending))
-            m3.metric("10th Percentile Ending", money(p10_ending))
-            m4.metric("90th Percentile Ending", money(p90_ending))
+            m1.metric("Success Rate", pct(success_rate), help="What percent of the 500 paths succeed (you don't run out of money)?")
+            m2.metric("Median Ending", money(median_ending), help="The middle amount left over at age 95 across all paths.")
+            m3.metric("Unlucky Scenario (10th percentile)", money(p10_ending), help="In 1 out of 10 unlucky paths, you'd have this much left.")
+            m4.metric("Lucky Scenario (90th percentile)", money(p90_ending), help="In 1 out of 10 lucky paths, you'd have this much left.")
 
             st.progress(success_rate)
 
             if success_rate >= 0.90:
-                st.success("Monte Carlo result: Strong probability of success under these assumptions.")
+                st.success("✅ **Strong success rate.** Your plan survives 90%+ of market paths. You have a robust cushion.")
             elif success_rate >= 0.75:
-                st.warning("Monte Carlo result: Moderate-to-good probability of success. Stress testing is still recommended.")
+                st.warning("✓ **Moderate success.** Your plan survives about 75–90% of market paths. Still good, but worth stress-testing.")
             elif success_rate >= 0.60:
-                st.warning("Monte Carlo result: Borderline. Consider reducing spending, delaying retirement, or improving income coverage.")
+                st.warning("⚠️ **Borderline.** Your plan succeeds 60–75% of the time. The cushion is thin. Consider: work 1–2 more years, spend less, or increase income.")
             else:
-                st.error("Monte Carlo result: High risk. The plan fails in many simulated market paths.")
+                st.error("❌ **High risk.** Your plan fails in many market paths. Major changes needed: later retirement, lower spending, or higher income.")
 
-            st.caption(
-                "Success means the plan reaches the final planning age with money remaining and no unmet spending years."
-            )
+            st.markdown("""
+            **What "success" means:** You have money left at age 95 and never run out completely in any single year.
+            """)
 
-            st.subheader("Portfolio Path Range")
+            st.markdown("---")
+            st.markdown("""
+            ### Portfolio Path Range
+            
+            This chart shows the journey of your portfolio across all the different market scenarios. Each thin line = one possible future. The thicker lines show the best case (top), worst case (bottom), and middle case (center).
+            
+            **What to look for:** Does the worst-case scenario (bottom line) still have money, or does it hit zero? That tells you how much risk you're taking.
+            """)
             st.pyplot(plot_monte_carlo_paths(paths_df, results_df), use_container_width=True)
 
-            st.subheader("Ending Portfolio Distribution")
+            st.markdown("---")
+            st.markdown("""
+            ### Ending Portfolio Distribution
+            
+            This histogram shows: Out of all the paths we tested, how much money do you typically end up with? 
+            
+            - **Tall bar at $0:** Many paths failed (portfolio depleted before age 95).
+            - **Spread to the right:** Some lucky paths with lots of money left.
+            - **Spread is narrow:** Results are pretty predictable. Spread is wide:** A lot of uncertainty.
+            """)
             st.pyplot(plot_monte_carlo_ending_distribution(results_df), use_container_width=True)
 
-            st.subheader("Simulation Detail")
+            st.markdown("---")
+            st.markdown("""
+            ### Detailed Breakdown
+            
+            Each row is one simulated market path. **Success** = you didn't run out of money. **Failed** = you depleted savings before age 95. The table shows what happened in each scenario: returns, worst year, ending balance, and when (if ever) the money ran out.
+            """)
 
             detail = results_df.copy()
-            detail["Success"] = detail["Success"].map(lambda x: "Success" if x else "Failed")
+            detail["Success"] = detail["Success"].map(lambda x: "Success ✓" if x else "Failed ❌")
             detail["Ending Portfolio"] = detail["Ending Portfolio"].map(money)
             detail["Max Withdrawal Rate"] = detail["Max Withdrawal Rate"].map(pct)
             detail["Average Return"] = detail["Average Return"].map(pct)
@@ -14311,7 +14340,7 @@ if active_page == PAGE_NAMES[11]:
 
             csv = results_df.to_csv(index=False).encode("utf-8")
             st.download_button(
-                "Download Monte Carlo CSV",
+                "Download Full Results as CSV",
                 csv,
                 "monte_carlo_results.csv",
                 "text/csv",
@@ -14323,13 +14352,28 @@ if active_page == PAGE_NAMES[11]:
 
 if active_page == PAGE_NAMES[12]:
     require_account(intended_page="Stress Tests", reason="default")
-    render_page_shell("Stress Tests", "Try tougher scenarios like lower returns, higher spending, or inflation shocks to see where your plan bends or breaks.", "🛡️")
+    render_page_shell("Stress Tests", "Test your plan against real-world challenges—bad markets, inflation, health emergencies, and recessions.", "🛡️")
 
-    st.caption("Tax estimates now include taxable Social Security when provisional income exceeds IRS thresholds. Roth and cash withdrawals are modeled as tax-free; taxable brokerage is still simplified until the capital-gains phase.")
     if not can_run:
         st.info("Complete required inputs first.")
     else:
-        st.warning("Stress tests simulate difficult retirement conditions.")
+        st.markdown("""
+        ### What This Test Does
+        
+        The Confidence Test shows you odds across random scenarios. This page asks: **What happens if a specific bad thing occurs?**
+        
+        We test six realistic "what if" situations:
+        1. **Base Case** — Normal market returns (your baseline)
+        2. **Bad First 3 Years** — Retiring into a bear market (the worst timing)
+        3. **High Inflation** — Prices rising faster than usual
+        4. **4% Returns** — Weak market performance
+        5. **Healthcare Shock** — Unexpected medical costs (+15% to spending)
+        6. **Severe Recession** — A major market crash and slow recovery
+        
+        For each scenario, we show: **How long does your money last?** Does the plan break, or can you still make it to age 95?
+        """)
+
+        st.info("👇 Click below to run all six stress tests against your retirement plan.")
 
         if st.button("Run Stress Tests", type="primary", use_container_width=True):
             if "stress_results_df" in st.session_state:
@@ -14394,8 +14438,13 @@ if active_page == PAGE_NAMES[12]:
             if "Years Covered" not in stress_df.columns:
                 stress_df["Years Covered"] = stress_df["Lasts Until Age"].astype(int) - int(st.session_state.current_age)
 
-            st.subheader("Stress Test Summary")
+            st.markdown("---")
+            st.markdown("### Summary Chart")
+            st.markdown("This chart compares all six scenarios. Higher bars = your plan lasts longer. Look for which stress scenario hits your plan hardest.")
             st.pyplot(plot_stress_test_chart(stress_df), use_container_width=True)
+
+            st.markdown("---")
+            st.markdown("### Detailed Results")
 
             display_df = stress_df.copy()
 
@@ -14405,19 +14454,36 @@ if active_page == PAGE_NAMES[12]:
             display_df["Max Withdrawal Rate"] = display_df["Max Withdrawal Rate"].map(pct)
             display_df["Income Coverage"] = display_df["Income Coverage"].map(pct)
 
-            st.caption("Lasts Until Age shows the first age where the plan fails, or the final plan age if it survives.")
+            st.markdown("""
+            **Lasts Until Age** = The age at which the plan runs out of money (or your target end age if it survives). 
+            
+            **Years Covered** = How many years the plan covers. If your plan goes to age 95 and it "lasts until age 95," the plan survives.
+            """)
             st.dataframe(display_df, use_container_width=True, hide_index=True)
 
+            st.markdown("---")
             st.markdown("""
-### Stress Test Definitions
+            ### What Each Scenario Means
+            
+            **Base Case**  
+            Your normal assumptions with typical market returns. This is your baseline.
+            
+            **Bad First 3 Years**  
+            You retire right before a crash (down 20%, then 12%, then 8%). Markets recover after that. This is the worst possible timing. If you survive this, you're likely golden.
+            
+            **High Inflation (6%)**  
+            Prices rise faster than usual. Your dollars don't stretch as far. Social Security and pensions often adjust for inflation, but if they don't fully keep up, you feel the squeeze.
+            
+            **4% Returns**  
+            Markets perform weakly (only 4% average annual return instead of your normal ~7%). This happens during prolonged low-growth periods.
+            
+            **Healthcare Shock**  
+            Unexpected medical costs hit (15% increase in total spending). Could be a serious illness, nursing care, or treatments not covered by Medicare.
+            
+            **Severe Recession**  
+            A major market crash (down 30%) followed by a slow recovery. Think 2008 or 2020—big hit, but markets eventually bounce back.
+            """)
 
-- **Base Case** → Uses your normal assumptions.
-- **Bad First 3 Years** → Simulates retiring into a bear market.
-- **High Inflation** → Uses 6% inflation.
-- **4% Returns** → Assumes weaker long-term market returns.
-- **Healthcare Shock** → Increases spending by 15%.
-- **Severe Recession** → Simulates a major market crash and slow recovery.
-""")
 
 
 
