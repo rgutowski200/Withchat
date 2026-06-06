@@ -7724,7 +7724,7 @@ PAGE_NAMES = [
     "Projection Table",
     "Saved Scenarios",
     "Best Places to Retire",
-    "Monte Carlo",
+    "Monte Carlo Analysis",
     "Stress Tests",
     "PDF Report",
     "AI Retirement Coach",
@@ -7746,7 +7746,7 @@ PAGE_ICONS = {
     "Projection Table": "📈",
     "Saved Scenarios": "💾",
     "Best Places to Retire": "📍",
-    "Monte Carlo": "🎲",
+    "Monte Carlo Analysis": "🎲",
     "Stress Tests": "🛡️",
     "PDF Report": "📄",
     "AI Retirement Coach": "🤖",
@@ -7768,7 +7768,7 @@ NAV_LABELS = {
     "Projection Table": "Projection",
     "Saved Scenarios": "Saved Blueprints",
     "Best Places to Retire": "Places to Retire",
-    "Monte Carlo": "Confidence Test",
+    "Monte Carlo Analysis": "Monte Carlo Analysis",
     "Stress Tests": "Stress Tests",
     "PDF Report": "Blueprint Report",
     "AI Retirement Coach": "Blueprint Coach",
@@ -7890,7 +7890,7 @@ def render_navigation():
             "Projection Table",
             "Saved Scenarios",
             "Retirement Age Optimizer",
-            "Monte Carlo",
+            "Monte Carlo Analysis",
             "Stress Tests",
             "Best Places to Retire",
             "PDF Report",
@@ -14193,8 +14193,8 @@ if active_page == PAGE_NAMES[10]:
 
 
 if active_page == PAGE_NAMES[11]:
-    require_account(intended_page="Monte Carlo", reason="default")
-    render_page_shell("Confidence Test", "See how often your retirement plan succeeds across different market scenarios.", "🎲")
+    require_account(intended_page="Monte Carlo Analysis", reason="default")
+    render_page_shell("Monte Carlo Analysis", "See how often your retirement plan succeeds across different market scenarios.", "🎲")
     
     if not can_run:
         st.info("Complete required inputs first.")
@@ -14378,22 +14378,24 @@ if active_page == PAGE_NAMES[12]:
         st.markdown("""
         ### What This Test Does
         
-        The Confidence Test shows you odds across random scenarios. This page asks: **What happens if a specific bad thing occurs?**
+        The **Monte Carlo Analysis** shows you overall odds across random scenarios. This page asks: **What happens if a specific bad thing occurs?**
         
         We test six realistic "what if" situations:
-        1. **Base Case** — Normal market returns (your baseline)
-        2. **Bad First 3 Years** — Retiring into a bear market (the worst timing)
-        3. **High Inflation** — Prices rising faster than usual
-        4. **4% Returns** — Weak market performance
-        5. **Healthcare Shock** — Unexpected medical costs (+15% to spending)
-        6. **Severe Recession** — A major market crash and slow recovery
+        1. **Base Case** — Normal market returns (your baseline for comparison)
+        2. **Bad First 3 Years** — Retiring right before a crash (the worst timing possible)
+        3. **High Inflation** — Prices rising 6% per year (faster than usual)
+        4. **Weak Markets** — Only 4% annual returns (prolonged slow growth)
+        5. **Healthcare Crisis** — Unexpected medical costs spike by 15%
+        6. **Severe Recession** — Major crash (2008 or 2020 style) then slow recovery
         
-        For each scenario, we show: **How long does your money last?** Does the plan break, or can you still make it to age 95?
+        **For each scenario, we show:** How long does your money last? Does your plan break, or do you make it to age 95?
+        
+        **Why this matters:** Some of these scenarios are unlikely. Some are very possible. Knowing which ones hurt your plan most helps you understand exactly what to worry about.
         """)
 
-        st.info("👇 Click below to run all six stress tests against your retirement plan.")
+        st.info("👇 Click below to test all six scenarios against your retirement plan.")
 
-        if st.button("Run Stress Tests", type="primary", use_container_width=True):
+        if st.button("Run Scenario Tests", type="primary", use_container_width=True):
             if "stress_results_df" in st.session_state:
                 del st.session_state.stress_results_df
 
@@ -14425,14 +14427,14 @@ if active_page == PAGE_NAMES[12]:
 
             stress_results.append(
                 run_stress_test_scenario(
-                    "4% Returns",
+                    "Weak Markets",
                     forced_returns=[0.04] * years
                 )
             )
 
             stress_results.append(
                 run_stress_test_scenario(
-                    "Healthcare Shock",
+                    "Healthcare Crisis",
                     spending_multiplier=1.15
                 )
             )
@@ -14457,12 +14459,20 @@ if active_page == PAGE_NAMES[12]:
                 stress_df["Years Covered"] = stress_df["Lasts Until Age"].astype(int) - int(st.session_state.current_age)
 
             st.markdown("---")
-            st.markdown("### Summary Chart")
-            st.markdown("This chart compares all six scenarios. Higher bars = your plan lasts longer. Look for which stress scenario hits your plan hardest.")
+            st.markdown("""
+            ### Your Results Across Six Scenarios
+            
+            Look at the chart below to see which scenarios hurt your plan most. 
+            
+            **What to watch for:**
+            - **All scenarios last to age 95?** Excellent—your plan is resilient.
+            - **Most scenarios work, but one fails early?** That scenario is your weak point. Address it with changes to spending, income, or retirement age.
+            - **Multiple scenarios fail?** Your plan needs structural changes (work longer, spend less, earn more).
+            """)
             st.pyplot(plot_stress_test_chart(stress_df), use_container_width=True)
 
             st.markdown("---")
-            st.markdown("### Detailed Results")
+            st.markdown("### How Long Your Money Lasts in Each Scenario")
 
             display_df = stress_df.copy()
 
@@ -14473,33 +14483,42 @@ if active_page == PAGE_NAMES[12]:
             display_df["Income Coverage"] = display_df["Income Coverage"].map(pct)
 
             st.markdown("""
-            **Lasts Until Age** = The age at which the plan runs out of money (or your target end age if it survives). 
-            
-            **Years Covered** = How many years the plan covers. If your plan goes to age 95 and it "lasts until age 95," the plan survives.
+            **Lasts Until Age** = The age where money runs out (or your target end age if it survives).  
+            **Years Covered** = How many retirement years this scenario covers. If you planned to age 95 and it says 95, the scenario works.
             """)
             st.dataframe(display_df, use_container_width=True, hide_index=True)
 
             st.markdown("---")
             st.markdown("""
-            ### What Each Scenario Means
+            ### What Each Scenario Means in Plain English
             
             **Base Case**  
-            Your normal assumptions with typical market returns. This is your baseline.
+            Your normal assumptions with your typical market return estimate. This is the control—how your plan looks under "average" conditions. Nothing special happens; markets behave like they usually do.
             
-            **Bad First 3 Years**  
-            You retire right before a crash (down 20%, then 12%, then 8%). Markets recover after that. This is the worst possible timing. If you survive this, you're likely golden.
+            **Bad First 3 Years** ⚠️  
+            You retire, then immediately the market crashes. Year 1 down 20%, Year 2 down 12%, Year 3 down 8%. Then markets recover. This is **the worst timing possible**—and it happens sometimes. If your plan survives this, you're probably okay.
             
-            **High Inflation (6%)**  
-            Prices rise faster than usual. Your dollars don't stretch as far. Social Security and pensions often adjust for inflation, but if they don't fully keep up, you feel the squeeze.
+            **High Inflation (6%)** 📈  
+            Prices rise 6% per year instead of the usual 2-3%. Your groceries, utilities, and healthcare cost a lot more. Fixed-income sources (pensions) don't adjust, so they buy less each year. This squeezes retirees hard.
             
-            **4% Returns**  
-            Markets perform weakly (only 4% average annual return instead of your normal ~7%). This happens during prolonged low-growth periods.
+            **Weak Markets (4% returns)** 📉  
+            Markets perform poorly for 30 years—only 4% annual return instead of your 7-8% assumption. This happens during long "lost decades" (like stocks from 2000-2010). You're not losing money; it's just growing very slowly.
             
-            **Healthcare Shock**  
-            Unexpected medical costs hit (15% increase in total spending). Could be a serious illness, nursing care, or treatments not covered by Medicare.
+            **Healthcare Crisis** 🏥  
+            Your healthcare costs spike 15% above what you budgeted. Could be serious illness, long-term care, treatments not covered by Medicare, or nursing home costs. Most retirees worry about this the most.
             
-            **Severe Recession**  
-            A major market crash (down 30%) followed by a slow recovery. Think 2008 or 2020—big hit, but markets eventually bounce back.
+            **Severe Recession** 🔴  
+            Major market crash (down 30%), followed by slow recovery (down 15%, flat, then up 3%). Think 2008 financial crisis or 2020 pandemic crash. Scary, but markets eventually bounce back.
+            
+            ---
+            
+            ### How to Use These Results
+            
+            **If most scenarios work:** Congratulations. Your plan is resilient. Focus on the one or two scenarios that hurt most.
+            
+            **If only Base Case works:** Your plan is fragile. You need to make structural changes (work longer, spend less, earn more from part-time work). Test those changes using the **Action Plan** page.
+            
+            **If multiple scenarios fail:** Your retirement timing is too aggressive. Try delaying 1-2 years, or reducing spending by 10-15%. Even small changes often move you from "failing" to "passing" most scenarios.
             """)
 
 
