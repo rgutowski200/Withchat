@@ -14256,7 +14256,7 @@ if active_page == PAGE_NAMES[11]:
             paths_df = mc_result["paths_df"]
 
             st.markdown("---")
-            st.markdown("### Your Success Rate")
+            st.markdown("### What Your Success Rate Means")
 
             success_rate = mc_result.get("success_rate", 0)
             
@@ -14266,78 +14266,104 @@ if active_page == PAGE_NAMES[11]:
             with col1:
                 if success_rate >= 0.90:
                     st.success(f"✅ **{pct(success_rate)} Success Rate**")
-                    st.markdown("Your plan survives 90%+ of market scenarios. You have a strong cushion.")
+                    st.markdown("### Your Plan Is Strong")
+                    st.markdown(f"""
+                    **What this means:** Out of 500 simulated market futures, your plan survives in {int(success_rate * 500)} of them.
+                    
+                    This is excellent. You have built a retirement plan that can weather most market storms. Even in unlucky scenarios, you still have money left.
+                    
+                    **Next step:** Check out the **Stress Tests** page to see how your plan handles specific challenges (healthcare costs, inflation spikes, recessions). Then you'll know exactly where your weak points are—and that lets you decide if you want more cushion.
+                    """)
                 elif success_rate >= 0.75:
                     st.warning(f"✓ **{pct(success_rate)} Success Rate**")
-                    st.markdown("Your plan survives 75–90% of market scenarios. Good, but keep an eye on things.")
+                    st.markdown("### Your Plan Is Okay, But Has Risk")
+                    st.markdown(f"""
+                    **What this means:** Out of 500 simulated market futures, your plan survives in {int(success_rate * 500)} of them. In the remaining {int((1-success_rate) * 500)}, you run out of money before age 95.
+                    
+                    This is workable, but it means **one bad market crash early in retirement could break the plan**. You're relying on luck.
+                    
+                    **What you can do:**
+                    - Work 1–2 more years (small changes have big impact)
+                    - Reduce spending by 5–10%
+                    - Explore part-time work in early retirement
+                    - Check the **Stress Tests** page to see which scenarios hurt most
+                    
+                    **Next step:** Go to the **Action Plan** page to see which lever has the biggest impact.
+                    """)
                 elif success_rate >= 0.60:
                     st.warning(f"⚠️ **{pct(success_rate)} Success Rate**")
-                    st.markdown("Your plan survives 60–75% of market scenarios. The cushion is thin. Consider working 1–2 more years, spending less, or increasing income.")
+                    st.markdown("### Your Plan Needs Work")
+                    st.markdown(f"""
+                    **What this means:** Out of 500 simulated market futures, your plan survives in {int(success_rate * 500)} of them. In the remaining {int((1-success_rate) * 500)} scenarios, you run out of money.
+                    
+                    This is **borderline risky**. More than 1 in 3 scenarios end with depleted savings. If you retire now and get unlucky, you could run out of money in your 80s.
+                    
+                    **The good news:** Small changes create big improvements. Here's what works:
+                    
+                    **1. Delay Retirement (Biggest Impact)**
+                    - Working 1 more year = 7-10 more years of income AND 1 fewer year of withdrawals
+                    - This alone often moves success rate from 60% → 75%+
+                    
+                    **2. Reduce Spending (Good Impact)**
+                    - Spending $1,000/month less = saves $360,000 over 30 years
+                    - Builds immediate cushion against bad markets
+                    
+                    **3. Boost Income (Excellent Impact)**
+                    - Part-time work early in retirement ($500/month) removes huge pressure
+                    - Even temporary income (5-10 years) changes everything
+                    
+                    **Next step:** Go to the **Action Plan** page and test which change helps most. Try different combinations.
+                    """)
                 else:
                     st.error(f"❌ **{pct(success_rate)} Success Rate**")
-                    st.markdown("Your plan fails in many scenarios. Major changes needed: later retirement, lower spending, or higher income.")
+                    st.markdown("### Your Plan Needs Major Changes")
+                    st.markdown(f"""
+                    **What this means:** Out of 500 simulated market futures, your plan survives in only {int(success_rate * 500)} of them. In {int((1-success_rate) * 500)} scenarios, you run out of money.
+                    
+                    **This is telling you something important:** Retiring at your target age with your current spending is too risky. But don't lose hope—there are proven paths forward.
+                    
+                    ---
+                    
+                    ### Your Real Options (Rank Them by What Works for You)
+                    
+                    **Option 1: Work Longer** ⏰  
+                    Working even 2-3 more years typically moves success from 40% → 70%+. Why? You're earning instead of withdrawing, AND the portfolio has more time to grow. This is usually the single biggest lever.
+                    
+                    **Option 2: Spend Less** 💰  
+                    If you're targeting $6,000/month, cutting to $5,000 (17% reduction) removes massive pressure. Many people spend less in early retirement anyway (no commute, no work clothes, no stress eating).
+                    
+                    **Option 3: Earn More** 💼  
+                    If you can add $1,000/month from part-time work, consulting, or a hobby for even 5-10 years, it transforms your plan. You don't need this forever—just during the vulnerable early years.
+                    
+                    **Option 4: Combination** 🎯  
+                    Work 1 more year + reduce spending 10% + part-time income = moves you from 40% → 85%+ success. Small changes compound.
+                    
+                    ---
+                    
+                    ### Why This Matters (The Hard Truth)
+                    
+                    You might be thinking: *"But I've worked hard. I deserve to retire now. Lots of people retire with less saved."*
+                    
+                    You're right. And here's the honest part: **40% of market futures end with you running out of money.** That's not a small risk. It means if you retire tomorrow and the markets behave like they have in the past, there's a 2 in 5 chance you'll need to go back to work or ask family for help in your 80s.
+                    
+                    That's **not a criticism of you.** It's just what the math shows. And the good news is: **the math also shows the fix.** Working 2 more years, or spending 15% less, or finding part-time income—these aren't huge changes, but they move the needle from "risky" to "very confident."
+                    
+                    ---
+                    
+                    ### Next Steps
+                    
+                    1. **Go to the Action Plan page** and test different retirement ages (try 58, 59, 60)
+                    2. **Test spending levels** (try reducing your monthly target by 10%)
+                    3. **Check Stress Tests** to see which scenarios hurt most
+                    4. **Come back here** and re-run this test after making changes
+                    
+                    You're not far away. You just need the right adjustments.
+                    """)
             
             with col2:
                 st.metric("Out of 500 Paths", f"{int(success_rate * num_simulations)} succeed")
             
             st.progress(success_rate)
-
-            st.markdown("---")
-            st.markdown("""
-            ### Your Money Over Time
-            
-            This chart shows how much money you'd have at each age under three different luck scenarios:
-            
-            - **Blue line (Typical):** The most likely outcome—average luck
-            - **Red dashed line (Bad Luck):** One of the worst 10% of outcomes
-            - **Green dashed line (Good Luck):** One of the best 10% of outcomes
-            
-            **The key insight:** All three lines stay above $0? You're in good shape. If the red line (bad luck) dips to zero, that's a concern.
-            """)
-            
-            # Create simple "Money Over Time" chart with three scenarios
-            try:
-                fig, ax = plt.subplots(figsize=(12, 6))
-                
-                if not paths_df.empty:
-                    # Get unique ages
-                    ages = sorted(paths_df["Age"].unique())
-                    
-                    # Calculate percentiles for each age
-                    median_by_age = []
-                    p10_by_age = []
-                    p90_by_age = []
-                    
-                    for age in ages:
-                        age_data = paths_df[paths_df["Age"] == age]["End Total"]
-                        if len(age_data) > 0:
-                            median_by_age.append(age_data.median())
-                            p10_by_age.append(age_data.quantile(0.10))
-                            p90_by_age.append(age_data.quantile(0.90))
-                        else:
-                            median_by_age.append(0)
-                            p10_by_age.append(0)
-                            p90_by_age.append(0)
-                    
-                    # Plot
-                    ax.plot(ages, median_by_age, linewidth=3, label="Typical Scenario (Most Likely)", color="#3B82F6", marker="o", markersize=4)
-                    ax.plot(ages, p10_by_age, linewidth=2.5, label="Bad Luck Scenario (Bottom 10%)", color="#EF4444", linestyle="--", marker="s", markersize=3)
-                    ax.plot(ages, p90_by_age, linewidth=2.5, label="Good Luck Scenario (Top 10%)", color="#10B981", linestyle="--", marker="^", markersize=3)
-                    
-                    # Formatting
-                    ax.axhline(y=0, color="black", linestyle="-", linewidth=1, alpha=0.5)
-                    ax.set_xlabel("Your Age", fontsize=12, fontweight="bold")
-                    ax.set_ylabel("Portfolio Balance", fontsize=12, fontweight="bold")
-                    ax.set_title("How Your Money Changes Over Time", fontsize=14, fontweight="bold", pad=20)
-                    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"${x/1e6:.1f}M" if x >= 1e6 else f"${x/1e3:.0f}K"))
-                    ax.legend(loc="best", fontsize=11, framealpha=0.95)
-                    ax.grid(True, alpha=0.2)
-                    
-                    st.pyplot(fig, use_container_width=True)
-                else:
-                    st.info("Not enough data to display chart.")
-            except Exception as e:
-                st.error(f"Could not generate chart: {e}")
 
 
 
