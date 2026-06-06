@@ -14204,7 +14204,7 @@ if active_page == PAGE_NAMES[11]:
         
         Retirement is risky because **markets go up and down unpredictably**. Some years you'll get great returns; other years you'll lose money. This test simulates hundreds of different "what-if" market paths to show you: **How often does your plan survive?**
         
-        It's like asking: "If I retire today, and the markets behave the way they have in the past (but in random order), how many times out of 100 would I still have money left at age 95?"
+        It's like asking: "If I retire today, and the markets behave the way they have in the past (but in random order), how many times out of 100 would I still have money left at age {int(st.session_state.get('end_age', 95))}?"
         
         **Why this matters:** A plan that looks great in a "typical" market scenario might fail if bad years hit early in retirement. This test helps you see if your plan is resilient.
         """)
@@ -14278,7 +14278,7 @@ if active_page == PAGE_NAMES[11]:
                     st.warning(f"✓ **{pct(success_rate)} Success Rate**")
                     st.markdown("### Your Plan Is Okay, But Has Risk")
                     st.markdown(f"""
-                    **What this means:** Out of 500 simulated market futures, your plan survives in {int(success_rate * 500)} of them. In the remaining {int((1-success_rate) * 500)}, you run out of money before age 95.
+                    **What this means:** Out of 500 simulated market futures, your plan survives in {int(success_rate * 500)} of them. In the remaining {int((1-success_rate) * 500)}, you run out of money before age {int(st.session_state.get('end_age', 95))}.
                     
                     This is workable, but it means **one bad market crash early in retirement could break the plan**. You're relying on luck.
                     
@@ -14388,7 +14388,7 @@ if active_page == PAGE_NAMES[12]:
         5. **Healthcare Crisis** — Unexpected medical costs spike by 15%
         6. **Severe Recession** — Major crash (2008 or 2020 style) then slow recovery
         
-        **For each scenario, we show:** How long does your money last? Does your plan break, or do you make it to age 95?
+        **For each scenario, we show:** How long does your money last? Does your plan break, or do you make it to age {int(st.session_state.get('end_age', 95))}?
         
         **Why this matters:** Some of these scenarios are unlikely. Some are very possible. Knowing which ones hurt your plan most helps you understand exactly what to worry about.
         """)
@@ -14465,7 +14465,7 @@ if active_page == PAGE_NAMES[12]:
             Look at the chart below to see which scenarios hurt your plan most. 
             
             **What to watch for:**
-            - **All scenarios last to age 95?** Excellent—your plan is resilient.
+            - **All scenarios last to age {int(st.session_state.get('end_age', 95))}?** Excellent—your plan is resilient.
             - **Most scenarios work, but one fails early?** That scenario is your weak point. Address it with changes to spending, income, or retirement age.
             - **Multiple scenarios fail?** Your plan needs structural changes (work longer, spend less, earn more).
             """)
@@ -14484,7 +14484,7 @@ if active_page == PAGE_NAMES[12]:
 
             st.markdown("""
             **Lasts Until Age** = The age where money runs out (or your target end age if it survives).  
-            **Years Covered** = How many retirement years this scenario covers. If you planned to age 95 and it says 95, the scenario works.
+            **Years Covered** = How many retirement years this scenario covers. If you planned to age {int(st.session_state.get('end_age', 95))} and it says {int(st.session_state.get('end_age', 95))}, the scenario works.
             """)
             st.dataframe(display_df, use_container_width=True, hide_index=True)
 
