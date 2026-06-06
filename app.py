@@ -14199,12 +14199,13 @@ if active_page == PAGE_NAMES[11]:
     if not can_run:
         st.info("Complete required inputs first.")
     else:
-        st.markdown("""
+        end_age = int(st.session_state.get('end_age', 95))
+        st.markdown(f"""
         ### What This Test Does
         
         Retirement is risky because **markets go up and down unpredictably**. Some years you'll get great returns; other years you'll lose money. This test simulates hundreds of different "what-if" market paths to show you: **How often does your plan survive?**
         
-        It's like asking: "If I retire today, and the markets behave the way they have in the past (but in random order), how many times out of 100 would I still have money left at age {int(st.session_state.get('end_age', 95))}?"
+        It's like asking: "If I retire today, and the markets behave the way they have in the past (but in random order), how many times out of 100 would I still have money left at age {end_age}?"
         
         **Why this matters:** A plan that looks great in a "typical" market scenario might fail if bad years hit early in retirement. This test helps you see if your plan is resilient.
         """)
@@ -14277,8 +14278,9 @@ if active_page == PAGE_NAMES[11]:
                 elif success_rate >= 0.75:
                     st.warning(f"✓ **{pct(success_rate)} Success Rate**")
                     st.markdown("### Your Plan Is Okay, But Has Risk")
+                    end_age = int(st.session_state.get('end_age', 95))
                     st.markdown(f"""
-                    **What this means:** Out of 500 simulated market futures, your plan survives in {int(success_rate * 500)} of them. In the remaining {int((1-success_rate) * 500)}, you run out of money before age {int(st.session_state.get('end_age', 95))}.
+                    **What this means:** Out of 500 simulated market futures, your plan survives in {int(success_rate * 500)} of them. In the remaining {int((1-success_rate) * 500)}, you run out of money before age {end_age}.
                     
                     This is workable, but it means **one bad market crash early in retirement could break the plan**. You're relying on luck.
                     
@@ -14375,7 +14377,8 @@ if active_page == PAGE_NAMES[12]:
     if not can_run:
         st.info("Complete required inputs first.")
     else:
-        st.markdown("""
+        end_age = int(st.session_state.get('end_age', 95))
+        st.markdown(f"""
         ### What This Test Does
         
         The **Monte Carlo Analysis** shows you overall odds across random scenarios. This page asks: **What happens if a specific bad thing occurs?**
@@ -14388,7 +14391,7 @@ if active_page == PAGE_NAMES[12]:
         5. **Healthcare Crisis** — Unexpected medical costs spike by 15%
         6. **Severe Recession** — Major crash (2008 or 2020 style) then slow recovery
         
-        **For each scenario, we show:** How long does your money last? Does your plan break, or do you make it to age {int(st.session_state.get('end_age', 95))}?
+        **For each scenario, we show:** How long does your money last? Does your plan break, or do you make it to age {end_age}?
         
         **Why this matters:** Some of these scenarios are unlikely. Some are very possible. Knowing which ones hurt your plan most helps you understand exactly what to worry about.
         """)
@@ -14458,14 +14461,14 @@ if active_page == PAGE_NAMES[12]:
             if "Years Covered" not in stress_df.columns:
                 stress_df["Years Covered"] = stress_df["Lasts Until Age"].astype(int) - int(st.session_state.current_age)
 
-            st.markdown("---")
-            st.markdown("""
+            end_age = int(st.session_state.get('end_age', 95))
+            st.markdown(f"""
             ### Your Results Across Six Scenarios
             
             Look at the chart below to see which scenarios hurt your plan most. 
             
             **What to watch for:**
-            - **All scenarios last to age {int(st.session_state.get('end_age', 95))}?** Excellent—your plan is resilient.
+            - **All scenarios last to age {end_age}?** Excellent—your plan is resilient.
             - **Most scenarios work, but one fails early?** That scenario is your weak point. Address it with changes to spending, income, or retirement age.
             - **Multiple scenarios fail?** Your plan needs structural changes (work longer, spend less, earn more).
             """)
@@ -14482,9 +14485,10 @@ if active_page == PAGE_NAMES[12]:
             display_df["Max Withdrawal Rate"] = display_df["Max Withdrawal Rate"].map(pct)
             display_df["Income Coverage"] = display_df["Income Coverage"].map(pct)
 
-            st.markdown("""
+            end_age = int(st.session_state.get('end_age', 95))
+            st.markdown(f"""
             **Lasts Until Age** = The age where money runs out (or your target end age if it survives).  
-            **Years Covered** = How many retirement years this scenario covers. If you planned to age {int(st.session_state.get('end_age', 95))} and it says {int(st.session_state.get('end_age', 95))}, the scenario works.
+            **Years Covered** = How many retirement years this scenario covers. If you planned to age {end_age} and it says {end_age}, the scenario works.
             """)
             st.dataframe(display_df, use_container_width=True, hide_index=True)
 
