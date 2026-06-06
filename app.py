@@ -7890,6 +7890,8 @@ def render_navigation():
             "Projection Table",
             "Saved Scenarios",
             "Retirement Age Optimizer",
+            "Monte Carlo",
+            "Stress Tests",
             "Best Places to Retire",
             "PDF Report",
             "AI Retirement Coach",
@@ -9072,6 +9074,48 @@ if active_page == "Home" and st.session_state.get("first_blueprint_onboarding", 
     render_first_blueprint_card_wizard()
     st.stop()
 
+def get_cached_dashboard_monte_carlo():
+    """
+    Run Monte Carlo on dashboard load if not already cached.
+    Cache is sticky across page navigations.
+    """
+    cache_key = "dashboard_mc_cached"
+    input_hash_key = "dashboard_mc_input_hash"
+    
+    # Create a hash of current inputs to detect changes
+    import hashlib
+    input_state = str({
+        "current_age": st.session_state.get("current_age"),
+        "retire_age": st.session_state.get("retire_age"),
+        "end_age": st.session_state.get("end_age"),
+        "current_savings": st.session_state.get("current_savings"),
+        "growth_return": st.session_state.get("growth_return"),
+        "monthly_spending": st.session_state.get("monthly_spending"),
+    })
+    current_hash = hashlib.md5(input_state.encode()).hexdigest()
+    
+    # If inputs changed, clear the cache
+    if st.session_state.get(input_hash_key) != current_hash:
+        if cache_key in st.session_state:
+            del st.session_state[cache_key]
+        st.session_state[input_hash_key] = current_hash
+    
+    # Run MC if not cached and inputs are complete
+    if cache_key not in st.session_state and len(required_missing()) == 0:
+        try:
+            mc_result = run_monte_carlo_simulation(
+                num_simulations=300,
+                mean_return=float(st.session_state.get("growth_return", 0.07)),
+                volatility=0.12,
+                seed=42
+            )
+            st.session_state[cache_key] = mc_result
+        except Exception:
+            st.session_state[cache_key] = None
+    
+    return st.session_state.get(cache_key)
+
+
 if active_page == PAGE_NAMES[0]:
     missing_items_home = required_missing()
 
@@ -9214,6 +9258,27 @@ if active_page == PAGE_NAMES[0]:
         required_panel = ", ".join(missing_items_home) if missing_items_home else "Review Start My Blueprint and Spending Plan."
 
     if safe_can_run_home:
+        # Get cached Monte Carlo result
+        mc_result = get_cached_dashboard_monte_carlo()
+        mc_success_rate = 0
+        mc_verdict = "Not yet run"
+        mc_color = "#94A3B8"
+        
+        if mc_result:
+            mc_success_rate = mc_result.get("success_rate", 0)
+            if mc_success_rate >= 0.90:
+                mc_verdict = "Strong"
+                mc_color = "#10B981"
+            elif mc_success_rate >= 0.75:
+                mc_verdict = "Moderate"
+                mc_color = "#F59E0B"
+            elif mc_success_rate >= 0.60:
+                mc_verdict = "Borderline"
+                mc_color = "#F97316"
+            else:
+                mc_verdict = "High Risk"
+                mc_color = "#EF4444"
+        
         st.markdown("""
         <div class="rb-page-section-label">Retirement Dashboard</div>
         <div class="rb-muted" style="margin-bottom: 12px;">Your retirement results based on the information entered so far.</div>
@@ -9240,6 +9305,11 @@ if active_page == PAGE_NAMES[0]:
             <div class="rb-card-top"><div class="rb-card-label">Monthly Gap From Savings</div><div class="rb-icon">↗</div></div>
             <div class="rb-card-value">{monthly_gap_home}</div>
             <div class="rb-card-note">Estimated monthly spending that needs to come from savings.</div>
+          </div>
+          <div class="rb-card">
+            <div class="rb-card-top"><div class="rb-card-label">Probability of Success</div><div class="rb-icon">🎲</div></div>
+            <div class="rb-card-value" style="color: {mc_color};">{pct(mc_success_rate)}</div>
+            <div class="rb-card-note">Estimated odds your plan survives market ups and downs.</div>
           </div>
         </div>
         """, unsafe_allow_html=True)
