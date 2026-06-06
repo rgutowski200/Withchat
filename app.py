@@ -14212,140 +14212,123 @@ if active_page == PAGE_NAMES[11]:
         st.warning("Educational estimate only. Results depend on your return, volatility, inflation, and spending assumptions.")
 
         st.markdown("---")
-        st.markdown("### Set Up Your Assumptions")
-        st.markdown("Adjust these settings to test different scenarios. The app starts with your current growth assumption and typical market volatility.")
-
-        c1, c2, c3, c4 = st.columns(4)
-
-        num_simulations = c1.number_input(
-            "How many different market paths to test?",
-            min_value=100,
-            max_value=2000,
-            value=500,
-            step=100,
-            help="More = smoother results, but slightly slower to run. 500 is usually plenty."
-        )
-
-        mean_return = c2.slider(
-            "Expected average annual return (%)",
-            min_value=0.0,
-            max_value=30.0,
-            value=min(max(float(st.session_state.growth_return) * 100, 0.0), 30.0),
-            step=0.25,
-            format="%.2f%%",
-            help="Long-term average return. Based on your current assumption."
-        ) / 100
-
-        volatility = c3.slider(
-            "Market volatility (%)",
-            min_value=1.0,
-            max_value=25.0,
-            value=12.0,
-            step=0.5,
-            help="How wild the ups and downs are. Higher = choppier rides. 12% is typical for a balanced portfolio."
-        ) / 100
-
-        seed = c4.number_input(
-            "Random seed (for repeating results)",
-            min_value=1,
-            max_value=99999,
-            value=42,
-            step=1,
-            help="Keep this the same to get identical results. Change it to see a different set of random paths."
-        )
-
-        run_mc = st.button("Run Confidence Test", type="primary", use_container_width=True)
-
-        if run_mc:
+        st.markdown("### Running Your Test")
+        
+        # Auto-run with smart defaults (no confusing sliders)
+        num_simulations = 500
+        mean_return = float(st.session_state.get("growth_return", 0.07))
+        volatility = 0.12
+        seed = 42
+        
+        st.markdown(f"""
+        Using your current assumptions:
+        - **Expected annual return:** {pct(mean_return)}
+        - **Market volatility (typical ups and downs):** {pct(volatility)}
+        - **Number of scenarios tested:** {num_simulations}
+        
+        This usually takes a few seconds...
+        """)
+        
+        # Auto-run or retrieve cached result
+        mc_result = get_cached_dashboard_monte_carlo()
+        
+        if not mc_result:
             with st.spinner("Testing your plan across different market paths..."):
-                st.session_state.mc_result = run_monte_carlo_simulation(
+                mc_result = run_monte_carlo_simulation(
                     int(num_simulations),
                     float(mean_return),
                     float(volatility),
                     int(seed)
                 )
+                st.session_state.mc_result = mc_result
 
-        if "mc_result" not in st.session_state:
-            st.info("👆 Click **Run Confidence Test** to see the results.")
-        else:
-            mc = st.session_state.mc_result
-            results_df = mc["results_df"]
-            paths_df = mc["paths_df"]
+        if mc_result:
+            results_df = mc_result["results_df"]
+            paths_df = mc_result["paths_df"]
 
             st.markdown("---")
-            st.markdown("### Your Results")
+            st.markdown("### Your Success Rate")
 
-            success_rate = mc["success_rate"]
-            median_ending = mc["median_ending"]
-            p10_ending = mc["p10_ending"]
-            p90_ending = mc["p90_ending"]
-
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Success Rate", pct(success_rate), help="What percent of the 500 paths succeed (you don't run out of money)?")
-            m2.metric("Median Ending", money(median_ending), help="The middle amount left over at age 95 across all paths.")
-            m3.metric("Unlucky Scenario (10th percentile)", money(p10_ending), help="In 1 out of 10 unlucky paths, you'd have this much left.")
-            m4.metric("Lucky Scenario (90th percentile)", money(p90_ending), help="In 1 out of 10 lucky paths, you'd have this much left.")
-
+            success_rate = mc_result.get("success_rate", 0)
+            
+            # Show success rate prominently with color and interpretation
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                if success_rate >= 0.90:
+                    st.success(f"✅ **{pct(success_rate)} Success Rate**")
+                    st.markdown("Your plan survives 90%+ of market scenarios. You have a strong cushion.")
+                elif success_rate >= 0.75:
+                    st.warning(f"✓ **{pct(success_rate)} Success Rate**")
+                    st.markdown("Your plan survives 75–90% of market scenarios. Good, but keep an eye on things.")
+                elif success_rate >= 0.60:
+                    st.warning(f"⚠️ **{pct(success_rate)} Success Rate**")
+                    st.markdown("Your plan survives 60–75% of market scenarios. The cushion is thin. Consider working 1–2 more years, spending less, or increasing income.")
+                else:
+                    st.error(f"❌ **{pct(success_rate)} Success Rate**")
+                    st.markdown("Your plan fails in many scenarios. Major changes needed: later retirement, lower spending, or higher income.")
+            
+            with col2:
+                st.metric("Out of 500 Paths", f"{int(success_rate * num_simulations)} succeed")
+            
             st.progress(success_rate)
 
-            if success_rate >= 0.90:
-                st.success("✅ **Strong success rate.** Your plan survives 90%+ of market paths. You have a robust cushion.")
-            elif success_rate >= 0.75:
-                st.warning("✓ **Moderate success.** Your plan survives about 75–90% of market paths. Still good, but worth stress-testing.")
-            elif success_rate >= 0.60:
-                st.warning("⚠️ **Borderline.** Your plan succeeds 60–75% of the time. The cushion is thin. Consider: work 1–2 more years, spend less, or increase income.")
-            else:
-                st.error("❌ **High risk.** Your plan fails in many market paths. Major changes needed: later retirement, lower spending, or higher income.")
-
-            st.markdown("""
-            **What "success" means:** You have money left at age 95 and never run out completely in any single year.
-            """)
-
             st.markdown("---")
             st.markdown("""
-            ### Portfolio Path Range
+            ### Your Money Over Time
             
-            This chart shows the journey of your portfolio across all the different market scenarios. Each thin line = one possible future. The thicker lines show the best case (top), worst case (bottom), and middle case (center).
+            This chart shows how much money you'd have at each age under three different luck scenarios:
             
-            **What to look for:** Does the worst-case scenario (bottom line) still have money, or does it hit zero? That tells you how much risk you're taking.
+            - **Blue line (Typical):** The most likely outcome—average luck
+            - **Red dashed line (Bad Luck):** One of the worst 10% of outcomes
+            - **Green dashed line (Good Luck):** One of the best 10% of outcomes
+            
+            **The key insight:** All three lines stay above $0? You're in good shape. If the red line (bad luck) dips to zero, that's a concern.
             """)
-            st.pyplot(plot_monte_carlo_paths(paths_df, results_df), use_container_width=True)
-
-            st.markdown("---")
-            st.markdown("""
-            ### Ending Portfolio Distribution
             
-            This histogram shows: Out of all the paths we tested, how much money do you typically end up with? 
-            
-            - **Tall bar at $0:** Many paths failed (portfolio depleted before age 95).
-            - **Spread to the right:** Some lucky paths with lots of money left.
-            - **Spread is narrow:** Results are pretty predictable. Spread is wide:** A lot of uncertainty.
-            """)
-            st.pyplot(plot_monte_carlo_ending_distribution(results_df), use_container_width=True)
-
-            st.markdown("---")
-            st.markdown("""
-            ### Detailed Breakdown
-            
-            Each row is one simulated market path. **Success** = you didn't run out of money. **Failed** = you depleted savings before age 95. The table shows what happened in each scenario: returns, worst year, ending balance, and when (if ever) the money ran out.
-            """)
-
-            detail = results_df.copy()
-            detail["Success"] = detail["Success"].map(lambda x: "Success ✓" if x else "Failed ❌")
-            detail["Ending Portfolio"] = detail["Ending Portfolio"].map(money)
-            detail["Max Withdrawal Rate"] = detail["Max Withdrawal Rate"].map(pct)
-            detail["Average Return"] = detail["Average Return"].map(pct)
-            detail["Worst Year Return"] = detail["Worst Year Return"].map(pct)
-            st.dataframe(detail.head(100), use_container_width=True, hide_index=True)
-
-            csv = results_df.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                "Download Full Results as CSV",
-                csv,
-                "monte_carlo_results.csv",
-                "text/csv",
-                use_container_width=True
-            )
+            # Create simple "Money Over Time" chart with three scenarios
+            try:
+                fig, ax = plt.subplots(figsize=(12, 6))
+                
+                if not paths_df.empty:
+                    # Get unique ages
+                    ages = sorted(paths_df["Age"].unique())
+                    
+                    # Calculate percentiles for each age
+                    median_by_age = []
+                    p10_by_age = []
+                    p90_by_age = []
+                    
+                    for age in ages:
+                        age_data = paths_df[paths_df["Age"] == age]["End Total"]
+                        if len(age_data) > 0:
+                            median_by_age.append(age_data.median())
+                            p10_by_age.append(age_data.quantile(0.10))
+                            p90_by_age.append(age_data.quantile(0.90))
+                        else:
+                            median_by_age.append(0)
+                            p10_by_age.append(0)
+                            p90_by_age.append(0)
+                    
+                    # Plot
+                    ax.plot(ages, median_by_age, linewidth=3, label="Typical Scenario (Most Likely)", color="#3B82F6", marker="o", markersize=4)
+                    ax.plot(ages, p10_by_age, linewidth=2.5, label="Bad Luck Scenario (Bottom 10%)", color="#EF4444", linestyle="--", marker="s", markersize=3)
+                    ax.plot(ages, p90_by_age, linewidth=2.5, label="Good Luck Scenario (Top 10%)", color="#10B981", linestyle="--", marker="^", markersize=3)
+                    
+                    # Formatting
+                    ax.axhline(y=0, color="black", linestyle="-", linewidth=1, alpha=0.5)
+                    ax.set_xlabel("Your Age", fontsize=12, fontweight="bold")
+                    ax.set_ylabel("Portfolio Balance", fontsize=12, fontweight="bold")
+                    ax.set_title("How Your Money Changes Over Time", fontsize=14, fontweight="bold", pad=20)
+                    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"${x/1e6:.1f}M" if x >= 1e6 else f"${x/1e3:.0f}K"))
+                    ax.legend(loc="best", fontsize=11, framealpha=0.95)
+                    ax.grid(True, alpha=0.2)
+                    
+                    st.pyplot(fig, use_container_width=True)
+                else:
+                    st.info("Not enough data to display chart.")
+            except Exception as e:
+                st.error(f"Could not generate chart: {e}")
 
 
 
