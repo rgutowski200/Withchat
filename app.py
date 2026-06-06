@@ -14214,26 +14214,32 @@ if active_page == PAGE_NAMES[11]:
         st.markdown("---")
         st.markdown("### Running Your Test")
         
-        # Auto-run with smart defaults (no confusing sliders)
+        # Auto-set with smart defaults (no confusing sliders)
         num_simulations = 500
         mean_return = float(st.session_state.get("growth_return", 0.07))
         volatility = 0.12
         seed = 42
         
         st.markdown(f"""
-        Using your current assumptions:
-        - **Expected annual return:** {pct(mean_return)}
-        - **Market volatility (typical ups and downs):** {pct(volatility)}
-        - **Number of scenarios tested:** {num_simulations}
+        #### We're Using These Assumptions
         
-        This usually takes a few seconds...
+        **Expected annual return: {pct(mean_return)}**  
+        This comes from what you entered earlier as your expected portfolio growth. We use this to simulate realistic market scenarios based on your actual plan.
+        
+        **Market volatility (typical ups and downs): {pct(volatility)}**  
+        This is a standard measure of how much markets swing year-to-year. A balanced retirement portfolio typically experiences about 12% volatility—that means some years you're up more, some years you're down more, but 12% represents "typical" market behavior based on history.
+        
+        **Number of scenarios tested: {num_simulations}**  
+        We'll simulate 500 different possible futures. Each one uses your return assumption but with different random market timing—some good years early, some bad years early, etc. This range of randomness shows how resilient your plan is.
+        
+        **Why these numbers matter:** We're not just asking "does this plan work?" We're asking "does it work across all reasonable market conditions?" That's the real test.
         """)
         
-        # Auto-run or retrieve cached result
-        mc_result = get_cached_dashboard_monte_carlo()
+        st.markdown("---")
         
-        if not mc_result:
-            with st.spinner("Testing your plan across different market paths..."):
+        # Button to run the test
+        if st.button("Generate My Results", type="primary", use_container_width=True):
+            with st.spinner("Testing your plan across 500 different market scenarios..."):
                 mc_result = run_monte_carlo_simulation(
                     int(num_simulations),
                     float(mean_return),
@@ -14242,7 +14248,10 @@ if active_page == PAGE_NAMES[11]:
                 )
                 st.session_state.mc_result = mc_result
 
-        if mc_result:
+        if "mc_result" not in st.session_state:
+            st.info("👆 Click **Generate My Results** to run the test.")
+        else:
+            mc_result = st.session_state.mc_result
             results_df = mc_result["results_df"]
             paths_df = mc_result["paths_df"]
 
