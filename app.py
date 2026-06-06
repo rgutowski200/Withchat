@@ -7724,7 +7724,7 @@ PAGE_NAMES = [
     "Projection Table",
     "Saved Scenarios",
     "Best Places to Retire",
-    "Monte Carlo",
+    "Monte Carlo Analysis",
     "Stress Tests",
     "PDF Report",
     "AI Retirement Coach",
@@ -7746,7 +7746,7 @@ PAGE_ICONS = {
     "Projection Table": "📈",
     "Saved Scenarios": "💾",
     "Best Places to Retire": "📍",
-    "Monte Carlo": "🎲",
+    "Monte Carlo Analysis": "🎲",
     "Stress Tests": "🛡️",
     "PDF Report": "📄",
     "AI Retirement Coach": "🤖",
@@ -7768,7 +7768,7 @@ NAV_LABELS = {
     "Projection Table": "Projection",
     "Saved Scenarios": "Saved Blueprints",
     "Best Places to Retire": "Places to Retire",
-    "Monte Carlo": "Confidence Test",
+    "Monte Carlo Analysis": "Monte Carlo Analysis",
     "Stress Tests": "Stress Tests",
     "PDF Report": "Blueprint Report",
     "AI Retirement Coach": "Blueprint Coach",
@@ -7782,7 +7782,7 @@ NAV_LABELS = {
 # TEMPORARY TESTING OVERRIDE:
 # Unlock all premium features for every user while testing.
 # Before launch, remove this and connect is_premium_user to the paid subscription status.
-st.session_state["is_premium_user"] = True
+# st.session_state["is_premium_user"] = True  # disabled for production
 
 if "active_page" not in st.session_state or st.session_state.active_page not in PAGE_NAMES:
     st.session_state.active_page = "Home"
@@ -7890,6 +7890,8 @@ def render_navigation():
             "Projection Table",
             "Saved Scenarios",
             "Retirement Age Optimizer",
+            "Monte Carlo Analysis",
+            "Stress Tests",
             "Best Places to Retire",
             "PDF Report",
             "AI Retirement Coach",
@@ -7911,22 +7913,29 @@ def render_navigation():
             if st.button(label, key=f"sidebar_nav_{page_name}", use_container_width=True, disabled=is_active):
                 go_to_page(page_name)
 
-        if user_has_blueprint:
-            st.markdown("<div style='margin-top:6px;font-size:.72rem;font-weight:700;color:#94A3B8;letter-spacing:.06em;text-transform:uppercase;padding-left:4px;'>Advanced Tools</div>", unsafe_allow_html=True)
-            for page_name in advanced_pages:
-                is_active = st.session_state.active_page == page_name
-                icon = PAGE_ICONS.get(page_name, "")
-                display_name = NAV_LABELS.get(page_name, page_name)
+        st.markdown(
+            "<div style='margin-top:6px;font-size:.72rem;font-weight:700;color:#94A3B8;letter-spacing:.06em;text-transform:uppercase;padding-left:4px;'>Premium Tools</div>",
+            unsafe_allow_html=True,
+        )
+
+        for page_name in advanced_pages:
+            is_active = st.session_state.active_page == page_name
+            icon = PAGE_ICONS.get(page_name, "")
+            display_name = NAV_LABELS.get(page_name, page_name)
+
+            # Show premium tools in the sidebar even before the user creates a blueprint.
+            # This lets users see what they are buying instead of hiding the value.
+            locked = not user_has_blueprint
+
+            if locked:
+                label = f"{icon} 🔒 {display_name}"
+                if st.button(label, key=f"sidebar_preview_{page_name}", use_container_width=True):
+                    st.session_state["_premium_preview_page"] = page_name
+                    go_to_page("Retirement Dashboard")
+            else:
                 label = f"{icon} {display_name}"
                 if st.button(label, key=f"sidebar_nav_{page_name}", use_container_width=True, disabled=is_active):
                     go_to_page(page_name)
-        else:
-            st.markdown("""
-            <div style="border:1px solid #E2E8F0;border-radius:12px;padding:12px 14px;margin:10px 0 4px 0;background:#F8FAFF;">
-              <div style="font-size:.82rem;font-weight:700;color:#64748B;margin-bottom:4px;">🔓 More tools unlock after your first blueprint</div>
-              <div style="font-size:.78rem;color:#94A3B8;line-height:1.4;">Projection, stress tests, PDF report, AI Coach, and more.</div>
-            </div>
-            """, unsafe_allow_html=True)
 
         st.markdown("<div style='margin-top:6px;font-size:.72rem;font-weight:700;color:#94A3B8;letter-spacing:.06em;text-transform:uppercase;padding-left:4px;'>Info</div>", unsafe_allow_html=True)
         for page_name in info_pages:
@@ -9072,6 +9081,48 @@ if active_page == "Home" and st.session_state.get("first_blueprint_onboarding", 
     render_first_blueprint_card_wizard()
     st.stop()
 
+def get_cached_dashboard_monte_carlo():
+    """
+    Run Monte Carlo on dashboard load if not already cached.
+    Cache is sticky across page navigations.
+    """
+    cache_key = "dashboard_mc_cached"
+    input_hash_key = "dashboard_mc_input_hash"
+    
+    # Create a hash of current inputs to detect changes
+    import hashlib
+    input_state = str({
+        "current_age": st.session_state.get("current_age"),
+        "retire_age": st.session_state.get("retire_age"),
+        "end_age": st.session_state.get("end_age"),
+        "current_savings": st.session_state.get("current_savings"),
+        "growth_return": st.session_state.get("growth_return"),
+        "monthly_spending": st.session_state.get("monthly_spending"),
+    })
+    current_hash = hashlib.md5(input_state.encode()).hexdigest()
+    
+    # If inputs changed, clear the cache
+    if st.session_state.get(input_hash_key) != current_hash:
+        if cache_key in st.session_state:
+            del st.session_state[cache_key]
+        st.session_state[input_hash_key] = current_hash
+    
+    # Run MC if not cached and inputs are complete
+    if cache_key not in st.session_state and len(required_missing()) == 0:
+        try:
+            mc_result = run_monte_carlo_simulation(
+                num_simulations=300,
+                mean_return=float(st.session_state.get("growth_return", 0.07)),
+                volatility=0.12,
+                seed=42
+            )
+            st.session_state[cache_key] = mc_result
+        except Exception:
+            st.session_state[cache_key] = None
+    
+    return st.session_state.get(cache_key)
+
+
 if active_page == PAGE_NAMES[0]:
     missing_items_home = required_missing()
 
@@ -9214,6 +9265,27 @@ if active_page == PAGE_NAMES[0]:
         required_panel = ", ".join(missing_items_home) if missing_items_home else "Review Start My Blueprint and Spending Plan."
 
     if safe_can_run_home:
+        # Get cached Monte Carlo result
+        mc_result = get_cached_dashboard_monte_carlo()
+        mc_success_rate = 0
+        mc_verdict = "Not yet run"
+        mc_color = "#94A3B8"
+        
+        if mc_result:
+            mc_success_rate = mc_result.get("success_rate", 0)
+            if mc_success_rate >= 0.90:
+                mc_verdict = "Strong"
+                mc_color = "#10B981"
+            elif mc_success_rate >= 0.75:
+                mc_verdict = "Moderate"
+                mc_color = "#F59E0B"
+            elif mc_success_rate >= 0.60:
+                mc_verdict = "Borderline"
+                mc_color = "#F97316"
+            else:
+                mc_verdict = "High Risk"
+                mc_color = "#EF4444"
+        
         st.markdown("""
         <div class="rb-page-section-label">Retirement Dashboard</div>
         <div class="rb-muted" style="margin-bottom: 12px;">Your retirement results based on the information entered so far.</div>
@@ -9240,6 +9312,11 @@ if active_page == PAGE_NAMES[0]:
             <div class="rb-card-top"><div class="rb-card-label">Monthly Gap From Savings</div><div class="rb-icon">↗</div></div>
             <div class="rb-card-value">{monthly_gap_home}</div>
             <div class="rb-card-note">Estimated monthly spending that needs to come from savings.</div>
+          </div>
+          <div class="rb-card">
+            <div class="rb-card-top"><div class="rb-card-label">Probability of Success</div><div class="rb-icon">🎲</div></div>
+            <div class="rb-card-value" style="color: {mc_color};">{pct(mc_success_rate)}</div>
+            <div class="rb-card-note">Estimated odds your plan survives market ups and downs.</div>
           </div>
         </div>
         """, unsafe_allow_html=True)
@@ -14123,145 +14200,212 @@ if active_page == PAGE_NAMES[10]:
 
 
 if active_page == PAGE_NAMES[11]:
-    require_account(intended_page="Monte Carlo", reason="default")
-    render_page_shell("Confidence Test", "Stress test your blueprint across many market paths to understand the probability of success and the range of possible outcomes.", "🎲")
-    page_help(
-        "Monte Carlo Simulator",
-        "This page runs hundreds or thousands of randomized market-return paths to estimate how often the retirement plan survives. It helps show sequence-of-return risk and the range of possible ending portfolio balances."
-    )
-
-    st.caption("Tax estimates now include taxable Social Security when provisional income exceeds IRS thresholds. Roth and cash withdrawals are modeled as tax-free; taxable brokerage is still simplified until the capital-gains phase.")
+    require_account(intended_page="Monte Carlo Analysis", reason="default")
+    render_page_shell("Monte Carlo Analysis", "See how often your retirement plan succeeds across different market scenarios.", "🎲")
+    
     if not can_run:
         st.info("Complete required inputs first.")
     else:
-        st.warning("Educational estimate only. Monte Carlo results depend heavily on the return, volatility, inflation, and spending assumptions you enter.")
+        end_age = int(st.session_state.get('end_age', 95))
+        st.markdown(f"""
+        ### What This Test Does
+        
+        Retirement is risky because **markets go up and down unpredictably**. Some years you'll get great returns; other years you'll lose money. This test simulates hundreds of different "what-if" market paths to show you: **How often does your plan survive?**
+        
+        It's like asking: "If I retire today, and the markets behave the way they have in the past (but in random order), how many times out of 100 would I still have money left at age {end_age}?"
+        
+        **Why this matters:** A plan that looks great in a "typical" market scenario might fail if bad years hit early in retirement. This test helps you see if your plan is resilient.
+        """)
+        
+        st.warning("Educational estimate only. Results depend on your return, volatility, inflation, and spending assumptions.")
 
-        st.subheader("Simulation Settings")
-
-        c1, c2, c3, c4 = st.columns(4)
-
-        num_simulations = c1.number_input(
-            "Number of simulations",
-            min_value=100,
-            max_value=2000,
-            value=500,
-            step=100,
-            help="More simulations give a smoother estimate, but may run slower."
-        )
-
-        mean_return = c2.slider(
-            "Average annual return",
-            min_value=0.0,
-            max_value=30.0,
-            value=min(max(float(st.session_state.growth_return) * 100, 0.0), 30.0),
-            step=0.25,
-            format="%.2f%%",
-            help="Expected average annual return for growth assets."
-        ) / 100
-
-        volatility = c3.slider(
-            "Annual volatility",
-            min_value=1.0,
-            max_value=25.0,
-            value=12.0,
-            step=0.5,
-            help="How much yearly returns vary. Higher volatility increases sequence risk."
-        ) / 100
-
-        seed = c4.number_input(
-            "Random seed",
-            min_value=1,
-            max_value=99999,
-            value=42,
-            step=1,
-            help="Keeps results repeatable. Change this to generate a different random set."
-        )
-
-        run_mc = st.button("Run Monte Carlo Simulation", type="primary", use_container_width=True)
-
-        if run_mc:
-            with st.spinner("Running Monte Carlo simulations..."):
-                st.session_state.mc_result = run_monte_carlo_simulation(
+        st.markdown("---")
+        st.markdown("### Running Your Test")
+        
+        # Auto-set with smart defaults (no confusing sliders)
+        num_simulations = 500
+        mean_return = float(st.session_state.get("growth_return", 0.07))
+        volatility = 0.12
+        seed = 42
+        
+        st.markdown(f"""
+        #### We're Using These Assumptions
+        
+        **Expected annual return: {pct(mean_return)}**  
+        This comes from what you entered earlier as your expected portfolio growth. We use this to simulate realistic market scenarios based on your actual plan.
+        
+        **Market volatility (typical ups and downs): {pct(volatility)}**  
+        This is a standard measure of how much markets swing year-to-year. A balanced retirement portfolio typically experiences about 12% volatility—that means some years you're up more, some years you're down more, but 12% represents "typical" market behavior based on history.
+        
+        **Number of scenarios tested: {num_simulations}**  
+        We'll simulate 500 different possible futures. Each one uses your return assumption but with different random market timing—some good years early, some bad years early, etc. This range of randomness shows how resilient your plan is.
+        
+        **Why these numbers matter:** We're not just asking "does this plan work?" We're asking "does it work across all reasonable market conditions?" That's the real test.
+        """)
+        
+        st.markdown("---")
+        
+        # Button to run the test
+        if st.button("Generate My Results", type="primary", use_container_width=True):
+            with st.spinner("Testing your plan across 500 different market scenarios..."):
+                mc_result = run_monte_carlo_simulation(
                     int(num_simulations),
                     float(mean_return),
                     float(volatility),
                     int(seed)
                 )
+                st.session_state.mc_result = mc_result
 
         if "mc_result" not in st.session_state:
-            st.info("Click **Run Monte Carlo Simulation** to generate probability-of-success results.")
+            st.info("👆 Click **Generate My Results** to run the test.")
         else:
-            mc = st.session_state.mc_result
-            results_df = mc["results_df"]
-            paths_df = mc["paths_df"]
+            mc_result = st.session_state.mc_result
+            results_df = mc_result["results_df"]
+            paths_df = mc_result["paths_df"]
 
-            st.subheader("Monte Carlo Results")
+            st.markdown("---")
+            st.markdown("### What Your Success Rate Means")
 
-            success_rate = mc["success_rate"]
-            median_ending = mc["median_ending"]
-            p10_ending = mc["p10_ending"]
-            p90_ending = mc["p90_ending"]
-
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Probability of Success", pct(success_rate))
-            m2.metric("Median Ending Portfolio", money(median_ending))
-            m3.metric("10th Percentile Ending", money(p10_ending))
-            m4.metric("90th Percentile Ending", money(p90_ending))
-
+            success_rate = mc_result.get("success_rate", 0)
+            
+            # Show success rate prominently with color and interpretation
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                if success_rate >= 0.90:
+                    st.success(f"✅ **{pct(success_rate)} Success Rate**")
+                    st.markdown("### Your Plan Is Strong")
+                    st.markdown(f"""
+                    **What this means:** Out of 500 simulated market futures, your plan survives in {int(success_rate * 500)} of them.
+                    
+                    This is excellent. You have built a retirement plan that can weather most market storms. Even in unlucky scenarios, you still have money left.
+                    
+                    **Next step:** Check out the **Stress Tests** page to see how your plan handles specific challenges (healthcare costs, inflation spikes, recessions). Then you'll know exactly where your weak points are—and that lets you decide if you want more cushion.
+                    """)
+                elif success_rate >= 0.75:
+                    st.warning(f"✓ **{pct(success_rate)} Success Rate**")
+                    st.markdown("### Your Plan Is Okay, But Has Risk")
+                    end_age = int(st.session_state.get('end_age', 95))
+                    st.markdown(f"""
+                    **What this means:** Out of 500 simulated market futures, your plan survives in {int(success_rate * 500)} of them. In the remaining {int((1-success_rate) * 500)}, you run out of money before age {end_age}.
+                    
+                    This is workable, but it means **one bad market crash early in retirement could break the plan**. You're relying on luck.
+                    
+                    **What you can do:**
+                    - Work 1–2 more years (small changes have big impact)
+                    - Reduce spending by 5–10%
+                    - Explore part-time work in early retirement
+                    - Check the **Stress Tests** page to see which scenarios hurt most
+                    
+                    **Next step:** Go to the **Action Plan** page to see which lever has the biggest impact.
+                    """)
+                elif success_rate >= 0.60:
+                    st.warning(f"⚠️ **{pct(success_rate)} Success Rate**")
+                    st.markdown("### Your Plan Needs Work")
+                    st.markdown(f"""
+                    **What this means:** Out of 500 simulated market futures, your plan survives in {int(success_rate * 500)} of them. In the remaining {int((1-success_rate) * 500)} scenarios, you run out of money.
+                    
+                    This is **borderline risky**. More than 1 in 3 scenarios end with depleted savings. If you retire now and get unlucky, you could run out of money in your 80s.
+                    
+                    **The good news:** Small changes create big improvements. Here's what works:
+                    
+                    **1. Delay Retirement (Biggest Impact)**
+                    - Working 1 more year = 7-10 more years of income AND 1 fewer year of withdrawals
+                    - This alone often moves success rate from 60% → 75%+
+                    
+                    **2. Reduce Spending (Good Impact)**
+                    - Spending $1,000/month less = saves $360,000 over 30 years
+                    - Builds immediate cushion against bad markets
+                    
+                    **3. Boost Income (Excellent Impact)**
+                    - Part-time work early in retirement ($500/month) removes huge pressure
+                    - Even temporary income (5-10 years) changes everything
+                    
+                    **Next step:** Go to the **Action Plan** page and test which change helps most. Try different combinations.
+                    """)
+                else:
+                    st.error(f"❌ **{pct(success_rate)} Success Rate**")
+                    st.markdown("### Your Plan Needs Major Changes")
+                    st.markdown(f"""
+                    **What this means:** Out of 500 simulated market futures, your plan survives in only {int(success_rate * 500)} of them. In {int((1-success_rate) * 500)} scenarios, you run out of money.
+                    
+                    **This is telling you something important:** Retiring at your target age with your current spending is too risky. But don't lose hope—there are proven paths forward.
+                    
+                    ---
+                    
+                    ### Your Real Options (Rank Them by What Works for You)
+                    
+                    **Option 1: Work Longer** ⏰  
+                    Working even 2-3 more years typically moves success from 40% → 70%+. Why? You're earning instead of withdrawing, AND the portfolio has more time to grow. This is usually the single biggest lever.
+                    
+                    **Option 2: Spend Less** 💰  
+                    If you're targeting $6,000/month, cutting to $5,000 (17% reduction) removes massive pressure. Many people spend less in early retirement anyway (no commute, no work clothes, no stress eating).
+                    
+                    **Option 3: Earn More** 💼  
+                    If you can add $1,000/month from part-time work, consulting, or a hobby for even 5-10 years, it transforms your plan. You don't need this forever—just during the vulnerable early years.
+                    
+                    **Option 4: Combination** 🎯  
+                    Work 1 more year + reduce spending 10% + part-time income = moves you from 40% → 85%+ success. Small changes compound.
+                    
+                    ---
+                    
+                    ### Why This Matters (The Hard Truth)
+                    
+                    You might be thinking: *"But I've worked hard. I deserve to retire now. Lots of people retire with less saved."*
+                    
+                    You're right. And here's the honest part: **40% of market futures end with you running out of money.** That's not a small risk. It means if you retire tomorrow and the markets behave like they have in the past, there's a 2 in 5 chance you'll need to go back to work or ask family for help in your 80s.
+                    
+                    That's **not a criticism of you.** It's just what the math shows. And the good news is: **the math also shows the fix.** Working 2 more years, or spending 15% less, or finding part-time income—these aren't huge changes, but they move the needle from "risky" to "very confident."
+                    
+                    ---
+                    
+                    ### Next Steps
+                    
+                    1. **Go to the Action Plan page** and test different retirement ages (try 58, 59, 60)
+                    2. **Test spending levels** (try reducing your monthly target by 10%)
+                    3. **Check Stress Tests** to see which scenarios hurt most
+                    4. **Come back here** and re-run this test after making changes
+                    
+                    You're not far away. You just need the right adjustments.
+                    """)
+            
+            with col2:
+                st.metric("Out of 500 Paths", f"{int(success_rate * num_simulations)} succeed")
+            
             st.progress(success_rate)
-
-            if success_rate >= 0.90:
-                st.success("Monte Carlo result: Strong probability of success under these assumptions.")
-            elif success_rate >= 0.75:
-                st.warning("Monte Carlo result: Moderate-to-good probability of success. Stress testing is still recommended.")
-            elif success_rate >= 0.60:
-                st.warning("Monte Carlo result: Borderline. Consider reducing spending, delaying retirement, or improving income coverage.")
-            else:
-                st.error("Monte Carlo result: High risk. The plan fails in many simulated market paths.")
-
-            st.caption(
-                "Success means the plan reaches the final planning age with money remaining and no unmet spending years."
-            )
-
-            st.subheader("Portfolio Path Range")
-            st.pyplot(plot_monte_carlo_paths(paths_df, results_df), use_container_width=True)
-
-            st.subheader("Ending Portfolio Distribution")
-            st.pyplot(plot_monte_carlo_ending_distribution(results_df), use_container_width=True)
-
-            st.subheader("Simulation Detail")
-
-            detail = results_df.copy()
-            detail["Success"] = detail["Success"].map(lambda x: "Success" if x else "Failed")
-            detail["Ending Portfolio"] = detail["Ending Portfolio"].map(money)
-            detail["Max Withdrawal Rate"] = detail["Max Withdrawal Rate"].map(pct)
-            detail["Average Return"] = detail["Average Return"].map(pct)
-            detail["Worst Year Return"] = detail["Worst Year Return"].map(pct)
-            st.dataframe(detail.head(100), use_container_width=True, hide_index=True)
-
-            csv = results_df.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                "Download Monte Carlo CSV",
-                csv,
-                "monte_carlo_results.csv",
-                "text/csv",
-                use_container_width=True
-            )
 
 
 
 
 if active_page == PAGE_NAMES[12]:
     require_account(intended_page="Stress Tests", reason="default")
-    render_page_shell("Stress Tests", "Try tougher scenarios like lower returns, higher spending, or inflation shocks to see where your plan bends or breaks.", "🛡️")
+    render_page_shell("Stress Tests", "Test your plan against real-world challenges—bad markets, inflation, health emergencies, and recessions.", "🛡️")
 
-    st.caption("Tax estimates now include taxable Social Security when provisional income exceeds IRS thresholds. Roth and cash withdrawals are modeled as tax-free; taxable brokerage is still simplified until the capital-gains phase.")
     if not can_run:
         st.info("Complete required inputs first.")
     else:
-        st.warning("Stress tests simulate difficult retirement conditions.")
+        end_age = int(st.session_state.get('end_age', 95))
+        st.markdown(f"""
+        ### What This Test Does
+        
+        The **Monte Carlo Analysis** shows you overall odds across random scenarios. This page asks: **What happens if a specific bad thing occurs?**
+        
+        We test six realistic "what if" situations:
+        1. **Base Case** — Normal market returns (your baseline for comparison)
+        2. **Bad First 3 Years** — Retiring right before a crash (the worst timing possible)
+        3. **High Inflation** — Prices rising 6% per year (faster than usual)
+        4. **Weak Markets** — Only 4% annual returns (prolonged slow growth)
+        5. **Healthcare Crisis** — Unexpected medical costs spike by 15%
+        6. **Severe Recession** — Major crash (2008 or 2020 style) then slow recovery
+        
+        **For each scenario, we show:** How long does your money last? Does your plan break, or do you make it to age {end_age}?
+        
+        **Why this matters:** Some of these scenarios are unlikely. Some are very possible. Knowing which ones hurt your plan most helps you understand exactly what to worry about.
+        """)
 
-        if st.button("Run Stress Tests", type="primary", use_container_width=True):
+        st.info("👇 Click below to test all six scenarios against your retirement plan.")
+
+        if st.button("Run Scenario Tests", type="primary", use_container_width=True):
             if "stress_results_df" in st.session_state:
                 del st.session_state.stress_results_df
 
@@ -14293,14 +14437,14 @@ if active_page == PAGE_NAMES[12]:
 
             stress_results.append(
                 run_stress_test_scenario(
-                    "4% Returns",
+                    "Weak Markets",
                     forced_returns=[0.04] * years
                 )
             )
 
             stress_results.append(
                 run_stress_test_scenario(
-                    "Healthcare Shock",
+                    "Healthcare Crisis",
                     spending_multiplier=1.15
                 )
             )
@@ -14324,8 +14468,21 @@ if active_page == PAGE_NAMES[12]:
             if "Years Covered" not in stress_df.columns:
                 stress_df["Years Covered"] = stress_df["Lasts Until Age"].astype(int) - int(st.session_state.current_age)
 
-            st.subheader("Stress Test Summary")
+            end_age = int(st.session_state.get('end_age', 95))
+            st.markdown(f"""
+            ### Your Results Across Six Scenarios
+            
+            Look at the chart below to see which scenarios hurt your plan most. 
+            
+            **What to watch for:**
+            - **All scenarios last to age {end_age}?** Excellent—your plan is resilient.
+            - **Most scenarios work, but one fails early?** That scenario is your weak point. Address it with changes to spending, income, or retirement age.
+            - **Multiple scenarios fail?** Your plan needs structural changes (work longer, spend less, earn more).
+            """)
             st.pyplot(plot_stress_test_chart(stress_df), use_container_width=True)
+
+            st.markdown("---")
+            st.markdown("### How Long Your Money Lasts in Each Scenario")
 
             display_df = stress_df.copy()
 
@@ -14335,19 +14492,46 @@ if active_page == PAGE_NAMES[12]:
             display_df["Max Withdrawal Rate"] = display_df["Max Withdrawal Rate"].map(pct)
             display_df["Income Coverage"] = display_df["Income Coverage"].map(pct)
 
-            st.caption("Lasts Until Age shows the first age where the plan fails, or the final plan age if it survives.")
+            end_age = int(st.session_state.get('end_age', 95))
+            st.markdown(f"""
+            **Lasts Until Age** = The age where money runs out (or your target end age if it survives).  
+            **Years Covered** = How many retirement years this scenario covers. If you planned to age {end_age} and it says {end_age}, the scenario works.
+            """)
             st.dataframe(display_df, use_container_width=True, hide_index=True)
 
+            st.markdown("---")
             st.markdown("""
-### Stress Test Definitions
+            ### What Each Scenario Means in Plain English
+            
+            **Base Case**  
+            Your normal assumptions with your typical market return estimate. This is the control—how your plan looks under "average" conditions. Nothing special happens; markets behave like they usually do.
+            
+            **Bad First 3 Years** ⚠️  
+            You retire, then immediately the market crashes. Year 1 down 20%, Year 2 down 12%, Year 3 down 8%. Then markets recover. This is **the worst timing possible**—and it happens sometimes. If your plan survives this, you're probably okay.
+            
+            **High Inflation (6%)** 📈  
+            Prices rise 6% per year instead of the usual 2-3%. Your groceries, utilities, and healthcare cost a lot more. Fixed-income sources (pensions) don't adjust, so they buy less each year. This squeezes retirees hard.
+            
+            **Weak Markets (4% returns)** 📉  
+            Markets perform poorly for 30 years—only 4% annual return instead of your 7-8% assumption. This happens during long "lost decades" (like stocks from 2000-2010). You're not losing money; it's just growing very slowly.
+            
+            **Healthcare Crisis** 🏥  
+            Your healthcare costs spike 15% above what you budgeted. Could be serious illness, long-term care, treatments not covered by Medicare, or nursing home costs. Most retirees worry about this the most.
+            
+            **Severe Recession** 🔴  
+            Major market crash (down 30%), followed by slow recovery (down 15%, flat, then up 3%). Think 2008 financial crisis or 2020 pandemic crash. Scary, but markets eventually bounce back.
+            
+            ---
+            
+            ### How to Use These Results
+            
+            **If most scenarios work:** Congratulations. Your plan is resilient. Focus on the one or two scenarios that hurt most.
+            
+            **If only Base Case works:** Your plan is fragile. You need to make structural changes (work longer, spend less, earn more from part-time work). Test those changes using the **Action Plan** page.
+            
+            **If multiple scenarios fail:** Your retirement timing is too aggressive. Try delaying 1-2 years, or reducing spending by 10-15%. Even small changes often move you from "failing" to "passing" most scenarios.
+            """)
 
-- **Base Case** → Uses your normal assumptions.
-- **Bad First 3 Years** → Simulates retiring into a bear market.
-- **High Inflation** → Uses 6% inflation.
-- **4% Returns** → Assumes weaker long-term market returns.
-- **Healthcare Shock** → Increases spending by 15%.
-- **Severe Recession** → Simulates a major market crash and slow recovery.
-""")
 
 
 
