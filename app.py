@@ -9985,8 +9985,9 @@ if active_page == PAGE_NAMES[1]:
 if active_page == PAGE_NAMES[2]:
     require_account(intended_page="Budget Builder", reason="default")
     
-    # Load spending plan from Supabase on page initialization
-    if st.session_state.user and "spending_plan_loaded" not in st.session_state:
+    # Load spending plan from Supabase every time we visit this page
+    # This ensures we always have the latest data, even after navigation
+    if st.session_state.user:
         spending_data = load_spending_plan(st.session_state.user)
         if spending_data:
             # Restore all spending plan values from database
@@ -10001,9 +10002,6 @@ if active_page == PAGE_NAMES[2]:
             detailed_budget = spending_data.get("detailed_budget", {})
             for key, value in detailed_budget.items():
                 st.session_state[key] = value
-        
-        # Mark as loaded so we don't reload on every rerun
-        st.session_state.spending_plan_loaded = True
     
     render_page_shell("Spending Plan", "Estimate your retirement lifestyle costs using either a quick monthly number or a more detailed category-by-category budget.", "💳")
     render_guided_progress(2)
