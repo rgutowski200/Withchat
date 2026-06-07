@@ -4238,14 +4238,26 @@ def load_scenarios(user):
 def save_spending_plan(user, spending_data):
     """Save spending plan data to Supabase user_settings table."""
     try:
-        # Use upsert with proper syntax for supabase-py
-        response = supabase.table("user_settings").upsert({
-            "user_id": str(user.id),  # Ensure user_id is a string UUID
-            "spending_plan": spending_data
-        }).execute()
+        user_id_str = str(user.id)
+        
+        # First, check if record exists
+        existing = supabase.table("user_settings").select("id").eq("user_id", user_id_str).execute()
+        
+        if existing.data and len(existing.data) > 0:
+            # Update existing record
+            response = supabase.table("user_settings").update({
+                "spending_plan": spending_data
+            }).eq("user_id", user_id_str).execute()
+        else:
+            # Insert new record
+            response = supabase.table("user_settings").insert({
+                "user_id": user_id_str,
+                "spending_plan": spending_data
+            }).execute()
+        
         return True
     except Exception as e:
-        st.error(f"Error saving spending plan: {str(e)}")
+        st.error(f"Save failed: {str(e)}")
         return False
 
 
