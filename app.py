@@ -10620,6 +10620,76 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
             first_year_gap = max(first_year_total_spending - first_year_income, 0)
     monthly_gap = first_year_gap / 12
 
+    # Math validation for planned spending changes.
+    # Important: a spending change that starts AFTER retirement will not change the
+    # first-retirement-year savings need. It should only change later-year rows and
+    # the ending balance / runout age.
+    spending_change_validation_html = ""
+    if spending_change_active and not df.empty:
+        baseline_df = pd.DataFrame()
+        snapshot = None
+        try:
+            snapshot = snapshot_session_state_for_projection()
+            st.session_state.enable_spending_change = False
+            baseline_df = run_projection()
+        except Exception:
+            baseline_df = pd.DataFrame()
+        finally:
+            try:
+                if snapshot is not None:
+                    restore_session_state_after_projection(snapshot)
+            except Exception:
+                pass
+
+        if baseline_df is not None and not baseline_df.empty:
+            baseline_ending = float(baseline_df["End Total"].iloc[-1] or 0) if "End Total" in baseline_df.columns else 0.0
+            change_ending = ending_balance
+            ending_delta = change_ending - baseline_ending
+
+            baseline_retired_df = baseline_df[baseline_df["Age"] >= retire_age].copy() if "Age" in baseline_df.columns and retire_age else baseline_df.copy()
+            baseline_first_need = 0.0
+            if not baseline_retired_df.empty:
+                baseline_first_row = baseline_retired_df.iloc[0]
+                baseline_first_need = float(baseline_first_row.get("Portfolio Need", 0) or 0)
+                if baseline_first_need <= 0:
+                    baseline_first_need = max(
+                        float(baseline_first_row.get("Total Spending", 0) or 0) -
+                        float(baseline_first_row.get("Total Non-Portfolio Income", 0) or 0),
+                        0,
+                    )
+
+            # Validate the actual projection row at the change age.
+            change_row_text = ""
+            try:
+                change_rows = df[df["Age"] == spending_change_age]
+                baseline_change_rows = baseline_df[baseline_df["Age"] == spending_change_age]
+                if not change_rows.empty and not baseline_change_rows.empty:
+                    actual_change_lifestyle = float(change_rows.iloc[0].get("Lifestyle Spending", 0) or 0) / 12
+                    baseline_change_lifestyle = float(baseline_change_rows.iloc[0].get("Lifestyle Spending", 0) or 0) / 12
+                    change_row_text = (
+                        f'<div><b>Age {spending_change_age} lifestyle spending:</b> '
+                        f'{money(baseline_change_lifestyle)}/mo without change → '
+                        f'{money(actual_change_lifestyle)}/mo with change.</div>'
+                    )
+            except Exception:
+                change_row_text = ""
+
+            first_year_note = (
+                "No change expected" if spending_change_age > retire_age else "Should change because the spending change starts at/before retirement"
+            )
+            spending_change_validation_html = f"""
+            <div class="rb-panel-card" style="margin-top:14px;border-color:#BFDBFE;background:#F8FBFF;">
+              <div class="rb-panel-title">Math validation: planned spending change</div>
+              <div class="rb-panel-sub">This checks the projection with the spending change turned on versus turned off.</div>
+              <div class="rb-explain-copy" style="margin-top:10px;color:#334155;line-height:1.55;">
+                <div><b>First-year need from savings:</b> {money(baseline_first_need / 12)}/mo without change → {money(monthly_gap)}/mo with change. <b>{xml_escape(first_year_note)}</b>.</div>
+                {change_row_text}
+                <div><b>Projected money left at age {end_age}:</b> {money(baseline_ending)} without change → {money(change_ending)} with change.</div>
+                <div><b>Impact of spending change:</b> {money(ending_delta)} more projected ending balance.</div>
+              </div>
+            </div>
+            """
+
     lifestyle_monthly_today = monthly_spending
     lifestyle_monthly_retirement = first_year_lifestyle / 12 if first_year_lifestyle > 0 else monthly_spending
     healthcare_monthly_retirement = first_year_healthcare / 12
@@ -10838,6 +10908,9 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
       </div>
     </div>
     """, unsafe_allow_html=True)
+
+    if spending_change_validation_html:
+        st.markdown(spending_change_validation_html, unsafe_allow_html=True)
 
     st.markdown(f"""
     <div class="rb-panel-card" style="margin-top:14px;">
