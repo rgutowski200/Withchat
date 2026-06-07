@@ -9942,6 +9942,8 @@ if active_page == PAGE_NAMES[1]:
 if active_page == PAGE_NAMES[2]:
     require_account(intended_page="Budget Builder", reason="default")
     render_page_shell("Spending Plan", "Estimate your retirement lifestyle costs using either a quick monthly number or a more detailed category-by-category budget.", "💳")
+    if st.session_state.pop("_budget_saved_success", False):
+        st.success("Spending saved. The dashboard projection has been refreshed with the latest spending-change numbers.")
     render_guided_progress(2)
     page_help(
         "Budget Builder",
@@ -10073,7 +10075,12 @@ if active_page == PAGE_NAMES[2]:
         for k, v in detailed_values.items():
             st.session_state[k] = v
 
-        st.success("Spending saved. Next, review your Retirement Dashboard.")
+        # Force a clean rerun after saving. The projection dataframe is built near
+        # the top of the app, before this form is processed. Without this rerun,
+        # the dashboard can keep using the previous projection until another full
+        # page refresh happens.
+        st.session_state["_budget_saved_success"] = True
+        st.rerun()
 
     monthly = (
         st.session_state.flat_monthly_spending
@@ -10548,6 +10555,35 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
     ss_age = int(st.session_state.get("user_ss_age", 62) or 62)
     rmd_age = int(get_rmd_start_age())
     monthly_spending = float(annual_household_spending() or 0) / 12
+
+    # Planned spending changes are used by run_projection(), but the dashboard
+    # also needs to visibly explain them. Otherwise a user can enter a future
+    # spending drop/increase and think nothing changed because the first-year
+    # retirement gap still shows the starting spending level.
+    spending_change_enabled = bool(st.session_state.get("enable_spending_change", False))
+    spending_change_age = int(st.session_state.get("spending_change_age", 0) or 0)
+    spending_change_monthly = float(st.session_state.get("spending_change_monthly", 0) or 0)
+    spending_change_active = spending_change_enabled and spending_change_age > 0 and spending_change_monthly > 0
+    spending_change_projected_monthly = 0.0
+    spending_change_note = ""
+    spending_change_timeline_html = ""
+    if spending_change_active:
+        try:
+            spending_change_projected_monthly = (float(annual_spending_for_age(spending_change_age) or 0) * inflation_factor_from_today(spending_change_age)) / 12
+        except Exception:
+            spending_change_projected_monthly = spending_change_monthly
+        direction_word = "drop" if spending_change_monthly < monthly_spending else "increase" if spending_change_monthly > monthly_spending else "stay"
+        spending_change_note = (
+            f" Your spending plan also shows spending will {direction_word} to <b>{money(spending_change_monthly)}/month</b> "
+            f"starting at age <b>{spending_change_age}</b>. In the projection, that is about "
+            f"<b>{money(spending_change_projected_monthly)}/month</b> in age-{spending_change_age} inflated dollars."
+        )
+        spending_change_timeline_html = (
+            f'<div class="rb-timeline-row"><div class="rb-timeline-age">{spending_change_age}</div>'
+            f'<div><div class="rb-timeline-title">Spending changes</div>'
+            f'<div class="rb-timeline-copy">Lifestyle spending changes to {money(spending_change_monthly)}/month before healthcare</div></div></div>'
+        )
+
     ending_balance = float(df["End Total"].iloc[-1] or 0) if "End Total" in df.columns and not df.empty else 0.0
     unmet_need = float(df["Unmet Need"].sum() or 0) if "Unmet Need" in df.columns else 0.0
     income_coverage = float(df["Income Coverage Ratio"].mean() or 0) if "Income Coverage Ratio" in df.columns else 0.0
@@ -10697,6 +10733,7 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
         runout_phrase = f" The projection appears to run short around age <b>{runout_age}</b>." if runout_age else " The projection is showing a shortfall."
         summary_text = (
             f"Here is the simple version: you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
+            f"{spending_change_note} "
             f"After Social Security and other income are counted, savings would need to cover about <b>{money(monthly_gap)}/month</b>.{gap_explanation} "
             f"{runout_phrase} That does not mean retirement is impossible. It means this first version needs changes before it looks comfortable. "
             "The easiest things to test are retiring a little later, spending a little less, saving more before retirement, or adding income."
@@ -10704,6 +10741,7 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
     elif rtv_score < 80:
         summary_text = (
             f"Here is the simple version: you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
+            f"{spending_change_note} "
             f"After Social Security and other income are counted, savings would need to cover about <b>{money(monthly_gap)}/month</b>.{gap_explanation} "
             f"The projection still shows about <b>{money(ending_balance)}</b> at age <b>{end_age}</b>, but the cushion may not be strong enough yet. "
             "The next step is to test a few changes and see how the plan handles bad market years."
@@ -10711,6 +10749,7 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
     else:
         summary_text = (
             f"Here is the simple version: you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
+            f"{spending_change_note} "
             f"After Social Security and other income are counted, savings would need to cover about <b>{money(monthly_gap)}/month</b>.{gap_explanation} "
             f"The projection shows about <b>{money(ending_balance)}</b> left at age <b>{end_age}</b>. "
             f"{why_money_left} "
@@ -10785,6 +10824,7 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
         <div class="rb-panel-sub">The key moments ahead in your plan.</div>
         <div class="rb-timeline-row"><div class="rb-timeline-age">Age {current_age}</div><div><div class="rb-timeline-title">Where you are now</div><div class="rb-timeline-copy">Still saving</div></div></div>
         <div class="rb-timeline-row"><div class="rb-timeline-age">{retire_age}</div><div><div class="rb-timeline-title">You retire</div><div class="rb-timeline-copy">Start drawing from savings; healthcare costs begin</div></div></div>
+        {spending_change_timeline_html}
         <div class="rb-timeline-row"><div class="rb-timeline-age">{ss_age}</div><div><div class="rb-timeline-title">Social Security starts</div><div class="rb-timeline-copy">Your monthly gap shrinks as Social Security income begins</div></div></div>
         <div class="rb-timeline-row"><div class="rb-timeline-age">{rmd_age}</div><div><div class="rb-timeline-title">Required withdrawals begin</div><div class="rb-timeline-copy">The IRS requires minimum withdrawals from many pre-tax retirement accounts</div></div></div>
         <div class="rb-timeline-row"><div class="rb-timeline-age">{end_age}</div><div><div class="rb-timeline-title">End of plan</div><div class="rb-timeline-copy">~{compact_money(ending_balance)} projected to remain</div></div></div>
