@@ -9985,23 +9985,27 @@ if active_page == PAGE_NAMES[1]:
 if active_page == PAGE_NAMES[2]:
     require_account(intended_page="Budget Builder", reason="default")
     
-    # Load spending plan from Supabase every time we visit this page
-    # This ensures we always have the latest data, even after navigation
+    # Load spending plan from Supabase only if values haven't been set yet
+    # This allows user input to take priority while still restoring data on page visits
     if st.session_state.user:
-        spending_data = load_spending_plan(st.session_state.user)
-        if spending_data:
-            # Restore all spending plan values from database
-            st.session_state.budget_mode = spending_data.get("budget_mode", "Flat monthly number")
-            st.session_state.flat_monthly_spending = spending_data.get("flat_monthly_spending", 0)
-            st.session_state.survivor_spending = spending_data.get("survivor_spending", 0)
-            st.session_state.enable_spending_change = spending_data.get("enable_spending_change", False)
-            st.session_state.spending_change_age = spending_data.get("spending_change_age", 0)
-            st.session_state.spending_change_monthly = spending_data.get("spending_change_monthly", 0)
-            
-            # Restore detailed budget values
-            detailed_budget = spending_data.get("detailed_budget", {})
-            for key, value in detailed_budget.items():
-                st.session_state[key] = value
+        # Check if spending values are at their defaults (haven't been set)
+        current_spending = st.session_state.get("flat_monthly_spending", 0)
+        if current_spending == 0 or current_spending is None:
+            # Values are empty, load from database
+            spending_data = load_spending_plan(st.session_state.user)
+            if spending_data:
+                # Restore all spending plan values from database
+                st.session_state.budget_mode = spending_data.get("budget_mode", "Flat monthly number")
+                st.session_state.flat_monthly_spending = spending_data.get("flat_monthly_spending", 0)
+                st.session_state.survivor_spending = spending_data.get("survivor_spending", 0)
+                st.session_state.enable_spending_change = spending_data.get("enable_spending_change", False)
+                st.session_state.spending_change_age = spending_data.get("spending_change_age", 0)
+                st.session_state.spending_change_monthly = spending_data.get("spending_change_monthly", 0)
+                
+                # Restore detailed budget values
+                detailed_budget = spending_data.get("detailed_budget", {})
+                for key, value in detailed_budget.items():
+                    st.session_state[key] = value
     
     render_page_shell("Spending Plan", "Estimate your retirement lifestyle costs using either a quick monthly number or a more detailed category-by-category budget.", "💳")
     render_guided_progress(2)
