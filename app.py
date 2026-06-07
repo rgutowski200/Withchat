@@ -10717,6 +10717,15 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
     else:
         market_label, market_class = "Lower", "rb-pill-green"
 
+    timeline_rows_html = ""
+    timeline_rows_html += f'<div class="rb-timeline-row"><div class="rb-timeline-age">Age {current_age}</div><div><div class="rb-timeline-title">Where you are now</div><div class="rb-timeline-copy">Still saving</div></div></div>'
+    timeline_rows_html += f'<div class="rb-timeline-row"><div class="rb-timeline-age">{retire_age}</div><div><div class="rb-timeline-title">You retire</div><div class="rb-timeline-copy">Start drawing from savings; healthcare costs begin</div></div></div>'
+    if spending_change_timeline_html:
+        timeline_rows_html += spending_change_timeline_html
+    timeline_rows_html += f'<div class="rb-timeline-row"><div class="rb-timeline-age">{ss_age}</div><div><div class="rb-timeline-title">Social Security starts</div><div class="rb-timeline-copy">Your monthly gap shrinks as Social Security income begins</div></div></div>'
+    timeline_rows_html += f'<div class="rb-timeline-row"><div class="rb-timeline-age">{rmd_age}</div><div><div class="rb-timeline-title">Required withdrawals begin</div><div class="rb-timeline-copy">The IRS requires minimum withdrawals from many pre-tax retirement accounts</div></div></div>'
+    timeline_rows_html += f'<div class="rb-timeline-row"><div class="rb-timeline-age">{end_age}</div><div><div class="rb-timeline-title">End of plan</div><div class="rb-timeline-copy">~{compact_money(ending_balance)} projected to remain</div></div></div>'
+
     # Explain why the savings gap can exceed stated monthly spending.
     # The gap includes healthcare costs and estimated federal taxes on top of lifestyle spending,
     # so it is often larger than the monthly spending number the user entered.
@@ -10809,28 +10818,23 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
 
 
     st.markdown(f"""
-    <div class="rb-health-timeline-grid">
-      <div class="rb-panel-card">
-        <div class="rb-panel-title">Your Retirement Health Check</div>
-        <div class="rb-panel-sub">Quick checks on the parts of your plan that matter most.</div>
-        <div class="rb-health-row"><div class="rb-health-icon">💰</div><div><div class="rb-health-title">Income coverage</div><div class="rb-health-copy">How much of your spending is covered by Social Security & pensions</div></div><div class="rb-health-pill {income_class}">{income_label}</div></div>
-        <div class="rb-health-row"><div class="rb-health-icon">📉</div><div><div class="rb-health-title">Spending rate</div><div class="rb-health-copy">How fast you’re drawing down savings — lower is safer</div></div><div class="rb-health-pill {spending_class}">{spending_label}</div></div>
-        <div class="rb-health-row"><div class="rb-health-icon">🏥</div><div><div class="rb-health-title">Healthcare gap</div><div class="rb-health-copy">Covering health costs before Medicare starts at 65</div></div><div class="rb-health-pill {healthcare_class}">{healthcare_label}</div></div>
-        <div class="rb-health-row"><div class="rb-health-icon">🧾</div><div><div class="rb-health-title">Tax pressure</div><div class="rb-health-copy">How much of your withdrawals may go to taxes</div></div><div class="rb-health-pill {tax_class}">{tax_label}</div></div>
-        <div class="rb-health-row"><div class="rb-health-icon">📊</div><div><div class="rb-health-title">Market timing risk</div><div class="rb-health-copy">Risk of a bad market right when you retire</div></div><div class="rb-health-pill {market_class}">{market_label}</div></div>
-      </div>
-      <div class="rb-panel-card">
-        <div class="rb-panel-title">Your Money Timeline</div>
-        <div class="rb-panel-sub">The key moments ahead in your plan.</div>
-        <div class="rb-timeline-row"><div class="rb-timeline-age">Age {current_age}</div><div><div class="rb-timeline-title">Where you are now</div><div class="rb-timeline-copy">Still saving</div></div></div>
-        <div class="rb-timeline-row"><div class="rb-timeline-age">{retire_age}</div><div><div class="rb-timeline-title">You retire</div><div class="rb-timeline-copy">Start drawing from savings; healthcare costs begin</div></div></div>
-        {spending_change_timeline_html}
-        <div class="rb-timeline-row"><div class="rb-timeline-age">{ss_age}</div><div><div class="rb-timeline-title">Social Security starts</div><div class="rb-timeline-copy">Your monthly gap shrinks as Social Security income begins</div></div></div>
-        <div class="rb-timeline-row"><div class="rb-timeline-age">{rmd_age}</div><div><div class="rb-timeline-title">Required withdrawals begin</div><div class="rb-timeline-copy">The IRS requires minimum withdrawals from many pre-tax retirement accounts</div></div></div>
-        <div class="rb-timeline-row"><div class="rb-timeline-age">{end_age}</div><div><div class="rb-timeline-title">End of plan</div><div class="rb-timeline-copy">~{compact_money(ending_balance)} projected to remain</div></div></div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
+<div class="rb-health-timeline-grid">
+  <div class="rb-panel-card">
+    <div class="rb-panel-title">Your Retirement Health Check</div>
+    <div class="rb-panel-sub">Quick checks on the parts of your plan that matter most.</div>
+    <div class="rb-health-row"><div class="rb-health-icon">💰</div><div><div class="rb-health-title">Income coverage</div><div class="rb-health-copy">How much of your spending is covered by Social Security & pensions</div></div><div class="rb-health-pill {income_class}">{income_label}</div></div>
+    <div class="rb-health-row"><div class="rb-health-icon">📉</div><div><div class="rb-health-title">Spending rate</div><div class="rb-health-copy">How fast you’re drawing down savings — lower is safer</div></div><div class="rb-health-pill {spending_class}">{spending_label}</div></div>
+    <div class="rb-health-row"><div class="rb-health-icon">🏥</div><div><div class="rb-health-title">Healthcare gap</div><div class="rb-health-copy">Covering health costs before Medicare starts at 65</div></div><div class="rb-health-pill {healthcare_class}">{healthcare_label}</div></div>
+    <div class="rb-health-row"><div class="rb-health-icon">🧾</div><div><div class="rb-health-title">Tax pressure</div><div class="rb-health-copy">How much of your withdrawals may go to taxes</div></div><div class="rb-health-pill {tax_class}">{tax_label}</div></div>
+    <div class="rb-health-row"><div class="rb-health-icon">📊</div><div><div class="rb-health-title">Market timing risk</div><div class="rb-health-copy">Risk of a bad market right when you retire</div></div><div class="rb-health-pill {market_class}">{market_label}</div></div>
+  </div>
+  <div class="rb-panel-card">
+    <div class="rb-panel-title">Your Money Timeline</div>
+    <div class="rb-panel-sub">The key moments ahead in your plan.</div>
+    {timeline_rows_html}
+  </div>
+</div>
+""", unsafe_allow_html=True)
 
 def render_basic_blueprint_dashboard():
     snap = calculate_basic_blueprint_snapshot()
