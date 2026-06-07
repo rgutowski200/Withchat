@@ -2090,26 +2090,20 @@ def render_auth_form():
 
 
 def send_password_reset_email(email: str):
-    """Send a Supabase password reset email with safe fallbacks for client versions."""
+    """Send a Supabase password reset email that displays a passcode from {{ .Token }}."""
     email = (email or "").strip()
     if not email:
         raise ValueError("Enter your email first.")
 
-    redirect_url = "https://retirementblueprint101.com"
-
-    # supabase-py v2
+    # Use Supabase's recovery token as a passcode. The Reset Password email
+    # template must display {{ .Token }}. Do not depend on redirect links for
+    # Streamlit/mobile Safari.
     if hasattr(supabase.auth, "reset_password_for_email"):
-        try:
-            return supabase.auth.reset_password_for_email(email, {"redirect_to": redirect_url})
-        except TypeError:
-            return supabase.auth.reset_password_for_email(email)
+        return supabase.auth.reset_password_for_email(email)
 
     # Older/alternate clients
     if hasattr(supabase.auth, "reset_password_email"):
-        try:
-            return supabase.auth.reset_password_email(email, {"redirect_to": redirect_url})
-        except TypeError:
-            return supabase.auth.reset_password_email(email)
+        return supabase.auth.reset_password_email(email)
 
     raise RuntimeError("Password reset is not available in this Supabase client version.")
 
@@ -2127,6 +2121,47 @@ def update_signed_in_password(new_password: str):
         return supabase.auth.api.update_user({"password": new_password})
 
     raise RuntimeError("Password update is not available in this Supabase client version.")
+
+
+def verify_recovery_code_and_update_password(email: str, token: str, new_password: str):
+    """Verify a Supabase recovery code, then update the user's password.
+
+    This avoids fragile browser redirect-token handling in Streamlit/mobile Safari.
+    The reset email template should show {{ .Token }} as a reset code.
+    """
+    email = (email or "").strip()
+    token = (token or "").strip()
+    new_password = (new_password or "").strip()
+
+    if not email:
+        raise ValueError("Enter the email address for the account.")
+    if not token:
+        raise ValueError("Enter the reset code from your email.")
+    if len(new_password) < 8:
+        raise ValueError("Password must be at least 8 characters.")
+
+    if not hasattr(supabase.auth, "verify_otp"):
+        raise RuntimeError("Recovery-code verification is not available in this Supabase client version.")
+
+    supabase.auth.verify_otp({
+        "email": email,
+        "token": token,
+        "type": "recovery",
+    })
+
+    if hasattr(supabase.auth, "update_user"):
+        result = supabase.auth.update_user({"password": new_password})
+    elif hasattr(supabase.auth, "api") and hasattr(supabase.auth.api, "update_user"):
+        result = supabase.auth.api.update_user({"password": new_password})
+    else:
+        raise RuntimeError("Password update is not available in this Supabase client version.")
+
+    try:
+        supabase.auth.sign_out()
+    except Exception:
+        pass
+
+    return result
 
 
 def render_sidebar_auth_controls():
@@ -7885,11 +7920,12 @@ def render_navigation():
             "Recommendations",
         ]
 
-        # Advanced pages only shown once the user has a blueprint (can_run = True)
+        # Premium pages are always visible in the sidebar so users can see what they are buying.
+        # They stay locked unless the signed-in user has premium access.
         advanced_pages = [
+            "Retirement Age Optimizer",
             "Projection Table",
             "Saved Scenarios",
-            "Retirement Age Optimizer",
             "Monte Carlo Analysis",
             "Stress Tests",
             "Best Places to Retire",
@@ -7903,7 +7939,9 @@ def render_navigation():
             "Legal / Disclaimers",
         ]
 
-        user_has_blueprint = len(required_missing()) == 0 or st.session_state.get("quick_blueprint_saved", False)
+        is_signed_in = bool(st.session_state.get("user"))
+        is_premium_user = bool(st.session_state.get("is_premium_user", False))
+        premium_tools_unlocked = is_signed_in and is_premium_user
 
         for page_name in core_pages:
             is_active = st.session_state.active_page == page_name
@@ -7917,25 +7955,24 @@ def render_navigation():
             "<div style='margin-top:6px;font-size:.72rem;font-weight:700;color:#94A3B8;letter-spacing:.06em;text-transform:uppercase;padding-left:4px;'>Premium Tools</div>",
             unsafe_allow_html=True,
         )
-
         for page_name in advanced_pages:
             is_active = st.session_state.active_page == page_name
             icon = PAGE_ICONS.get(page_name, "")
             display_name = NAV_LABELS.get(page_name, page_name)
 
-            # Show premium tools in the sidebar even before the user creates a blueprint.
-            # This lets users see what they are buying instead of hiding the value.
-            locked = not user_has_blueprint
-
-            if locked:
-                label = f"{icon} 🔒 {display_name}"
-                if st.button(label, key=f"sidebar_preview_{page_name}", use_container_width=True):
-                    st.session_state["_premium_preview_page"] = page_name
-                    go_to_page("Retirement Dashboard")
-            else:
+            if premium_tools_unlocked:
                 label = f"{icon} {display_name}"
                 if st.button(label, key=f"sidebar_nav_{page_name}", use_container_width=True, disabled=is_active):
                     go_to_page(page_name)
+            else:
+                label = f"{icon} 🔒 {display_name}"
+                if st.button(label, key=f"sidebar_locked_{page_name}", use_container_width=True):
+                    st.session_state["_gate_intended_page"] = "Retirement Dashboard"
+                    st.session_state["_locked_premium_page"] = page_name
+                    st.session_state["show_premium_prompt"] = True
+                    if not is_signed_in:
+                        st.session_state["_show_account_gate"] = True
+                    go_to_page("Retirement Dashboard")
 
         st.markdown("<div style='margin-top:6px;font-size:.72rem;font-weight:700;color:#94A3B8;letter-spacing:.06em;text-transform:uppercase;padding-left:4px;'>Info</div>", unsafe_allow_html=True)
         for page_name in info_pages:
@@ -9048,14 +9085,45 @@ def render_account_gate(reason: str = "default"):
             st.session_state["_gate_show_reset"] = not st.session_state.get("_gate_show_reset", False)
 
         if st.session_state.get("_gate_show_reset", False):
-            reset_email = st.text_input("Email for reset link", key="gate_reset_email")
-            if st.button("Send Reset Email", use_container_width=True, key="gate_send_reset"):
+            st.markdown(
+                """
+                <div style="border:1px solid #DBEAFE;border-radius:16px;padding:14px;background:#F8FBFF;margin:10px 0;">
+                  <div style="font-weight:900;color:#0F172A;margin-bottom:4px;">Reset your password</div>
+                  <div style="color:#64748B;font-size:.9rem;line-height:1.4;">
+                    Enter your email, send the reset code, then enter the passcode from that email and choose a new password.
+                  </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            reset_email = st.text_input("Email for reset code", key="gate_reset_email")
+            if st.button("Send Reset Code", use_container_width=True, key="gate_send_reset"):
                 try:
                     send_password_reset_email(reset_email)
-                    st.success("Reset email sent. Check your inbox and spam folder.")
-                    st.session_state["_gate_show_reset"] = False
+                    st.session_state["_reset_email_sent_to"] = reset_email.strip()
+                    st.success("Reset code sent. Check your inbox and spam folder, then enter the passcode below.")
                 except Exception as e:
                     st.error(f"Reset failed: {e}")
+
+            reset_code = st.text_input("Passcode from email", key="gate_reset_code")
+            reset_new_password = st.text_input("New password", type="password", key="gate_reset_new_password")
+            reset_confirm_password = st.text_input("Confirm new password", type="password", key="gate_reset_confirm_password")
+
+            if st.button("Update Password", use_container_width=True, key="gate_update_reset_password"):
+                if reset_new_password != reset_confirm_password:
+                    st.error("The passwords do not match.")
+                else:
+                    try:
+                        verify_recovery_code_and_update_password(reset_email, reset_code, reset_new_password)
+                        st.success("Password updated. You can now sign in with your new password.")
+                        st.session_state["_gate_show_reset"] = False
+                        # Do not set st.session_state["gate_auth_mode"] here.
+                        # Streamlit has already instantiated that radio widget during this run,
+                        # and changing its state afterward throws an exception. The user is
+                        # already on the Sign In tab in the normal reset flow.
+                    except Exception as e:
+                        st.error(f"Password update failed: {e}")
 
     st.stop()
 
