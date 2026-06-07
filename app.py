@@ -10050,6 +10050,7 @@ if active_page == PAGE_NAMES[2]:
     st.checkbox(
         "Change my spending at a certain age",
         key="enable_spending_change",
+        value=st.session_state.get("enable_spending_change", False),
         help="Use this if spending will change later in retirement, such as spending more early and less later."
     )
 
@@ -10061,6 +10062,7 @@ if active_page == PAGE_NAMES[2]:
             max_value=110,
             step=1,
             key="spending_change_age",
+            value=int(st.session_state.get("spending_change_age", 0) or 0),
             help="Enter the age when your new monthly spending should begin."
         )
         c2.number_input(
@@ -10068,6 +10070,7 @@ if active_page == PAGE_NAMES[2]:
             min_value=0,
             step=500,
             key="spending_change_monthly",
+            value=int(st.session_state.get("spending_change_monthly", 0) or 0),
             help="Enter the new monthly spending amount before healthcare."
         )
         if int(st.session_state.spending_change_age or 0) > 0 and float(st.session_state.spending_change_monthly or 0) > 0:
