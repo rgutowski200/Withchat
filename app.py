@@ -2129,6 +2129,37 @@ def update_signed_in_password(new_password: str):
     raise RuntimeError("Password update is not available in this Supabase client version.")
 
 
+def verify_reset_code_and_update_password(email: str, passcode: str, new_password: str):
+    """Verify the Supabase recovery passcode, then update the user's password."""
+    email = (email or "").strip()
+    passcode = (passcode or "").strip()
+    new_password = (new_password or "").strip()
+
+    if not email:
+        raise ValueError("Enter the email you used for the reset code.")
+    if not passcode:
+        raise ValueError("Enter the passcode from your email.")
+    if len(new_password) < 8:
+        raise ValueError("Password must be at least 8 characters.")
+
+    if not hasattr(supabase.auth, "verify_otp"):
+        raise RuntimeError("Passcode verification is not available in this Supabase client version.")
+
+    # Supabase password recovery codes use type='recovery'. After verify_otp succeeds,
+    # the client has a recovery session, so update_user can change the password.
+    try:
+        verify_result = supabase.auth.verify_otp({
+            "email": email,
+            "token": passcode,
+            "type": "recovery",
+        })
+    except TypeError:
+        verify_result = supabase.auth.verify_otp(email=email, token=passcode, type="recovery")
+
+    update_result = update_signed_in_password(new_password)
+    return verify_result, update_result
+
+
 def render_sidebar_auth_controls():
     if st.session_state.user:
         user_email = getattr(st.session_state.user, "email", "Signed in")
@@ -7779,10 +7810,11 @@ NAV_LABELS = {
 }
 
 
-# TEMPORARY TESTING OVERRIDE:
-# Unlock all premium features for every user while testing.
-# Before launch, remove this and connect is_premium_user to the paid subscription status.
-st.session_state["is_premium_user"] = True
+# TEMPORARY TESTING MODE:
+# During QA/testing, any signed-in user gets access to all premium tools.
+# Logged-out visitors still see the premium tools in the sidebar as locked.
+# Before paid launch, replace this with real subscription/status logic.
+st.session_state["is_premium_user"] = bool(st.session_state.get("user"))
 
 if "active_page" not in st.session_state or st.session_state.active_page not in PAGE_NAMES:
     st.session_state.active_page = "Home"
@@ -7885,11 +7917,12 @@ def render_navigation():
             "Recommendations",
         ]
 
-        # Advanced pages only shown once the user has a blueprint (can_run = True)
+        # Premium pages are always visible so users can see what they get.
+        # While testing, signed-in users get full access. Logged-out users see locks.
         advanced_pages = [
+            "Retirement Age Optimizer",
             "Projection Table",
             "Saved Scenarios",
-            "Retirement Age Optimizer",
             "Monte Carlo Analysis",
             "Stress Tests",
             "Best Places to Retire",
@@ -7913,22 +7946,26 @@ def render_navigation():
             if st.button(label, key=f"sidebar_nav_{page_name}", use_container_width=True, disabled=is_active):
                 go_to_page(page_name)
 
-        if user_has_blueprint:
-            st.markdown("<div style='margin-top:6px;font-size:.72rem;font-weight:700;color:#94A3B8;letter-spacing:.06em;text-transform:uppercase;padding-left:4px;'>Advanced Tools</div>", unsafe_allow_html=True)
-            for page_name in advanced_pages:
-                is_active = st.session_state.active_page == page_name
-                icon = PAGE_ICONS.get(page_name, "")
-                display_name = NAV_LABELS.get(page_name, page_name)
-                label = f"{icon} {display_name}"
-                if st.button(label, key=f"sidebar_nav_{page_name}", use_container_width=True, disabled=is_active):
+        st.markdown("<div style='margin-top:6px;font-size:.72rem;font-weight:700;color:#94A3B8;letter-spacing:.06em;text-transform:uppercase;padding-left:4px;'>Premium Tools</div>", unsafe_allow_html=True)
+
+        signed_in = bool(st.session_state.get("user"))
+        has_premium_access = signed_in or bool(st.session_state.get("is_premium_user", False))
+
+        for page_name in advanced_pages:
+            is_active = st.session_state.active_page == page_name
+            icon = PAGE_ICONS.get(page_name, "")
+            display_name = NAV_LABELS.get(page_name, page_name)
+            locked = not has_premium_access
+            lock_icon = "🔒 " if locked else ""
+            label = f"{icon} {lock_icon}{display_name}"
+
+            if st.button(label, key=f"sidebar_nav_{page_name}", use_container_width=True, disabled=(is_active and not locked)):
+                if locked:
+                    st.session_state["_show_account_gate"] = True
+                    st.session_state["_gate_intended_page"] = page_name
+                    st.rerun()
+                else:
                     go_to_page(page_name)
-        else:
-            st.markdown("""
-            <div style="border:1px solid #E2E8F0;border-radius:12px;padding:12px 14px;margin:10px 0 4px 0;background:#F8FAFF;">
-              <div style="font-size:.82rem;font-weight:700;color:#64748B;margin-bottom:4px;">🔓 More tools unlock after your first blueprint</div>
-              <div style="font-size:.78rem;color:#94A3B8;line-height:1.4;">Projection, stress tests, PDF report, AI Coach, and more.</div>
-            </div>
-            """, unsafe_allow_html=True)
 
         st.markdown("<div style='margin-top:6px;font-size:.72rem;font-weight:700;color:#94A3B8;letter-spacing:.06em;text-transform:uppercase;padding-left:4px;'>Info</div>", unsafe_allow_html=True)
         for page_name in info_pages:
@@ -9041,14 +9078,38 @@ def render_account_gate(reason: str = "default"):
             st.session_state["_gate_show_reset"] = not st.session_state.get("_gate_show_reset", False)
 
         if st.session_state.get("_gate_show_reset", False):
-            reset_email = st.text_input("Email for reset link", key="gate_reset_email")
-            if st.button("Send Reset Email", use_container_width=True, key="gate_send_reset"):
+            st.markdown("**Reset your password with a passcode**")
+            st.caption("Enter your email, send the reset code, then enter the passcode from that email and choose a new password.")
+
+            reset_email = st.text_input("Email for reset code", key="gate_reset_email")
+            if st.button("Send Reset Code", use_container_width=True, key="gate_send_reset"):
                 try:
                     send_password_reset_email(reset_email)
-                    st.success("Reset email sent. Check your inbox and spam folder.")
-                    st.session_state["_gate_show_reset"] = False
+                    st.success("Reset code sent. Check your inbox and spam folder.")
                 except Exception as e:
                     st.error(f"Reset failed: {e}")
+
+            reset_code = st.text_input("Passcode from email", key="gate_reset_code")
+            new_password = st.text_input("New password", type="password", key="gate_new_password")
+            confirm_password = st.text_input("Confirm new password", type="password", key="gate_confirm_new_password")
+
+            if st.button("Update Password", use_container_width=True, key="gate_update_password"):
+                if not reset_email:
+                    st.error("Enter the email you used for the reset code.")
+                elif not reset_code:
+                    st.error("Enter the passcode from your email.")
+                elif not new_password or not confirm_password:
+                    st.error("Enter and confirm your new password.")
+                elif new_password != confirm_password:
+                    st.error("The new passwords do not match.")
+                elif len(new_password) < 8:
+                    st.error("Password must be at least 8 characters.")
+                else:
+                    try:
+                        verify_reset_code_and_update_password(reset_email, reset_code, new_password)
+                        st.success("Password updated. You can now sign in with your new password.")
+                    except Exception as e:
+                        st.error(f"Password update failed: {e}")
 
     st.stop()
 
