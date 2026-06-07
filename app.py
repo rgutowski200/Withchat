@@ -10594,17 +10594,38 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
     # with inflation over time — the average gap across 20 years looks much larger than
     # year one. First-year is directly comparable to the monthly spending shown above.
     first_year_gap = 0.0
+    first_year_lifestyle = 0.0
+    first_year_healthcare = 0.0
+    first_year_mortgage = 0.0
+    first_year_tax = 0.0
+    first_year_income = 0.0
+    first_year_total_spending = 0.0
+    first_year_portfolio_need = 0.0
     retired_df = df[df["Age"] >= retire_age].copy() if "Age" in df.columns and retire_age else df.copy()
     if not retired_df.empty:
         first_row = retired_df.iloc[0]
-        if "Total Spending" in first_row.index and "Total Non-Portfolio Income" in first_row.index:
-            first_year_gap = max(
-                float(first_row["Total Spending"] or 0) - float(first_row["Total Non-Portfolio Income"] or 0),
-                0,
-            )
-        elif "Portfolio Need" in first_row.index:
-            first_year_gap = max(float(first_row["Portfolio Need"] or 0), 0)
+        first_year_lifestyle = float(first_row.get("Lifestyle Spending", 0) or 0)
+        first_year_healthcare = float(first_row.get("Healthcare", 0) or 0)
+        first_year_mortgage = float(first_row.get("Mortgage Payment", 0) or 0)
+        first_year_tax = float(first_row.get("Estimated Federal Tax", 0) or 0)
+        first_year_income = float(first_row.get("Total Non-Portfolio Income", 0) or 0)
+        first_year_total_spending = float(first_row.get("Total Spending", 0) or 0)
+        first_year_portfolio_need = float(first_row.get("Portfolio Need", 0) or 0)
+        if first_year_portfolio_need > 0:
+            # This is the real first-year amount expected to come out of savings.
+            # It can be higher than lifestyle spending because healthcare, taxes,
+            # mortgage payments, and inflation-adjustment are part of the retirement year.
+            first_year_gap = max(first_year_portfolio_need, 0)
+        elif "Total Spending" in first_row.index and "Total Non-Portfolio Income" in first_row.index:
+            first_year_gap = max(first_year_total_spending - first_year_income, 0)
     monthly_gap = first_year_gap / 12
+
+    lifestyle_monthly_today = monthly_spending
+    lifestyle_monthly_retirement = first_year_lifestyle / 12 if first_year_lifestyle > 0 else monthly_spending
+    healthcare_monthly_retirement = first_year_healthcare / 12
+    mortgage_monthly_retirement = first_year_mortgage / 12
+    tax_monthly_retirement = first_year_tax / 12
+    income_monthly_retirement = first_year_income / 12
 
     starting_balance = float(df["Start Total"].iloc[0] or 0) if "Start Total" in df.columns and not df.empty else 0.0
     years_until_retirement = max(retire_age - current_age, 0)
@@ -10726,14 +10747,16 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
     timeline_rows_html += f'<div class="rb-timeline-row"><div class="rb-timeline-age">{rmd_age}</div><div><div class="rb-timeline-title">Required withdrawals begin</div><div class="rb-timeline-copy">The IRS requires minimum withdrawals from many pre-tax retirement accounts</div></div></div>'
     timeline_rows_html += f'<div class="rb-timeline-row"><div class="rb-timeline-age">{end_age}</div><div><div class="rb-timeline-title">End of plan</div><div class="rb-timeline-copy">~{compact_money(ending_balance)} projected to remain</div></div></div>'
 
-    # Explain why the savings gap can exceed stated monthly spending.
-    # The gap includes healthcare costs and estimated federal taxes on top of lifestyle spending,
-    # so it is often larger than the monthly spending number the user entered.
+    # Explain why the savings need can exceed the spending number the user typed.
+    # The typed spending number is today's lifestyle spending before healthcare.
+    # The dashboard savings-need number is the first retirement-year portfolio withdrawal need.
     gap_vs_spending = monthly_gap - monthly_spending
     if gap_vs_spending > 100:
         gap_explanation = (
-            f" This savings gap is higher than your stated spending because it also includes estimated healthcare costs "
-            f"and federal taxes — not just lifestyle spending."
+            f" This is not a math error: the savings need is higher than the spending field because the dashboard uses "
+            f"first-retirement-year dollars and also includes healthcare"
+            f"{', mortgage' if mortgage_monthly_retirement > 0 else ''}"
+            f"{', and estimated federal taxes' if tax_monthly_retirement > 0 else ''}, then subtracts Social Security and other income."
         )
     else:
         gap_explanation = ""
@@ -10743,7 +10766,7 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
         summary_text = (
             f"Here is the simple version: you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
             f"{spending_change_note} "
-            f"After Social Security and other income are counted, savings would need to cover about <b>{money(monthly_gap)}/month</b>.{gap_explanation} "
+            f"In the first retirement year, savings would need to cover about <b>{money(monthly_gap)}/month</b>.{gap_explanation} "
             f"{runout_phrase} That does not mean retirement is impossible. It means this first version needs changes before it looks comfortable. "
             "The easiest things to test are retiring a little later, spending a little less, saving more before retirement, or adding income."
         )
@@ -10751,7 +10774,7 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
         summary_text = (
             f"Here is the simple version: you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
             f"{spending_change_note} "
-            f"After Social Security and other income are counted, savings would need to cover about <b>{money(monthly_gap)}/month</b>.{gap_explanation} "
+            f"In the first retirement year, savings would need to cover about <b>{money(monthly_gap)}/month</b>.{gap_explanation} "
             f"The projection still shows about <b>{money(ending_balance)}</b> at age <b>{end_age}</b>, but the cushion may not be strong enough yet. "
             "The next step is to test a few changes and see how the plan handles bad market years."
         )
@@ -10759,7 +10782,7 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
         summary_text = (
             f"Here is the simple version: you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
             f"{spending_change_note} "
-            f"After Social Security and other income are counted, savings would need to cover about <b>{money(monthly_gap)}/month</b>.{gap_explanation} "
+            f"In the first retirement year, savings would need to cover about <b>{money(monthly_gap)}/month</b>.{gap_explanation} "
             f"The projection shows about <b>{money(ending_balance)}</b> left at age <b>{end_age}</b>. "
             f"{why_money_left} "
             "This is still an estimate, so the next smart step is to stress test it against a few bad market years."
@@ -10808,11 +10831,27 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
         <div class="rb-card-note">The projected balance left at age {end_age} after paying for all retirement spending.</div>
       </div>
       <div class="rb-card">
-        <div class="rb-card-label">Monthly Gap From Savings</div>
+        <div class="rb-card-label">First-Year Need From Savings</div>
         <div class="rb-card-value">{money(monthly_gap)}</div>
-        <div class="rb-kpi-pill" style="background:{dashboard_pill_bg if rtv_score < 80 else '#DCFCE7'};color:{dashboard_pill_color if rtv_score < 80 else '#166534'}">Savings need</div>
-        <div class="rb-card-note">First-year retirement gap: lifestyle + healthcare + est. taxes, minus Social Security and other income.</div>
+        <div class="rb-kpi-pill" style="background:{dashboard_pill_bg if rtv_score < 80 else '#DCFCE7'};color:{dashboard_pill_color if rtv_score < 80 else '#166534'}">Portfolio withdrawal</div>
+        <div class="rb-card-note">This is not just lifestyle spending. It is the first retirement-year amount expected to come from savings.</div>
       </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div class="rb-panel-card" style="margin-top:14px;">
+      <div class="rb-panel-title">Why the savings need can be higher than monthly spending</div>
+      <div class="rb-panel-sub">Your spending input is today’s lifestyle spending before healthcare. The dashboard converts that into first-retirement-year dollars and adds other retirement costs.</div>
+      <div class="rb-card-grid" style="grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-top:12px;">
+        <div class="rb-card" style="padding:14px;"><div class="rb-card-label">Lifestyle today</div><div class="rb-card-value" style="font-size:1.35rem;">{money(lifestyle_monthly_today)}</div></div>
+        <div class="rb-card" style="padding:14px;"><div class="rb-card-label">Lifestyle at {retire_age}</div><div class="rb-card-value" style="font-size:1.35rem;">{money(lifestyle_monthly_retirement)}</div></div>
+        <div class="rb-card" style="padding:14px;"><div class="rb-card-label">Healthcare</div><div class="rb-card-value" style="font-size:1.35rem;">{money(healthcare_monthly_retirement)}</div></div>
+        <div class="rb-card" style="padding:14px;"><div class="rb-card-label">Mortgage</div><div class="rb-card-value" style="font-size:1.35rem;">{money(mortgage_monthly_retirement)}</div></div>
+        <div class="rb-card" style="padding:14px;"><div class="rb-card-label">Est. federal tax</div><div class="rb-card-value" style="font-size:1.35rem;">{money(tax_monthly_retirement)}</div></div>
+        <div class="rb-card" style="padding:14px;"><div class="rb-card-label">Income offset</div><div class="rb-card-value" style="font-size:1.35rem;">-{money(income_monthly_retirement)}</div></div>
+      </div>
+      <div class="rb-explain-copy" style="margin-top:10px;color:#475569;">Approximate first-year withdrawal need: <b>{money(monthly_gap)}/month</b>. That is why this number can be higher than the spending number you typed.</div>
     </div>
     """, unsafe_allow_html=True)
 
