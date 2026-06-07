@@ -4238,13 +4238,14 @@ def load_scenarios(user):
 def save_spending_plan(user, spending_data):
     """Save spending plan data to Supabase user_settings table."""
     try:
-        supabase.table("user_settings").upsert({
-            "user_id": user.id,
+        # Use upsert with proper syntax for supabase-py
+        response = supabase.table("user_settings").upsert({
+            "user_id": str(user.id),  # Ensure user_id is a string UUID
             "spending_plan": spending_data
-        }, on_conflict="user_id").execute()
+        }).execute()
         return True
     except Exception as e:
-        st.error(f"Error saving spending plan: {e}")
+        st.error(f"Error saving spending plan: {str(e)}")
         return False
 
 
@@ -4254,14 +4255,14 @@ def load_spending_plan(user):
         response = (
             supabase.table("user_settings")
             .select("spending_plan")
-            .eq("user_id", user.id)
+            .eq("user_id", str(user.id))  # Ensure user_id is a string UUID
             .execute()
         )
         if response.data and len(response.data) > 0:
             return response.data[0].get("spending_plan", {})
         return {}
     except Exception as e:
-        st.warning(f"Could not load spending plan from database: {e}")
+        st.warning(f"Could not load spending plan from database: {str(e)}")
         return {}
 
 
