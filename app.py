@@ -9115,7 +9115,10 @@ def render_account_gate(reason: str = "default"):
                         verify_recovery_code_and_update_password(reset_email, reset_code, reset_new_password)
                         st.success("Password updated. You can now sign in with your new password.")
                         st.session_state["_gate_show_reset"] = False
-                        st.session_state["gate_auth_mode"] = "Sign In"
+                        # Do not set st.session_state["gate_auth_mode"] here.
+                        # Streamlit has already instantiated that radio widget during this run,
+                        # and changing its state afterward throws an exception. The user is
+                        # already on the Sign In tab in the normal reset flow.
                     except Exception as e:
                         st.error(f"Password update failed: {e}")
 
