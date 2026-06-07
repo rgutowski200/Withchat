@@ -10064,7 +10064,9 @@ if active_page == PAGE_NAMES[2]:
         st.session_state.budget_mode = budget_mode
         st.session_state.flat_monthly_spending = flat_monthly_spending
         st.session_state.survivor_spending = survivor_spending
-        st.session_state.enable_spending_change = enable_spending_change
+        # Do not assign st.session_state.enable_spending_change here.
+        # That key belongs to the checkbox widget above, and Streamlit blocks
+        # changing widget-owned session_state after the widget is created.
         st.session_state.spending_change_age = spending_change_age
         st.session_state.spending_change_monthly = spending_change_monthly
 
