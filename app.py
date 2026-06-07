@@ -4235,6 +4235,36 @@ def load_scenarios(user):
     return response.data
 
 
+def save_spending_plan(user, spending_data):
+    """Save spending plan data to Supabase user_settings table."""
+    try:
+        supabase.table("user_settings").upsert({
+            "user_id": user.id,
+            "spending_plan": spending_data
+        }, on_conflict="user_id").execute()
+        return True
+    except Exception as e:
+        st.error(f"Error saving spending plan: {e}")
+        return False
+
+
+def load_spending_plan(user):
+    """Load spending plan data from Supabase user_settings table."""
+    try:
+        response = (
+            supabase.table("user_settings")
+            .select("spending_plan")
+            .eq("user_id", user.id)
+            .execute()
+        )
+        if response.data and len(response.data) > 0:
+            return response.data[0].get("spending_plan", {})
+        return {}
+    except Exception as e:
+        st.warning(f"Could not load spending plan from database: {e}")
+        return {}
+
+
 def detailed_monthly_budget_total():
     return sum(float(st.session_state.get(k, 0) or 0) for k, _ in budget_keys)
 
@@ -9941,6 +9971,27 @@ if active_page == PAGE_NAMES[1]:
 
 if active_page == PAGE_NAMES[2]:
     require_account(intended_page="Budget Builder", reason="default")
+    
+    # Load spending plan from Supabase on page initialization
+    if st.session_state.user and "spending_plan_loaded" not in st.session_state:
+        spending_data = load_spending_plan(st.session_state.user)
+        if spending_data:
+            # Restore all spending plan values from database
+            st.session_state.budget_mode = spending_data.get("budget_mode", "Flat monthly number")
+            st.session_state.flat_monthly_spending = spending_data.get("flat_monthly_spending", 0)
+            st.session_state.survivor_spending = spending_data.get("survivor_spending", 0)
+            st.session_state.enable_spending_change = spending_data.get("enable_spending_change", False)
+            st.session_state.spending_change_age = spending_data.get("spending_change_age", 0)
+            st.session_state.spending_change_monthly = spending_data.get("spending_change_monthly", 0)
+            
+            # Restore detailed budget values
+            detailed_budget = spending_data.get("detailed_budget", {})
+            for key, value in detailed_budget.items():
+                st.session_state[key] = value
+        
+        # Mark as loaded so we don't reload on every rerun
+        st.session_state.spending_plan_loaded = True
+    
     render_page_shell("Spending Plan", "Estimate your retirement lifestyle costs using either a quick monthly number or a more detailed category-by-category budget.", "💳")
     render_guided_progress(2)
     page_help(
@@ -10075,7 +10126,25 @@ if active_page == PAGE_NAMES[2]:
         for k, v in detailed_values.items():
             st.session_state[k] = v
 
-        st.success("Spending saved. Next, review your Retirement Dashboard.")
+        # Build spending plan data for persistence
+        spending_data = {
+            "budget_mode": budget_mode,
+            "flat_monthly_spending": flat_monthly_spending,
+            "survivor_spending": survivor_spending,
+            "enable_spending_change": bool(st.session_state.enable_spending_change),
+            "spending_change_age": int(st.session_state.spending_change_age or 0),
+            "spending_change_monthly": float(st.session_state.spending_change_monthly or 0),
+            "detailed_budget": detailed_values
+        }
+
+        # Save to Supabase
+        if st.session_state.user:
+            if save_spending_plan(st.session_state.user, spending_data):
+                st.success("Spending saved to your account. Next, review your Retirement Dashboard.")
+            else:
+                st.warning("Spending saved locally but could not persist to account. Please try again.")
+        else:
+            st.success("Spending saved. Next, review your Retirement Dashboard.")
 
     monthly = (
         st.session_state.flat_monthly_spending
