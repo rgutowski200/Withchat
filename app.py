@@ -9980,6 +9980,15 @@ if active_page == PAGE_NAMES[2]:
     else:
         st.info("Detailed mode selected. Enter the categories you know. Use zero for anything that does not apply.")
 
+    # Keep this checkbox OUTSIDE the form so Streamlit reruns immediately
+    # and reveals/hides the spending-change fields as soon as it is clicked.
+    st.subheader("Planned Spending Change")
+    enable_spending_change = st.checkbox(
+        "Change my spending at a certain age",
+        key="enable_spending_change",
+        help="Use this if spending will change later in retirement, such as spending more early and less later."
+    )
+
     with st.form("budget_form"):
         if budget_mode == "Flat monthly number":
             flat_monthly_spending = st.number_input(
@@ -10017,13 +10026,6 @@ if active_page == PAGE_NAMES[2]:
                                 step=50,
                                 help=f"Enter your estimated monthly amount for {label.lower()}."
                             )
-
-        st.subheader("Planned Spending Change")
-        enable_spending_change = st.checkbox(
-            "Change my spending at a certain age",
-            value=bool(st.session_state.enable_spending_change),
-            help="Use this if spending will change later in retirement, such as spending more early and less later."
-        )
 
         if enable_spending_change:
             c1, c2 = st.columns(2)
