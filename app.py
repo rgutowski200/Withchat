@@ -9942,8 +9942,6 @@ if active_page == PAGE_NAMES[1]:
 if active_page == PAGE_NAMES[2]:
     require_account(intended_page="Budget Builder", reason="default")
     render_page_shell("Spending Plan", "Estimate your retirement lifestyle costs using either a quick monthly number or a more detailed category-by-category budget.", "💳")
-    if st.session_state.pop("_budget_saved_success", False):
-        st.success("Spending saved. The dashboard projection has been refreshed with the latest spending-change numbers.")
     render_guided_progress(2)
     page_help(
         "Budget Builder",
@@ -9982,41 +9980,38 @@ if active_page == PAGE_NAMES[2]:
     else:
         st.info("Detailed mode selected. Enter the categories you know. Use zero for anything that does not apply.")
 
-    # Keep the spending-change controls OUTSIDE the form so Streamlit saves them
-    # immediately and they follow the user to Review Inputs / Dashboard.
-    # Forms only commit widget values when their submit button is pressed, which
-    # made this section look right on-screen but fail to persist across pages.
     st.subheader("Planned Spending Change")
-    enable_spending_change = st.checkbox(
+    st.checkbox(
         "Change my spending at a certain age",
         key="enable_spending_change",
         help="Use this if spending will change later in retirement, such as spending more early and less later."
     )
 
-    if enable_spending_change:
-        change_cols = st.columns(2)
-        with change_cols[0]:
-            st.number_input(
-                "Age when spending changes",
-                min_value=0,
-                max_value=110,
-                step=1,
-                key="spending_change_age",
-                help="Enter the age when your new monthly spending should begin."
-            )
-        with change_cols[1]:
-            st.number_input(
-                "New monthly spending amount",
-                min_value=0,
-                step=500,
-                key="spending_change_monthly",
-                help="Enter the new monthly spending amount before healthcare."
-            )
-        if int(st.session_state.get("spending_change_age", 0) or 0) > 0 and float(st.session_state.get("spending_change_monthly", 0) or 0) > 0:
+    if st.session_state.enable_spending_change:
+        c1, c2 = st.columns(2)
+        c1.number_input(
+            "Age when spending changes",
+            min_value=0,
+            max_value=110,
+            step=1,
+            key="spending_change_age",
+            help="Enter the age when your new monthly spending should begin."
+        )
+        c2.number_input(
+            "New monthly spending amount",
+            min_value=0,
+            step=500,
+            key="spending_change_monthly",
+            help="Enter the new monthly spending amount before healthcare."
+        )
+        if int(st.session_state.spending_change_age or 0) > 0 and float(st.session_state.spending_change_monthly or 0) > 0:
             st.info(
                 f"Spending will change to {money(st.session_state.spending_change_monthly)} per month "
                 f"starting at age {int(st.session_state.spending_change_age)}."
             )
+    else:
+        # Keep old values in session_state so users do not lose them if they uncheck/recheck.
+        pass
 
     with st.form("budget_form"):
         if budget_mode == "Flat monthly number":
@@ -10070,20 +10065,17 @@ if active_page == PAGE_NAMES[2]:
         st.session_state.budget_mode = budget_mode
         st.session_state.flat_monthly_spending = flat_monthly_spending
         st.session_state.survivor_spending = survivor_spending
-        # Spending-change controls are keyed widgets outside the form.
-        # Their values are already in st.session_state, so do not manually
-        # assign them here. Manually assigning widget-owned keys after a widget
-        # is created can break Streamlit state and cause the values not to stick.
+
+        # Spending-change widgets are outside the form and are bound directly to
+        # st.session_state with these keys:
+        #   enable_spending_change, spending_change_age, spending_change_monthly
+        # Do NOT assign those keys here after widget creation, or Streamlit will
+        # either reset the values or raise a SessionState API exception.
 
         for k, v in detailed_values.items():
             st.session_state[k] = v
 
-        # Force a clean rerun after saving. The projection dataframe is built near
-        # the top of the app, before this form is processed. Without this rerun,
-        # the dashboard can keep using the previous projection until another full
-        # page refresh happens.
-        st.session_state["_budget_saved_success"] = True
-        st.rerun()
+        st.success("Spending saved. Next, review your Retirement Dashboard.")
 
     monthly = (
         st.session_state.flat_monthly_spending
@@ -10558,35 +10550,6 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
     ss_age = int(st.session_state.get("user_ss_age", 62) or 62)
     rmd_age = int(get_rmd_start_age())
     monthly_spending = float(annual_household_spending() or 0) / 12
-
-    # Planned spending changes are used by run_projection(), but the dashboard
-    # also needs to visibly explain them. Otherwise a user can enter a future
-    # spending drop/increase and think nothing changed because the first-year
-    # retirement gap still shows the starting spending level.
-    spending_change_enabled = bool(st.session_state.get("enable_spending_change", False))
-    spending_change_age = int(st.session_state.get("spending_change_age", 0) or 0)
-    spending_change_monthly = float(st.session_state.get("spending_change_monthly", 0) or 0)
-    spending_change_active = spending_change_enabled and spending_change_age > 0 and spending_change_monthly > 0
-    spending_change_projected_monthly = 0.0
-    spending_change_note = ""
-    spending_change_timeline_html = ""
-    if spending_change_active:
-        try:
-            spending_change_projected_monthly = (float(annual_spending_for_age(spending_change_age) or 0) * inflation_factor_from_today(spending_change_age)) / 12
-        except Exception:
-            spending_change_projected_monthly = spending_change_monthly
-        direction_word = "drop" if spending_change_monthly < monthly_spending else "increase" if spending_change_monthly > monthly_spending else "stay"
-        spending_change_note = (
-            f" Your spending plan also shows spending will {direction_word} to <b>{money(spending_change_monthly)}/month</b> "
-            f"starting at age <b>{spending_change_age}</b>. In the projection, that is about "
-            f"<b>{money(spending_change_projected_monthly)}/month</b> in age-{spending_change_age} inflated dollars."
-        )
-        spending_change_timeline_html = (
-            f'<div class="rb-timeline-row"><div class="rb-timeline-age">{spending_change_age}</div>'
-            f'<div><div class="rb-timeline-title">Spending changes</div>'
-            f'<div class="rb-timeline-copy">Lifestyle spending changes to {money(spending_change_monthly)}/month before healthcare</div></div></div>'
-        )
-
     ending_balance = float(df["End Total"].iloc[-1] or 0) if "End Total" in df.columns and not df.empty else 0.0
     unmet_need = float(df["Unmet Need"].sum() or 0) if "Unmet Need" in df.columns else 0.0
     income_coverage = float(df["Income Coverage Ratio"].mean() or 0) if "Income Coverage Ratio" in df.columns else 0.0
@@ -10597,108 +10560,17 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
     # with inflation over time — the average gap across 20 years looks much larger than
     # year one. First-year is directly comparable to the monthly spending shown above.
     first_year_gap = 0.0
-    first_year_lifestyle = 0.0
-    first_year_healthcare = 0.0
-    first_year_mortgage = 0.0
-    first_year_tax = 0.0
-    first_year_income = 0.0
-    first_year_total_spending = 0.0
-    first_year_portfolio_need = 0.0
     retired_df = df[df["Age"] >= retire_age].copy() if "Age" in df.columns and retire_age else df.copy()
     if not retired_df.empty:
         first_row = retired_df.iloc[0]
-        first_year_lifestyle = float(first_row.get("Lifestyle Spending", 0) or 0)
-        first_year_healthcare = float(first_row.get("Healthcare", 0) or 0)
-        first_year_mortgage = float(first_row.get("Mortgage Payment", 0) or 0)
-        first_year_tax = float(first_row.get("Estimated Federal Tax", 0) or 0)
-        first_year_income = float(first_row.get("Total Non-Portfolio Income", 0) or 0)
-        first_year_total_spending = float(first_row.get("Total Spending", 0) or 0)
-        first_year_portfolio_need = float(first_row.get("Portfolio Need", 0) or 0)
-        if first_year_portfolio_need > 0:
-            # This is the real first-year amount expected to come out of savings.
-            # It can be higher than lifestyle spending because healthcare, taxes,
-            # mortgage payments, and inflation-adjustment are part of the retirement year.
-            first_year_gap = max(first_year_portfolio_need, 0)
-        elif "Total Spending" in first_row.index and "Total Non-Portfolio Income" in first_row.index:
-            first_year_gap = max(first_year_total_spending - first_year_income, 0)
-    monthly_gap = first_year_gap / 12
-
-    # Math validation for planned spending changes.
-    # Important: a spending change that starts AFTER retirement will not change the
-    # first-retirement-year savings need. It should only change later-year rows and
-    # the ending balance / runout age.
-    spending_change_validation_html = ""
-    if spending_change_active and not df.empty:
-        baseline_df = pd.DataFrame()
-        snapshot = None
-        try:
-            snapshot = snapshot_session_state_for_projection()
-            st.session_state.enable_spending_change = False
-            baseline_df = run_projection()
-        except Exception:
-            baseline_df = pd.DataFrame()
-        finally:
-            try:
-                if snapshot is not None:
-                    restore_session_state_after_projection(snapshot)
-            except Exception:
-                pass
-
-        if baseline_df is not None and not baseline_df.empty:
-            baseline_ending = float(baseline_df["End Total"].iloc[-1] or 0) if "End Total" in baseline_df.columns else 0.0
-            change_ending = ending_balance
-            ending_delta = change_ending - baseline_ending
-
-            baseline_retired_df = baseline_df[baseline_df["Age"] >= retire_age].copy() if "Age" in baseline_df.columns and retire_age else baseline_df.copy()
-            baseline_first_need = 0.0
-            if not baseline_retired_df.empty:
-                baseline_first_row = baseline_retired_df.iloc[0]
-                baseline_first_need = float(baseline_first_row.get("Portfolio Need", 0) or 0)
-                if baseline_first_need <= 0:
-                    baseline_first_need = max(
-                        float(baseline_first_row.get("Total Spending", 0) or 0) -
-                        float(baseline_first_row.get("Total Non-Portfolio Income", 0) or 0),
-                        0,
-                    )
-
-            # Validate the actual projection row at the change age.
-            change_row_text = ""
-            try:
-                change_rows = df[df["Age"] == spending_change_age]
-                baseline_change_rows = baseline_df[baseline_df["Age"] == spending_change_age]
-                if not change_rows.empty and not baseline_change_rows.empty:
-                    actual_change_lifestyle = float(change_rows.iloc[0].get("Lifestyle Spending", 0) or 0) / 12
-                    baseline_change_lifestyle = float(baseline_change_rows.iloc[0].get("Lifestyle Spending", 0) or 0) / 12
-                    change_row_text = (
-                        f'<div><b>Age {spending_change_age} lifestyle spending:</b> '
-                        f'{money(baseline_change_lifestyle)}/mo without change → '
-                        f'{money(actual_change_lifestyle)}/mo with change.</div>'
-                    )
-            except Exception:
-                change_row_text = ""
-
-            first_year_note = (
-                "No change expected" if spending_change_age > retire_age else "Should change because the spending change starts at/before retirement"
+        if "Total Spending" in first_row.index and "Total Non-Portfolio Income" in first_row.index:
+            first_year_gap = max(
+                float(first_row["Total Spending"] or 0) - float(first_row["Total Non-Portfolio Income"] or 0),
+                0,
             )
-            spending_change_validation_html = f"""
-            <div class="rb-panel-card" style="margin-top:14px;border-color:#BFDBFE;background:#F8FBFF;">
-              <div class="rb-panel-title">Math validation: planned spending change</div>
-              <div class="rb-panel-sub">This checks the projection with the spending change turned on versus turned off.</div>
-              <div class="rb-explain-copy" style="margin-top:10px;color:#334155;line-height:1.55;">
-                <div><b>First-year need from savings:</b> {money(baseline_first_need / 12)}/mo without change → {money(monthly_gap)}/mo with change. <b>{xml_escape(first_year_note)}</b>.</div>
-                {change_row_text}
-                <div><b>Projected money left at age {end_age}:</b> {money(baseline_ending)} without change → {money(change_ending)} with change.</div>
-                <div><b>Impact of spending change:</b> {money(ending_delta)} more projected ending balance.</div>
-              </div>
-            </div>
-            """
-
-    lifestyle_monthly_today = monthly_spending
-    lifestyle_monthly_retirement = first_year_lifestyle / 12 if first_year_lifestyle > 0 else monthly_spending
-    healthcare_monthly_retirement = first_year_healthcare / 12
-    mortgage_monthly_retirement = first_year_mortgage / 12
-    tax_monthly_retirement = first_year_tax / 12
-    income_monthly_retirement = first_year_income / 12
+        elif "Portfolio Need" in first_row.index:
+            first_year_gap = max(float(first_row["Portfolio Need"] or 0), 0)
+    monthly_gap = first_year_gap / 12
 
     starting_balance = float(df["Start Total"].iloc[0] or 0) if "Start Total" in df.columns and not df.empty else 0.0
     years_until_retirement = max(retire_age - current_age, 0)
@@ -10811,25 +10683,14 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
     else:
         market_label, market_class = "Lower", "rb-pill-green"
 
-    timeline_rows_html = ""
-    timeline_rows_html += f'<div class="rb-timeline-row"><div class="rb-timeline-age">Age {current_age}</div><div><div class="rb-timeline-title">Where you are now</div><div class="rb-timeline-copy">Still saving</div></div></div>'
-    timeline_rows_html += f'<div class="rb-timeline-row"><div class="rb-timeline-age">{retire_age}</div><div><div class="rb-timeline-title">You retire</div><div class="rb-timeline-copy">Start drawing from savings; healthcare costs begin</div></div></div>'
-    if spending_change_timeline_html:
-        timeline_rows_html += spending_change_timeline_html
-    timeline_rows_html += f'<div class="rb-timeline-row"><div class="rb-timeline-age">{ss_age}</div><div><div class="rb-timeline-title">Social Security starts</div><div class="rb-timeline-copy">Your monthly gap shrinks as Social Security income begins</div></div></div>'
-    timeline_rows_html += f'<div class="rb-timeline-row"><div class="rb-timeline-age">{rmd_age}</div><div><div class="rb-timeline-title">Required withdrawals begin</div><div class="rb-timeline-copy">The IRS requires minimum withdrawals from many pre-tax retirement accounts</div></div></div>'
-    timeline_rows_html += f'<div class="rb-timeline-row"><div class="rb-timeline-age">{end_age}</div><div><div class="rb-timeline-title">End of plan</div><div class="rb-timeline-copy">~{compact_money(ending_balance)} projected to remain</div></div></div>'
-
-    # Explain why the savings need can exceed the spending number the user typed.
-    # The typed spending number is today's lifestyle spending before healthcare.
-    # The dashboard savings-need number is the first retirement-year portfolio withdrawal need.
+    # Explain why the savings gap can exceed stated monthly spending.
+    # The gap includes healthcare costs and estimated federal taxes on top of lifestyle spending,
+    # so it is often larger than the monthly spending number the user entered.
     gap_vs_spending = monthly_gap - monthly_spending
     if gap_vs_spending > 100:
         gap_explanation = (
-            f" This is not a math error: the savings need is higher than the spending field because the dashboard uses "
-            f"first-retirement-year dollars and also includes healthcare"
-            f"{', mortgage' if mortgage_monthly_retirement > 0 else ''}"
-            f"{', and estimated federal taxes' if tax_monthly_retirement > 0 else ''}, then subtracts Social Security and other income."
+            f" This savings gap is higher than your stated spending because it also includes estimated healthcare costs "
+            f"and federal taxes — not just lifestyle spending."
         )
     else:
         gap_explanation = ""
@@ -10838,24 +10699,21 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
         runout_phrase = f" The projection appears to run short around age <b>{runout_age}</b>." if runout_age else " The projection is showing a shortfall."
         summary_text = (
             f"Here is the simple version: you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
-            f"{spending_change_note} "
-            f"In the first retirement year, savings would need to cover about <b>{money(monthly_gap)}/month</b>.{gap_explanation} "
+            f"After Social Security and other income are counted, savings would need to cover about <b>{money(monthly_gap)}/month</b>.{gap_explanation} "
             f"{runout_phrase} That does not mean retirement is impossible. It means this first version needs changes before it looks comfortable. "
             "The easiest things to test are retiring a little later, spending a little less, saving more before retirement, or adding income."
         )
     elif rtv_score < 80:
         summary_text = (
             f"Here is the simple version: you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
-            f"{spending_change_note} "
-            f"In the first retirement year, savings would need to cover about <b>{money(monthly_gap)}/month</b>.{gap_explanation} "
+            f"After Social Security and other income are counted, savings would need to cover about <b>{money(monthly_gap)}/month</b>.{gap_explanation} "
             f"The projection still shows about <b>{money(ending_balance)}</b> at age <b>{end_age}</b>, but the cushion may not be strong enough yet. "
             "The next step is to test a few changes and see how the plan handles bad market years."
         )
     else:
         summary_text = (
             f"Here is the simple version: you want to retire at <b>{retire_age}</b> and spend about <b>{money(monthly_spending)}/month</b>. "
-            f"{spending_change_note} "
-            f"In the first retirement year, savings would need to cover about <b>{money(monthly_gap)}/month</b>.{gap_explanation} "
+            f"After Social Security and other income are counted, savings would need to cover about <b>{money(monthly_gap)}/month</b>.{gap_explanation} "
             f"The projection shows about <b>{money(ending_balance)}</b> left at age <b>{end_age}</b>. "
             f"{why_money_left} "
             "This is still an estimate, so the next smart step is to stress test it against a few bad market years."
@@ -10904,52 +10762,37 @@ def render_blueprint_dashboard_mockup_section(df, rtv_score, rtv_label):
         <div class="rb-card-note">The projected balance left at age {end_age} after paying for all retirement spending.</div>
       </div>
       <div class="rb-card">
-        <div class="rb-card-label">First-Year Need From Savings</div>
+        <div class="rb-card-label">Monthly Gap From Savings</div>
         <div class="rb-card-value">{money(monthly_gap)}</div>
-        <div class="rb-kpi-pill" style="background:{dashboard_pill_bg if rtv_score < 80 else '#DCFCE7'};color:{dashboard_pill_color if rtv_score < 80 else '#166534'}">Portfolio withdrawal</div>
-        <div class="rb-card-note">This is not just lifestyle spending. It is the first retirement-year amount expected to come from savings.</div>
+        <div class="rb-kpi-pill" style="background:{dashboard_pill_bg if rtv_score < 80 else '#DCFCE7'};color:{dashboard_pill_color if rtv_score < 80 else '#166534'}">Savings need</div>
+        <div class="rb-card-note">First-year retirement gap: lifestyle + healthcare + est. taxes, minus Social Security and other income.</div>
       </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    if spending_change_validation_html:
-        st.markdown(spending_change_validation_html, unsafe_allow_html=True)
-
-    st.markdown(f"""
-    <div class="rb-panel-card" style="margin-top:14px;">
-      <div class="rb-panel-title">Why the savings need can be higher than monthly spending</div>
-      <div class="rb-panel-sub">Your spending input is today’s lifestyle spending before healthcare. The dashboard converts that into first-retirement-year dollars and adds other retirement costs.</div>
-      <div class="rb-card-grid" style="grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-top:12px;">
-        <div class="rb-card" style="padding:14px;"><div class="rb-card-label">Lifestyle today</div><div class="rb-card-value" style="font-size:1.35rem;">{money(lifestyle_monthly_today)}</div></div>
-        <div class="rb-card" style="padding:14px;"><div class="rb-card-label">Lifestyle at {retire_age}</div><div class="rb-card-value" style="font-size:1.35rem;">{money(lifestyle_monthly_retirement)}</div></div>
-        <div class="rb-card" style="padding:14px;"><div class="rb-card-label">Healthcare</div><div class="rb-card-value" style="font-size:1.35rem;">{money(healthcare_monthly_retirement)}</div></div>
-        <div class="rb-card" style="padding:14px;"><div class="rb-card-label">Mortgage</div><div class="rb-card-value" style="font-size:1.35rem;">{money(mortgage_monthly_retirement)}</div></div>
-        <div class="rb-card" style="padding:14px;"><div class="rb-card-label">Est. federal tax</div><div class="rb-card-value" style="font-size:1.35rem;">{money(tax_monthly_retirement)}</div></div>
-        <div class="rb-card" style="padding:14px;"><div class="rb-card-label">Income offset</div><div class="rb-card-value" style="font-size:1.35rem;">-{money(income_monthly_retirement)}</div></div>
-      </div>
-      <div class="rb-explain-copy" style="margin-top:10px;color:#475569;">Approximate first-year withdrawal need: <b>{money(monthly_gap)}/month</b>. That is why this number can be higher than the spending number you typed.</div>
     </div>
     """, unsafe_allow_html=True)
 
 
     st.markdown(f"""
-<div class="rb-health-timeline-grid">
-  <div class="rb-panel-card">
-    <div class="rb-panel-title">Your Retirement Health Check</div>
-    <div class="rb-panel-sub">Quick checks on the parts of your plan that matter most.</div>
-    <div class="rb-health-row"><div class="rb-health-icon">💰</div><div><div class="rb-health-title">Income coverage</div><div class="rb-health-copy">How much of your spending is covered by Social Security & pensions</div></div><div class="rb-health-pill {income_class}">{income_label}</div></div>
-    <div class="rb-health-row"><div class="rb-health-icon">📉</div><div><div class="rb-health-title">Spending rate</div><div class="rb-health-copy">How fast you’re drawing down savings — lower is safer</div></div><div class="rb-health-pill {spending_class}">{spending_label}</div></div>
-    <div class="rb-health-row"><div class="rb-health-icon">🏥</div><div><div class="rb-health-title">Healthcare gap</div><div class="rb-health-copy">Covering health costs before Medicare starts at 65</div></div><div class="rb-health-pill {healthcare_class}">{healthcare_label}</div></div>
-    <div class="rb-health-row"><div class="rb-health-icon">🧾</div><div><div class="rb-health-title">Tax pressure</div><div class="rb-health-copy">How much of your withdrawals may go to taxes</div></div><div class="rb-health-pill {tax_class}">{tax_label}</div></div>
-    <div class="rb-health-row"><div class="rb-health-icon">📊</div><div><div class="rb-health-title">Market timing risk</div><div class="rb-health-copy">Risk of a bad market right when you retire</div></div><div class="rb-health-pill {market_class}">{market_label}</div></div>
-  </div>
-  <div class="rb-panel-card">
-    <div class="rb-panel-title">Your Money Timeline</div>
-    <div class="rb-panel-sub">The key moments ahead in your plan.</div>
-    {timeline_rows_html}
-  </div>
-</div>
-""", unsafe_allow_html=True)
+    <div class="rb-health-timeline-grid">
+      <div class="rb-panel-card">
+        <div class="rb-panel-title">Your Retirement Health Check</div>
+        <div class="rb-panel-sub">Quick checks on the parts of your plan that matter most.</div>
+        <div class="rb-health-row"><div class="rb-health-icon">💰</div><div><div class="rb-health-title">Income coverage</div><div class="rb-health-copy">How much of your spending is covered by Social Security & pensions</div></div><div class="rb-health-pill {income_class}">{income_label}</div></div>
+        <div class="rb-health-row"><div class="rb-health-icon">📉</div><div><div class="rb-health-title">Spending rate</div><div class="rb-health-copy">How fast you’re drawing down savings — lower is safer</div></div><div class="rb-health-pill {spending_class}">{spending_label}</div></div>
+        <div class="rb-health-row"><div class="rb-health-icon">🏥</div><div><div class="rb-health-title">Healthcare gap</div><div class="rb-health-copy">Covering health costs before Medicare starts at 65</div></div><div class="rb-health-pill {healthcare_class}">{healthcare_label}</div></div>
+        <div class="rb-health-row"><div class="rb-health-icon">🧾</div><div><div class="rb-health-title">Tax pressure</div><div class="rb-health-copy">How much of your withdrawals may go to taxes</div></div><div class="rb-health-pill {tax_class}">{tax_label}</div></div>
+        <div class="rb-health-row"><div class="rb-health-icon">📊</div><div><div class="rb-health-title">Market timing risk</div><div class="rb-health-copy">Risk of a bad market right when you retire</div></div><div class="rb-health-pill {market_class}">{market_label}</div></div>
+      </div>
+      <div class="rb-panel-card">
+        <div class="rb-panel-title">Your Money Timeline</div>
+        <div class="rb-panel-sub">The key moments ahead in your plan.</div>
+        <div class="rb-timeline-row"><div class="rb-timeline-age">Age {current_age}</div><div><div class="rb-timeline-title">Where you are now</div><div class="rb-timeline-copy">Still saving</div></div></div>
+        <div class="rb-timeline-row"><div class="rb-timeline-age">{retire_age}</div><div><div class="rb-timeline-title">You retire</div><div class="rb-timeline-copy">Start drawing from savings; healthcare costs begin</div></div></div>
+        <div class="rb-timeline-row"><div class="rb-timeline-age">{ss_age}</div><div><div class="rb-timeline-title">Social Security starts</div><div class="rb-timeline-copy">Your monthly gap shrinks as Social Security income begins</div></div></div>
+        <div class="rb-timeline-row"><div class="rb-timeline-age">{rmd_age}</div><div><div class="rb-timeline-title">Required withdrawals begin</div><div class="rb-timeline-copy">The IRS requires minimum withdrawals from many pre-tax retirement accounts</div></div></div>
+        <div class="rb-timeline-row"><div class="rb-timeline-age">{end_age}</div><div><div class="rb-timeline-title">End of plan</div><div class="rb-timeline-copy">~{compact_money(ending_balance)} projected to remain</div></div></div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 def render_basic_blueprint_dashboard():
     snap = calculate_basic_blueprint_snapshot()
