@@ -2129,6 +2129,37 @@ def update_signed_in_password(new_password: str):
     raise RuntimeError("Password update is not available in this Supabase client version.")
 
 
+def verify_reset_code_and_update_password(email: str, passcode: str, new_password: str):
+    """Verify the Supabase recovery passcode, then update the user's password."""
+    email = (email or "").strip()
+    passcode = (passcode or "").strip()
+    new_password = (new_password or "").strip()
+
+    if not email:
+        raise ValueError("Enter the email you used for the reset code.")
+    if not passcode:
+        raise ValueError("Enter the passcode from your email.")
+    if len(new_password) < 8:
+        raise ValueError("Password must be at least 8 characters.")
+
+    if not hasattr(supabase.auth, "verify_otp"):
+        raise RuntimeError("Passcode verification is not available in this Supabase client version.")
+
+    # Supabase password recovery codes use type='recovery'. After verify_otp succeeds,
+    # the client has a recovery session, so update_user can change the password.
+    try:
+        verify_result = supabase.auth.verify_otp({
+            "email": email,
+            "token": passcode,
+            "type": "recovery",
+        })
+    except TypeError:
+        verify_result = supabase.auth.verify_otp(email=email, token=passcode, type="recovery")
+
+    update_result = update_signed_in_password(new_password)
+    return verify_result, update_result
+
+
 def render_sidebar_auth_controls():
     if st.session_state.user:
         user_email = getattr(st.session_state.user, "email", "Signed in")
@@ -9047,14 +9078,38 @@ def render_account_gate(reason: str = "default"):
             st.session_state["_gate_show_reset"] = not st.session_state.get("_gate_show_reset", False)
 
         if st.session_state.get("_gate_show_reset", False):
-            reset_email = st.text_input("Email for reset link", key="gate_reset_email")
-            if st.button("Send Reset Email", use_container_width=True, key="gate_send_reset"):
+            st.markdown("**Reset your password with a passcode**")
+            st.caption("Enter your email, send the reset code, then enter the passcode from that email and choose a new password.")
+
+            reset_email = st.text_input("Email for reset code", key="gate_reset_email")
+            if st.button("Send Reset Code", use_container_width=True, key="gate_send_reset"):
                 try:
                     send_password_reset_email(reset_email)
-                    st.success("Reset email sent. Check your inbox and spam folder.")
-                    st.session_state["_gate_show_reset"] = False
+                    st.success("Reset code sent. Check your inbox and spam folder.")
                 except Exception as e:
                     st.error(f"Reset failed: {e}")
+
+            reset_code = st.text_input("Passcode from email", key="gate_reset_code")
+            new_password = st.text_input("New password", type="password", key="gate_new_password")
+            confirm_password = st.text_input("Confirm new password", type="password", key="gate_confirm_new_password")
+
+            if st.button("Update Password", use_container_width=True, key="gate_update_password"):
+                if not reset_email:
+                    st.error("Enter the email you used for the reset code.")
+                elif not reset_code:
+                    st.error("Enter the passcode from your email.")
+                elif not new_password or not confirm_password:
+                    st.error("Enter and confirm your new password.")
+                elif new_password != confirm_password:
+                    st.error("The new passwords do not match.")
+                elif len(new_password) < 8:
+                    st.error("Password must be at least 8 characters.")
+                else:
+                    try:
+                        verify_reset_code_and_update_password(reset_email, reset_code, new_password)
+                        st.success("Password updated. You can now sign in with your new password.")
+                    except Exception as e:
+                        st.error(f"Password update failed: {e}")
 
     st.stop()
 
