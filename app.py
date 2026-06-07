@@ -9982,14 +9982,41 @@ if active_page == PAGE_NAMES[2]:
     else:
         st.info("Detailed mode selected. Enter the categories you know. Use zero for anything that does not apply.")
 
-    # Keep this checkbox OUTSIDE the form so Streamlit reruns immediately
-    # and reveals/hides the spending-change fields as soon as it is clicked.
+    # Keep the spending-change controls OUTSIDE the form so Streamlit saves them
+    # immediately and they follow the user to Review Inputs / Dashboard.
+    # Forms only commit widget values when their submit button is pressed, which
+    # made this section look right on-screen but fail to persist across pages.
     st.subheader("Planned Spending Change")
     enable_spending_change = st.checkbox(
         "Change my spending at a certain age",
         key="enable_spending_change",
         help="Use this if spending will change later in retirement, such as spending more early and less later."
     )
+
+    if enable_spending_change:
+        change_cols = st.columns(2)
+        with change_cols[0]:
+            st.number_input(
+                "Age when spending changes",
+                min_value=0,
+                max_value=110,
+                step=1,
+                key="spending_change_age",
+                help="Enter the age when your new monthly spending should begin."
+            )
+        with change_cols[1]:
+            st.number_input(
+                "New monthly spending amount",
+                min_value=0,
+                step=500,
+                key="spending_change_monthly",
+                help="Enter the new monthly spending amount before healthcare."
+            )
+        if int(st.session_state.get("spending_change_age", 0) or 0) > 0 and float(st.session_state.get("spending_change_monthly", 0) or 0) > 0:
+            st.info(
+                f"Spending will change to {money(st.session_state.spending_change_monthly)} per month "
+                f"starting at age {int(st.session_state.spending_change_age)}."
+            )
 
     with st.form("budget_form"):
         if budget_mode == "Flat monthly number":
@@ -10029,29 +10056,6 @@ if active_page == PAGE_NAMES[2]:
                                 help=f"Enter your estimated monthly amount for {label.lower()}."
                             )
 
-        if enable_spending_change:
-            c1, c2 = st.columns(2)
-            spending_change_age = c1.number_input(
-                "Age when spending changes",
-                min_value=0,
-                max_value=110,
-                value=int(st.session_state.spending_change_age),
-                step=1,
-                help="Enter the age when your new monthly spending should begin."
-            )
-            spending_change_monthly = c2.number_input(
-                "New monthly spending amount",
-                min_value=0,
-                value=int(st.session_state.spending_change_monthly),
-                step=500,
-                help="Enter the new monthly spending amount before healthcare."
-            )
-            if spending_change_age > 0 and spending_change_monthly > 0:
-                st.info(f"Spending will change to {money(spending_change_monthly)} per month starting at age {spending_change_age}.")
-        else:
-            spending_change_age = st.session_state.spending_change_age
-            spending_change_monthly = st.session_state.spending_change_monthly
-
         survivor_spending = st.number_input(
             "Annual household spending after first spouse death, optional",
             min_value=0,
@@ -10066,11 +10070,10 @@ if active_page == PAGE_NAMES[2]:
         st.session_state.budget_mode = budget_mode
         st.session_state.flat_monthly_spending = flat_monthly_spending
         st.session_state.survivor_spending = survivor_spending
-        # Do not assign st.session_state.enable_spending_change here.
-        # That key belongs to the checkbox widget above, and Streamlit blocks
-        # changing widget-owned session_state after the widget is created.
-        st.session_state.spending_change_age = spending_change_age
-        st.session_state.spending_change_monthly = spending_change_monthly
+        # Spending-change controls are keyed widgets outside the form.
+        # Their values are already in st.session_state, so do not manually
+        # assign them here. Manually assigning widget-owned keys after a widget
+        # is created can break Streamlit state and cause the values not to stick.
 
         for k, v in detailed_values.items():
             st.session_state[k] = v
