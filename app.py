@@ -14904,10 +14904,32 @@ def render_pricing_page():
     
     with col2:
         st.markdown("""
+        <div class="pricing-card">
+            <div class="pricing-header">Premium</div>
+            <div class="pricing-price">$9.99<span style="font-size: 20px; color: #666;">/month</span></div>
+            <div class="pricing-subtext" style="color: #666;">or $99/year (save $20)</div>
+            <div class="pricing-features">
+                <strong>✓ Included:</strong><br>
+                <span class="included">• Unlimited plans</span><br>
+                <span class="included">• Scenario comparison</span><br>
+                <span class="included">• Monte Carlo</span><br>
+                <span class="included">• Stress tests</span><br>
+                <span class="included">• PDF export</span><br>
+                <span class="included">• AI Coach</span><br>
+                <span class="included">• Saved plans</span><br>
+                <span class="included">• Email support</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.button("Upgrade to Premium", use_container_width=True, key="premium_btn", type="primary")
+    
+    with col3:
+        st.markdown("""
         <div class="pricing-card featured">
             <div class="founding-badge">⏰ LIMITED TIME</div>
             <div class="pricing-header">Founding Member</div>
-            <div class="pricing-price">$59<span style="font-size: 20px; color: #666;">/year</span></div>
+            <div style="font-size: 16px; color: #bdc3c7; text-decoration: line-through; margin-bottom: 5px;">$99/year</div>
+            <div class="pricing-price" style="margin: 10px 0;">$59<span style="font-size: 20px; color: #666;">/year</span></div>
             <div class="pricing-subtext">Locked price forever</div>
             <div class="countdown">🔥 Limited slots available</div>
             <div class="pricing-features">
@@ -14928,27 +14950,6 @@ def render_pricing_page():
         </div>
         """, unsafe_allow_html=True)
         st.button("Become Founding Member", use_container_width=True, key="founder_btn", type="primary")
-    
-    with col3:
-        st.markdown("""
-        <div class="pricing-card">
-            <div class="pricing-header">Premium</div>
-            <div class="pricing-price">$99<span style="font-size: 18px; color: #666;">/year</span></div>
-            <div class="pricing-subtext" style="color: #1f77b4; font-weight: bold;">or $9.99/month</div>
-            <div class="pricing-features">
-                <strong>✓ Included:</strong><br>
-                <span class="included">• Unlimited plans</span><br>
-                <span class="included">• Scenario comparison</span><br>
-                <span class="included">• Monte Carlo</span><br>
-                <span class="included">• Stress tests</span><br>
-                <span class="included">• PDF export</span><br>
-                <span class="included">• AI Coach</span><br>
-                <span class="included">• Saved plans</span><br>
-                <span class="included">• Email support</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.button("Upgrade to Premium", use_container_width=True, key="premium_btn", type="primary")
     
     st.markdown("---")
     st.markdown("## FAQ")
