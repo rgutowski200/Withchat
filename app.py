@@ -10072,7 +10072,7 @@ if active_page == PAGE_NAMES[2]:
         min_value=0,
         step=500,
         key="spending_change_monthly",
-        value=float(st.session_state.get("spending_change_monthly", 0) or 0),
+        value=int(st.session_state.get("spending_change_monthly", 0) or 0),
         help="Enter the new monthly spending amount before healthcare."
     )
 
