@@ -7714,11 +7714,14 @@ def legal_disclaimer_html(compact: bool = False) -> str:
 
 def render_legal_footer():
     st.markdown(legal_disclaimer_html(compact=True), unsafe_allow_html=True)
-    f1, f2, f3 = st.columns([1, 1, 4])
+    f1, f2, f3, f4 = st.columns([1, 1, 1, 3])
     with f1:
         if st.button("Legal", key=f"footer_legal_{active_page}"):
             go_to_page("Legal / Disclaimers")
     with f2:
+        if st.button("Pricing", key=f"footer_pricing_{active_page}"):
+            go_to_page("Pricing")
+    with f3:
         if st.button("Resources", key=f"footer_resources_{active_page}"):
             go_to_page("Resources")
 
@@ -7963,6 +7966,7 @@ def render_navigation():
         ]
 
         info_pages = [
+            "Pricing",
             "Resources",
             "Help / Instructions",
             "Legal / Disclaimers",
@@ -8019,7 +8023,7 @@ def render_navigation():
         """, unsafe_allow_html=True)
 
         if st.button("View Premium", key="sidebar_view_premium", use_container_width=True):
-            go_to_page("Retirement Dashboard")
+            go_to_page("Pricing")
 
 render_navigation()
 active_page = st.session_state.active_page
