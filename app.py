@@ -9988,15 +9988,8 @@ if active_page == PAGE_NAMES[2]:
     # Load spending plan from Supabase only if values haven't been set yet
     # This allows user input to take priority while still restoring data on page visits
     if st.session_state.user:
-        # Check if all spending values are at their defaults
-        # If so, load from database. If user has entered ANY value, don't overwrite.
-        all_at_defaults = (
-            st.session_state.get("flat_monthly_spending", 0) == 0 and
-            st.session_state.get("spending_change_age", 0) == 0 and
-            st.session_state.get("spending_change_monthly", 0) == 0
-        )
-        if all_at_defaults:
-            # Values are empty, load from database
+        # Use a session flag to load data once per session, not on every rerun
+        if not st.session_state.get("_spending_data_loaded", False):
             spending_data = load_spending_plan(st.session_state.user)
             if spending_data:
                 # Restore all spending plan values from database
@@ -10011,6 +10004,9 @@ if active_page == PAGE_NAMES[2]:
                 detailed_budget = spending_data.get("detailed_budget", {})
                 for key, value in detailed_budget.items():
                     st.session_state[key] = value
+            
+            # Mark that we've loaded data this session (once per page load)
+            st.session_state._spending_data_loaded = True
     
     render_page_shell("Spending Plan", "Estimate your retirement lifestyle costs using either a quick monthly number or a more detailed category-by-category budget.", "💳")
     render_guided_progress(2)
