@@ -4231,6 +4231,59 @@ def load_scenarios(user):
     return response.data
 
 
+def can_save_blueprint(user):
+    """Check if user can save a new blueprint. Free users limited to 1 completed blueprint."""
+    try:
+        user_id_str = str(user.id)
+        
+        # Get user's plan status
+        user_settings = supabase.table("user_settings").select("blueprints_completed, user_plan").eq("user_id", user_id_str).execute()
+        
+        if user_settings.data and len(user_settings.data) > 0:
+            blueprints_completed = user_settings.data[0].get("blueprints_completed", 0) or 0
+            user_plan = user_settings.data[0].get("user_plan", "free") or "free"
+        else:
+            blueprints_completed = 0
+            user_plan = "free"
+        
+        # Premium users can save unlimited blueprints
+        if user_plan == "premium" or user_plan == "founding_member":
+            return True, None
+        
+        # Free users limited to 1 blueprint
+        if blueprints_completed >= 1:
+            return False, "You've completed 1 free blueprint. Upgrade to create more."
+        
+        return True, None
+    except Exception as e:
+        st.warning(f"Could not check blueprint limit: {str(e)}")
+        return True, None  # Allow on error (fail open)
+
+
+def increment_blueprint_count(user):
+    """Increment blueprint count for user after successful save."""
+    try:
+        user_id_str = str(user.id)
+        
+        # Get current count
+        existing = supabase.table("user_settings").select("blueprints_completed").eq("user_id", user_id_str).execute()
+        
+        if existing.data and len(existing.data) > 0:
+            current_count = existing.data[0].get("blueprints_completed", 0) or 0
+            new_count = current_count + 1
+            
+            supabase.table("user_settings").update({
+                "blueprints_completed": new_count
+            }).eq("user_id", user_id_str).execute()
+        else:
+            supabase.table("user_settings").insert({
+                "user_id": user_id_str,
+                "blueprints_completed": 1
+            }).execute()
+    except Exception as e:
+        st.warning(f"Could not update blueprint count: {str(e)}")
+
+
 def save_spending_plan(user, spending_data):
     """Save spending plan data to Supabase user_settings table."""
     try:
@@ -10079,28 +10132,59 @@ if active_page == PAGE_NAMES[2]:
         save_budget = st.form_submit_button("Save budget", type="primary", use_container_width=True)
 
     if save_budget:
-        st.session_state.budget_mode = budget_mode
-        st.session_state.flat_monthly_spending = flat_monthly_spending
-        st.session_state.survivor_spending = survivor_spending
-
-        for k, v in detailed_values.items():
-            st.session_state[k] = v
-
-        # Build spending plan data for persistence
-        spending_data = {
-            "budget_mode": budget_mode,
-            "flat_monthly_spending": flat_monthly_spending,
-            "survivor_spending": survivor_spending,
-            "detailed_budget": detailed_values
-        }
-
-        # Save to Supabase
+        # Check blueprint limit for free users
         if st.session_state.user:
-            if save_spending_plan(st.session_state.user, spending_data):
-                st.success("Spending saved to your account. Next, review your Retirement Dashboard.")
+            can_save, error_msg = can_save_blueprint(st.session_state.user)
+            
+            if not can_save:
+                st.error(error_msg)
+                st.markdown("---")
+                st.subheader("Unlock Unlimited Blueprints")
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("View Pricing", use_container_width=True, type="primary"):
+                        st.session_state.active_page = "Pricing"
+                        st.rerun()
+                with col2:
+                    st.button("Continue Without Saving", use_container_width=True, disabled=True, help="Spending is saved locally but not to your account")
             else:
-                st.warning("Spending saved locally but could not persist to account. Please try again.")
+                st.session_state.budget_mode = budget_mode
+                st.session_state.flat_monthly_spending = flat_monthly_spending
+                st.session_state.survivor_spending = survivor_spending
+
+                for k, v in detailed_values.items():
+                    st.session_state[k] = v
+
+                # Build spending plan data for persistence
+                spending_data = {
+                    "budget_mode": budget_mode,
+                    "flat_monthly_spending": flat_monthly_spending,
+                    "survivor_spending": survivor_spending,
+                    "detailed_budget": detailed_values
+                }
+
+                # Save to Supabase
+                if save_spending_plan(st.session_state.user, spending_data):
+                    increment_blueprint_count(st.session_state.user)
+                    st.success("Spending saved to your account. Next, review your Retirement Dashboard.")
+                else:
+                    st.warning("Spending saved locally but could not persist to account. Please try again.")
         else:
+            st.session_state.budget_mode = budget_mode
+            st.session_state.flat_monthly_spending = flat_monthly_spending
+            st.session_state.survivor_spending = survivor_spending
+
+            for k, v in detailed_values.items():
+                st.session_state[k] = v
+
+            # Build spending plan data for persistence
+            spending_data = {
+                "budget_mode": budget_mode,
+                "flat_monthly_spending": flat_monthly_spending,
+                "survivor_spending": survivor_spending,
+                "detailed_budget": detailed_values
+            }
+
             st.success("Spending saved. Next, review your Retirement Dashboard.")
 
     monthly = (
