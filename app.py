@@ -10054,33 +10054,34 @@ if active_page == PAGE_NAMES[2]:
         help="Use this if spending will change later in retirement, such as spending more early and less later."
     )
 
+    # Always render these widgets so Streamlit can restore their values.
+    # They only matter if the checkbox is True, but keeping them in the render
+    # tree prevents loss of values when users navigate away and return.
+    c1, c2 = st.columns(2)
+    c1.number_input(
+        "Age when spending changes",
+        min_value=0,
+        max_value=110,
+        step=1,
+        key="spending_change_age",
+        value=int(st.session_state.get("spending_change_age", 0) or 0),
+        help="Enter the age when your new monthly spending should begin."
+    )
+    c2.number_input(
+        "New monthly spending amount",
+        min_value=0,
+        step=500,
+        key="spending_change_monthly",
+        value=float(st.session_state.get("spending_change_monthly", 0) or 0),
+        help="Enter the new monthly spending amount before healthcare."
+    )
+
     if st.session_state.enable_spending_change:
-        c1, c2 = st.columns(2)
-        c1.number_input(
-            "Age when spending changes",
-            min_value=0,
-            max_value=110,
-            step=1,
-            key="spending_change_age",
-            value=int(st.session_state.get("spending_change_age", 0) or 0),
-            help="Enter the age when your new monthly spending should begin."
-        )
-        c2.number_input(
-            "New monthly spending amount",
-            min_value=0,
-            step=500,
-            key="spending_change_monthly",
-            value=int(st.session_state.get("spending_change_monthly", 0) or 0),
-            help="Enter the new monthly spending amount before healthcare."
-        )
         if int(st.session_state.spending_change_age or 0) > 0 and float(st.session_state.spending_change_monthly or 0) > 0:
             st.info(
                 f"Spending will change to {money(st.session_state.spending_change_monthly)} per month "
                 f"starting at age {int(st.session_state.spending_change_age)}."
             )
-    else:
-        # Keep old values in session_state so users do not lose them if they uncheck/recheck.
-        pass
 
     with st.form("budget_form"):
         if budget_mode == "Flat monthly number":
