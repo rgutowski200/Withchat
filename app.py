@@ -10047,44 +10047,44 @@ if active_page == PAGE_NAMES[2]:
     else:
         st.info("Detailed mode selected. Enter the categories you know. Use zero for anything that does not apply.")
 
-    st.subheader("Planned Spending Change")
-    st.checkbox(
-        "Change my spending at a certain age",
-        key="enable_spending_change",
-        value=st.session_state.get("enable_spending_change", False),
-        help="Use this if spending will change later in retirement, such as spending more early and less later."
-    )
-
-    # Always render these widgets so Streamlit can restore their values.
-    # They only matter if the checkbox is True, but keeping them in the render
-    # tree prevents loss of values when users navigate away and return.
-    c1, c2 = st.columns(2)
-    c1.number_input(
-        "Age when spending changes",
-        min_value=0,
-        max_value=110,
-        step=1,
-        key="spending_change_age",
-        value=int(st.session_state.get("spending_change_age", 0) or 0),
-        help="Enter the age when your new monthly spending should begin."
-    )
-    c2.number_input(
-        "New monthly spending amount",
-        min_value=0,
-        step=500,
-        key="spending_change_monthly",
-        value=int(st.session_state.get("spending_change_monthly", 0) or 0),
-        help="Enter the new monthly spending amount before healthcare."
-    )
-
-    if st.session_state.enable_spending_change:
-        if int(st.session_state.spending_change_age or 0) > 0 and float(st.session_state.spending_change_monthly or 0) > 0:
-            st.info(
-                f"Spending will change to {money(st.session_state.spending_change_monthly)} per month "
-                f"starting at age {int(st.session_state.spending_change_age)}."
-            )
-
     with st.form("budget_form"):
+        # Spending change widgets now inside form context for reliable value sync on submit
+        st.subheader("Planned Spending Change")
+        st.checkbox(
+            "Change my spending at a certain age",
+            key="enable_spending_change",
+            value=st.session_state.get("enable_spending_change", False),
+            help="Use this if spending will change later in retirement, such as spending more early and less later."
+        )
+
+        c1, c2 = st.columns(2)
+        c1.number_input(
+            "Age when spending changes",
+            min_value=0,
+            max_value=110,
+            step=1,
+            key="spending_change_age",
+            value=int(st.session_state.get("spending_change_age", 0) or 0),
+            help="Enter the age when your new monthly spending should begin."
+        )
+        c2.number_input(
+            "New monthly spending amount",
+            min_value=0,
+            step=500,
+            key="spending_change_monthly",
+            value=int(st.session_state.get("spending_change_monthly", 0) or 0),
+            help="Enter the new monthly spending amount before healthcare."
+        )
+
+        if st.session_state.enable_spending_change:
+            if int(st.session_state.spending_change_age or 0) > 0 and float(st.session_state.spending_change_monthly or 0) > 0:
+                st.info(
+                    f"Spending will change to {money(st.session_state.spending_change_monthly)} per month "
+                    f"starting at age {int(st.session_state.spending_change_age)}."
+                )
+
+        st.divider()
+
         if budget_mode == "Flat monthly number":
             flat_monthly_spending = st.number_input(
                 "Total household spending per month before healthcare",
@@ -10136,12 +10136,6 @@ if active_page == PAGE_NAMES[2]:
         st.session_state.budget_mode = budget_mode
         st.session_state.flat_monthly_spending = flat_monthly_spending
         st.session_state.survivor_spending = survivor_spending
-
-        # Spending-change widgets are outside the form and are bound directly to
-        # st.session_state with these keys:
-        #   enable_spending_change, spending_change_age, spending_change_monthly
-        # Do NOT assign those keys here after widget creation, or Streamlit will
-        # either reset the values or raise a SessionState API exception.
 
         for k, v in detailed_values.items():
             st.session_state[k] = v
