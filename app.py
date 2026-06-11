@@ -7791,6 +7791,7 @@ PAGE_NAMES = [
     "AI Retirement Coach",
     "Retirement Age Optimizer",
     "Resources",
+    "Pricing",
     "Help / Instructions",
     "Legal / Disclaimers",
 ]
@@ -7813,6 +7814,7 @@ PAGE_ICONS = {
     "AI Retirement Coach": "🤖",
     "Retirement Age Optimizer": "🎯",
     "Resources": "📚",
+    "Pricing": "💰",
     "Help / Instructions": "❓",
     "Legal / Disclaimers": "⚖️",
 }
@@ -14767,6 +14769,202 @@ if active_page == PAGE_NAMES[14]:
         st.warning("Type a question first, then tap Send question.")
 
 
+def render_pricing_page():
+    """Pricing page with free, founding member, and standard tiers."""
+    
+    render_page_shell(
+        "Pricing",
+        "Choose the plan that fits your retirement planning needs.",
+        "💰"
+    )
+    
+    st.markdown("""
+    <style>
+    .pricing-card {
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 30px;
+        text-align: center;
+        background: white;
+        transition: all 0.3s ease;
+    }
+    .pricing-card.featured {
+        border-color: #1f77b4;
+        border-width: 3px;
+        box-shadow: 0 10px 30px rgba(31, 119, 180, 0.15);
+    }
+    .pricing-card:hover {
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    .pricing-header {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 10px;
+        color: #333;
+    }
+    .pricing-price {
+        font-size: 48px;
+        font-weight: bold;
+        color: #1f77b4;
+        margin: 15px 0;
+    }
+    .pricing-subtext {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 25px;
+    }
+    .pricing-features {
+        text-align: left;
+        margin: 25px 0;
+        font-size: 14px;
+        line-height: 1.8;
+    }
+    .pricing-features .included {
+        color: #27ae60;
+    }
+    .pricing-features .excluded {
+        color: #bdc3c7;
+    }
+    .cta-button {
+        padding: 12px 24px;
+        border-radius: 6px;
+        border: none;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        width: 100%;
+        margin-top: 15px;
+    }
+    .cta-primary {
+        background-color: #1f77b4;
+        color: white;
+    }
+    .cta-primary:hover {
+        background-color: #1557a0;
+    }
+    .cta-secondary {
+        background-color: #f0f0f0;
+        color: #333;
+        border: 2px solid #ddd;
+    }
+    .founding-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+        margin-bottom: 15px;
+    }
+    .countdown {
+        font-size: 13px;
+        color: #e74c3c;
+        font-weight: bold;
+        margin-bottom: 15px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("## Choose Your Plan")
+    st.markdown("Start free. Upgrade anytime. Cancel anytime.")
+    st.markdown("")
+    
+    col1, col2, col3 = st.columns(3, gap="medium")
+    
+    with col1:
+        st.markdown("""
+        <div class="pricing-card">
+            <div class="pricing-header">Free</div>
+            <div class="pricing-price">$0</div>
+            <div class="pricing-subtext">Forever free</div>
+            <div class="pricing-features">
+                <strong>✓ Included:</strong><br>
+                <span class="included">• One retirement plan</span><br>
+                <span class="included">• Guided questions</span><br>
+                <span class="included">• Basic projection</span><br>
+                <span class="included">• Dashboard</span><br>
+                <span class="included">• Social Security estimate</span><br>
+                <span class="included">• Portfolio allocation</span><br>
+                <br>
+                <strong>✗ Not included:</strong><br>
+                <span class="excluded">• Scenario comparison</span><br>
+                <span class="excluded">• Monte Carlo</span><br>
+                <span class="excluded">• Stress tests</span><br>
+                <span class="excluded">• PDF export</span><br>
+                <span class="excluded">• AI Coach</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.button("Get Started", use_container_width=True, key="free_btn")
+    
+    with col2:
+        st.markdown("""
+        <div class="pricing-card featured">
+            <div class="founding-badge">⏰ LIMITED TIME</div>
+            <div class="pricing-header">Founding Member</div>
+            <div class="pricing-price">$59<span style="font-size: 20px; color: #666;">/year</span></div>
+            <div class="pricing-subtext">Locked price forever</div>
+            <div class="countdown">🔥 Limited slots available</div>
+            <div class="pricing-features">
+                <strong style="color: #27ae60;">✓ Everything Premium, plus:</strong><br>
+                <span class="included">• Price locked at $59/year</span><br>
+                <span class="included">• Founding member badge</span><br>
+                <span class="included">• Priority support</span><br>
+                <span class="included">• Lifetime access</span><br>
+                <br>
+                <strong>Premium features:</strong><br>
+                <span class="included">• Unlimited plans</span><br>
+                <span class="included">• Scenario comparison</span><br>
+                <span class="included">• Monte Carlo analysis</span><br>
+                <span class="included">• Stress tests</span><br>
+                <span class="included">• PDF export</span><br>
+                <span class="included">• AI Retirement Coach</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.button("Become Founding Member", use_container_width=True, key="founder_btn", type="primary")
+    
+    with col3:
+        st.markdown("""
+        <div class="pricing-card">
+            <div class="pricing-header">Premium</div>
+            <div class="pricing-price">$99<span style="font-size: 20px; color: #666;">/year</span></div>
+            <div class="pricing-subtext">Or $9.99/month</div>
+            <div class="pricing-features">
+                <strong>✓ Included:</strong><br>
+                <span class="included">• Unlimited plans</span><br>
+                <span class="included">• Scenario comparison</span><br>
+                <span class="included">• Monte Carlo</span><br>
+                <span class="included">• Stress tests</span><br>
+                <span class="included">• PDF export</span><br>
+                <span class="included">• AI Coach</span><br>
+                <span class="included">• Saved plans</span><br>
+                <span class="included">• Email support</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.button("Upgrade to Premium", use_container_width=True, key="premium_btn", type="primary")
+    
+    st.markdown("---")
+    st.markdown("## FAQ")
+    
+    with st.expander("Can I upgrade anytime?"):
+        st.write("Yes. Upgrade at any time and your plan updates immediately.")
+    
+    with st.expander("Is there a commitment?"):
+        st.write("No. Cancel anytime with no penalty.")
+    
+    with st.expander("What's the difference between Founding Member and Premium?"):
+        st.write("**Founding Member ($59/year for life):** Price locked forever, limited slots.\n\n**Premium ($99/year):** Standard pricing, always available, same features.")
+    
+    with st.expander("Do you offer refunds?"):
+        st.write("Yes. 30-day money-back guarantee on all paid plans.")
+    
+    st.markdown("---")
+    st.markdown("**Questions?** Email support@retirementblueprint101.com")
+
+
 def render_resources_page():
     render_page_shell(
         "Resources",
@@ -14966,6 +15164,8 @@ if active_page == "Resources":
     render_resources_page()
 
 
+if active_page == "Pricing":
+    render_pricing_page()
 
 
 if active_page == "Legal / Disclaimers":
