@@ -4093,9 +4093,6 @@ defaults = {
     "user_plan": "free",
     "premium_preview_enabled": True,
     "bucket2_years": 5.0,
-    "enable_spending_change": False,
-    "spending_change_age": 0,
-    "spending_change_monthly": 0,
 }
 for k, v in defaults.items():
     set_default(k, v)
@@ -4191,7 +4188,6 @@ def get_scenario_data():
         "annual_property_taxes_home", "mortgage_payoff_age",
         "retirement_housing_plan",
         "rmd_start_age",
-        "enable_spending_change", "spending_change_age", "spending_change_monthly",
     ]
 
     for key in keys_to_save:
@@ -4289,13 +4285,7 @@ def annual_household_spending():
 
 
 def annual_spending_for_age(age):
-    base = annual_household_spending()
-    if bool(st.session_state.get("enable_spending_change", False)):
-        change_age = int(st.session_state.get("spending_change_age", 0) or 0)
-        change_monthly = float(st.session_state.get("spending_change_monthly", 0) or 0)
-        if change_age > 0 and change_monthly > 0 and age >= change_age:
-            return change_monthly * 12
-    return base
+    return annual_household_spending()
 
 
 def home_equity():
@@ -7202,12 +7192,10 @@ def build_location_recommendation_summary(location_df):
 def run_projection_with_temp_monthly_spending(test_monthly_spending):
     original_budget_mode = st.session_state.budget_mode
     original_flat_monthly_spending = st.session_state.flat_monthly_spending
-    original_enable_spending_change = st.session_state.enable_spending_change
 
     try:
         st.session_state.budget_mode = "Flat monthly number"
         st.session_state.flat_monthly_spending = float(test_monthly_spending)
-        st.session_state.enable_spending_change = False
 
         test_df = run_projection()
         if test_df is None or test_df.empty:
@@ -7222,7 +7210,6 @@ def run_projection_with_temp_monthly_spending(test_monthly_spending):
     finally:
         st.session_state.budget_mode = original_budget_mode
         st.session_state.flat_monthly_spending = original_flat_monthly_spending
-        st.session_state.enable_spending_change = original_enable_spending_change
 
 
 def find_monthly_spending_for_target_score(target_score=80):
@@ -9897,13 +9884,6 @@ if active_page == PAGE_NAMES[1]:
             tax_settings_preview = get_tax_settings(tax_year, filing_status)
             st.info(f"Using {tax_year} federal brackets, {tax_settings_preview['label']}, and a standard deduction of {money(tax_settings_preview['standard_deduction'])}. Taxable Social Security is now estimated using provisional income thresholds. State taxes come in a later phase.")
 
-            if st.session_state.enable_spending_change and int(st.session_state.spending_change_age or 0) > 0:
-                st.subheader("Planned Spending Change")
-                s1, s2 = st.columns(2)
-                s1.metric("Spending Change Age", int(st.session_state.spending_change_age))
-                s2.metric("New Monthly Spending", money(st.session_state.spending_change_monthly))
-                st.info("The projection uses this new spending amount starting at the selected age, then continues applying inflation.")
-
             st.subheader("Home & Housing Strategy")
             st.caption("Optional, but useful. Your home can affect retirement flexibility, mortgage cash flow, downsizing options, taxes, and relocation decisions.")
 
@@ -9996,9 +9976,6 @@ if active_page == PAGE_NAMES[2]:
                 st.session_state.budget_mode = spending_data.get("budget_mode", "Flat monthly number")
                 st.session_state.flat_monthly_spending = spending_data.get("flat_monthly_spending", 0)
                 st.session_state.survivor_spending = spending_data.get("survivor_spending", 0)
-                st.session_state.enable_spending_change = spending_data.get("enable_spending_change", False)
-                st.session_state.spending_change_age = spending_data.get("spending_change_age", 0)
-                st.session_state.spending_change_monthly = spending_data.get("spending_change_monthly", 0)
                 
                 # Restore detailed budget values
                 detailed_budget = spending_data.get("detailed_budget", {})
@@ -10048,43 +10025,6 @@ if active_page == PAGE_NAMES[2]:
         st.info("Detailed mode selected. Enter the categories you know. Use zero for anything that does not apply.")
 
     with st.form("budget_form"):
-        # Spending change widgets now inside form context for reliable value sync on submit
-        st.subheader("Planned Spending Change")
-        st.checkbox(
-            "Change my spending at a certain age",
-            key="enable_spending_change",
-            value=st.session_state.get("enable_spending_change", False),
-            help="Use this if spending will change later in retirement, such as spending more early and less later."
-        )
-
-        c1, c2 = st.columns(2)
-        c1.number_input(
-            "Age when spending changes",
-            min_value=0,
-            max_value=110,
-            step=1,
-            key="spending_change_age",
-            value=int(st.session_state.get("spending_change_age", 0) or 0),
-            help="Enter the age when your new monthly spending should begin."
-        )
-        c2.number_input(
-            "New monthly spending amount",
-            min_value=0,
-            step=500,
-            key="spending_change_monthly",
-            value=int(st.session_state.get("spending_change_monthly", 0) or 0),
-            help="Enter the new monthly spending amount before healthcare."
-        )
-
-        if st.session_state.enable_spending_change:
-            if int(st.session_state.spending_change_age or 0) > 0 and float(st.session_state.spending_change_monthly or 0) > 0:
-                st.info(
-                    f"Spending will change to {money(st.session_state.spending_change_monthly)} per month "
-                    f"starting at age {int(st.session_state.spending_change_age)}."
-                )
-
-        st.divider()
-
         if budget_mode == "Flat monthly number":
             flat_monthly_spending = st.number_input(
                 "Total household spending per month before healthcare",
@@ -10145,9 +10085,6 @@ if active_page == PAGE_NAMES[2]:
             "budget_mode": budget_mode,
             "flat_monthly_spending": flat_monthly_spending,
             "survivor_spending": survivor_spending,
-            "enable_spending_change": bool(st.session_state.enable_spending_change),
-            "spending_change_age": int(st.session_state.spending_change_age or 0),
-            "spending_change_monthly": int(st.session_state.spending_change_monthly or 0),
             "detailed_budget": detailed_values
         }
 
@@ -10169,11 +10106,6 @@ if active_page == PAGE_NAMES[2]:
     c1, c2 = st.columns(2)
     c1.metric("Monthly Spending Before Healthcare", money(monthly))
     c2.metric("Annual Spending Before Healthcare", money(monthly * 12))
-
-    if st.session_state.enable_spending_change and int(st.session_state.spending_change_age or 0) > 0:
-        c3, c4 = st.columns(2)
-        c3.metric("Spending Changes At Age", int(st.session_state.spending_change_age))
-        c4.metric("New Monthly Spending", money(st.session_state.spending_change_monthly))
 
     st.divider()
     next_cols = st.columns([1, 1])
@@ -10283,9 +10215,6 @@ if active_page == PAGE_NAMES[5]:
         ["Annual contributions", money(st.session_state.annual_contribution)],
         ["Budget mode", st.session_state.budget_mode],
         ["Annual spending before healthcare", money(annual_household_spending())],
-        ["Spending change enabled", "Yes" if st.session_state.enable_spending_change else "No"],
-        ["Spending change age", st.session_state.spending_change_age if st.session_state.enable_spending_change else "N/A"],
-        ["New monthly spending", money(st.session_state.spending_change_monthly) if st.session_state.enable_spending_change else "N/A"],
         ["Income mode", st.session_state.income_mode],
         ["Simple other income", money(st.session_state.simple_income) if st.session_state.income_mode == "Simple income" else "Advanced table"],
         ["Plan type", "Couple / household plan" if st.session_state.has_spouse else "Individual plan"],
@@ -14771,9 +14700,6 @@ if active_page == PAGE_NAMES[14]:
         Bucket 1: {st.session_state.cash}
         Annual spending before healthcare: {annual_household_spending()}
         Spending target finder available: Yes
-        Spending change enabled: {st.session_state.enable_spending_change}
-        Spending change age: {st.session_state.spending_change_age}
-        New monthly spending after change age: {st.session_state.spending_change_monthly}
         Total other income across plan: {df["Total Other Income"].sum()}
         Average income coverage: {df["Income Coverage Ratio"].mean()}
         Ending portfolio: {df["End Total"].iloc[-1]}
