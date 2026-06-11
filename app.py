@@ -14917,14 +14917,7 @@ def render_pricing_page():
                 <span class="included">• PDF export</span><br>
                 <span class="included">• AI Retirement Coach</span><br>
                 <span class="included">• Saved plans</span><br>
-                <span class="included">• Email support</span><br>
-                <br>
-                <strong>Also includes Free features:</strong><br>
-                <span class="included">• Guided questions</span><br>
-                <span class="included">• Basic projection</span><br>
-                <span class="included">• Dashboard</span><br>
-                <span class="included">• Social Security estimate</span><br>
-                <span class="included">• Portfolio allocation</span>
+                <span class="included">• Email support</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
