@@ -14933,8 +14933,8 @@ def render_pricing_page():
         st.markdown("""
         <div class="pricing-card">
             <div class="pricing-header">Premium</div>
-            <div class="pricing-price">$99<span style="font-size: 20px; color: #666;">/year</span></div>
-            <div class="pricing-subtext">Or $9.99/month</div>
+            <div class="pricing-price">$99<span style="font-size: 18px; color: #666;">/year</span></div>
+            <div class="pricing-subtext" style="color: #1f77b4; font-weight: bold;">or $9.99/month</div>
             <div class="pricing-features">
                 <strong>✓ Included:</strong><br>
                 <span class="included">• Unlimited plans</span><br>
