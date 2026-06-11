@@ -14909,15 +14909,22 @@ def render_pricing_page():
             <div class="pricing-price">$9.99<span style="font-size: 20px; color: #666;">/month</span></div>
             <div class="pricing-subtext" style="color: #666;">or $99/year (save $20)</div>
             <div class="pricing-features">
-                <strong>✓ Included:</strong><br>
+                <strong>✓ Everything in Free, plus:</strong><br>
                 <span class="included">• Unlimited plans</span><br>
                 <span class="included">• Scenario comparison</span><br>
-                <span class="included">• Monte Carlo</span><br>
+                <span class="included">• Monte Carlo analysis</span><br>
                 <span class="included">• Stress tests</span><br>
                 <span class="included">• PDF export</span><br>
-                <span class="included">• AI Coach</span><br>
+                <span class="included">• AI Retirement Coach</span><br>
                 <span class="included">• Saved plans</span><br>
-                <span class="included">• Email support</span>
+                <span class="included">• Email support</span><br>
+                <br>
+                <strong>Also includes Free features:</strong><br>
+                <span class="included">• Guided questions</span><br>
+                <span class="included">• Basic projection</span><br>
+                <span class="included">• Dashboard</span><br>
+                <span class="included">• Social Security estimate</span><br>
+                <span class="included">• Portfolio allocation</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
