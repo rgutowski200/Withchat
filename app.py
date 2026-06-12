@@ -4375,12 +4375,39 @@ def verify_payment_and_update_user(session_id, user):
         return False
 
 
+def get_user_plan(user):
+    """Get current user's subscription plan from Supabase."""
+    try:
+        if not user:
+            return "free"
+        
+        result = supabase.table("user_settings").select("user_plan").eq("user_id", str(user.id)).execute()
+        if result.data and len(result.data) > 0:
+            return result.data[0].get("user_plan", "free") or "free"
+        return "free"
+    except:
+        return "free"
+
+
 def render_payment_page():
     """Render the payment selection page with 3 plan options."""
     st.title("Upgrade Your Plan")
     
     if not st.session_state.user:
         st.warning("Please log in to upgrade your plan.")
+        return
+    
+    # Check if user is already premium
+    user_plan = get_user_plan(st.session_state.user)
+    
+    if user_plan in ["premium", "founding_member"]:
+        st.success(f"✅ You're already a {user_plan.replace('_', ' ').title()} member!")
+        st.info("You have access to all premium features.")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Back to Home", use_container_width=True):
+                st.session_state.active_page = "Home"
+                st.rerun()
         return
     
     # Debug: Check if Stripe is configured
