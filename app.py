@@ -4383,6 +4383,12 @@ def render_payment_page():
         st.warning("Please log in to upgrade your plan.")
         return
     
+    # Debug: Check if Stripe is configured
+    if not STRIPE_PREMIUM_MONTHLY_PRICE:
+        st.error("❌ Stripe is not configured. Check your Streamlit secrets.")
+        st.write("Missing keys: STRIPE_PREMIUM_MONTHLY_PRICE or other Stripe configuration")
+        return
+    
     st.markdown("---")
     
     col1, col2, col3 = st.columns(3)
@@ -4402,13 +4408,19 @@ def render_payment_page():
         - Email support
         """)
         if st.button("Buy Monthly", key="premium_monthly_btn", use_container_width=True, type="primary"):
-            session = create_checkout_session(
-                st.session_state.user,
-                STRIPE_PREMIUM_MONTHLY_PRICE,
-                "premium_monthly"
-            )
-            if session:
-                st.components.v1.html(f'<script>window.location.href="{session.url}";</script>', height=0)
+            try:
+                session = create_checkout_session(
+                    st.session_state.user,
+                    STRIPE_PREMIUM_MONTHLY_PRICE,
+                    "premium_monthly"
+                )
+                if session:
+                    st.success("Redirecting to Stripe Checkout...")
+                    st.components.v1.html(f'<script>window.location.href="{session.url}";</script>', height=0)
+                else:
+                    st.error("Failed to create checkout session")
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
     
     # Premium Annual
     with col2:
@@ -4426,13 +4438,19 @@ def render_payment_page():
         - Email support
         """)
         if st.button("Buy Annual", key="premium_annual_btn", use_container_width=True, type="primary"):
-            session = create_checkout_session(
-                st.session_state.user,
-                STRIPE_PREMIUM_ANNUAL_PRICE,
-                "premium_annual"
-            )
-            if session:
-                st.components.v1.html(f'<script>window.location.href="{session.url}";</script>', height=0)
+            try:
+                session = create_checkout_session(
+                    st.session_state.user,
+                    STRIPE_PREMIUM_ANNUAL_PRICE,
+                    "premium_annual"
+                )
+                if session:
+                    st.success("Redirecting to Stripe Checkout...")
+                    st.components.v1.html(f'<script>window.location.href="{session.url}";</script>', height=0)
+                else:
+                    st.error("Failed to create checkout session")
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
     
     # Founding Member
     with col3:
@@ -4447,13 +4465,19 @@ def render_payment_page():
         - Founding member badge
         """)
         if st.button("Become Founding Member", key="founding_member_btn", use_container_width=True, type="primary"):
-            session = create_checkout_session(
-                st.session_state.user,
-                STRIPE_FOUNDING_MEMBER_PRICE,
-                "founding_member"
-            )
-            if session:
-                st.components.v1.html(f'<script>window.location.href="{session.url}";</script>', height=0)
+            try:
+                session = create_checkout_session(
+                    st.session_state.user,
+                    STRIPE_FOUNDING_MEMBER_PRICE,
+                    "founding_member"
+                )
+                if session:
+                    st.success("Redirecting to Stripe Checkout...")
+                    st.components.v1.html(f'<script>window.location.href="{session.url}";</script>', height=0)
+                else:
+                    st.error("Failed to create checkout session")
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
     
     st.markdown("---")
     st.caption("**Test card (Sandbox):** 4242 4242 4242 4242 | Exp: Any future date | CVC: Any 3 digits")
