@@ -2179,6 +2179,36 @@ def render_sidebar_auth_controls():
             st.session_state.show_account_settings = not st.session_state.get("show_account_settings", False)
 
         if st.session_state.get("show_account_settings", False):
+            # --- Current plan & subscription management ---
+            _sidebar_plan = get_user_plan(st.session_state.user)
+            _plan_labels = {
+                "free": ("Free Plan", "#64748B", "Basic features. Upgrade to unlock premium tools."),
+                "premium": ("⭐ Premium Member", "#2563EB", "Full access to all premium features."),
+                "founding_member": ("🔥 Founding Member", "#D97706", "Lifetime locked price of $59/year."),
+            }
+            _label, _color, _desc = _plan_labels.get(_sidebar_plan, _plan_labels["free"])
+            st.markdown(f"""
+            <div style="border:1px solid #E2E8F0;border-radius:16px;padding:12px;background:#FFFFFF;margin:8px 0 10px 0;">
+              <div style="font-size:.8rem;font-weight:900;color:#2563EB;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px;">Your Plan</div>
+              <div style="font-weight:900;color:{_color};margin-bottom:4px;">{_label}</div>
+              <div style="color:#64748B;font-size:.86rem;line-height:1.35;">{_desc}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            if _sidebar_plan == "free":
+                if st.button("Upgrade Plan", use_container_width=True, key="sidebar_upgrade_plan", type="primary"):
+                    st.session_state.active_page = "Pricing"
+                    st.session_state.show_account_settings = False
+                    st.rerun()
+            else:
+                if st.button("Manage / Cancel Subscription", use_container_width=True, key="sidebar_manage_sub"):
+                    portal_url = create_customer_portal_session(st.session_state.user)
+                    if portal_url:
+                        st.session_state["_sidebar_portal_url"] = portal_url
+                if st.session_state.get("_sidebar_portal_url"):
+                    st.link_button("Open Billing Portal", st.session_state["_sidebar_portal_url"], use_container_width=True, type="primary")
+                    st.caption("Cancel anytime, update your card, or view billing history. Managed securely by Stripe.")
+
             st.markdown("""
             <div style="border:1px solid #E2E8F0;border-radius:16px;padding:12px;background:#FFFFFF;margin:8px 0 10px 0;">
               <div style="font-weight:900;color:#0F172A;margin-bottom:4px;">Change password</div>
