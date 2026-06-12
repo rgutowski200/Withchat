@@ -8638,30 +8638,62 @@ if st.session_state.get("_last_rendered_page") != active_page:
     # Scroll the page back to the top on every navigation. Streamlit reuses the
     # same scroll container across reruns, so without this a click near the
     # bottom of one page leaves the next page scrolled to that same position.
+    #
+    # Approach: scroll repeatedly for ~2.5s AND watch for DOM mutations (since
+    # Streamlit streams content in after the rerun starts, late content can
+    # grow the page and "undo" an early scroll-to-top).
     components.html(f"""
     <script>
     // nav-token: {_nav_token}-scroll
     (function() {{
-        var attempts = 0;
-        function tryScroll() {{
-            attempts += 1;
+        function scrollAllToTop() {{
             try {{
                 var pdoc = window.parent.document;
-                var container =
-                    pdoc.querySelector('section.main') ||
-                    pdoc.querySelector('[data-testid="stAppViewContainer"]') ||
-                    pdoc.querySelector('[data-testid="stMain"]');
-                if (container) {{ container.scrollTo(0, 0); }}
-                window.parent.scrollTo(0, 0);
+                var pwin = window.parent;
+                // Streamlit's actual scrollable containers (varies by version)
+                var selectors = [
+                    'section.main',
+                    '.main',
+                    '[data-testid="stAppViewContainer"]',
+                    '[data-testid="stMain"]',
+                    '[data-testid="stAppViewBlockContainer"]',
+                    '.block-container',
+                    '[data-testid="stSidebar"] + div',
+                ];
+                for (var i = 0; i < selectors.length; i++) {{
+                    var el = pdoc.querySelector(selectors[i]);
+                    if (el) {{
+                        el.scrollTop = 0;
+                        if (el.scrollTo) {{ el.scrollTo({{top: 0, left: 0, behavior: 'instant'}}); }}
+                    }}
+                }}
                 pdoc.documentElement.scrollTop = 0;
                 pdoc.body.scrollTop = 0;
+                pwin.scrollTo(0, 0);
             }} catch (e) {{ /* no-op */ }}
-            if (attempts < 8) {{ setTimeout(tryScroll, 100); }}
         }}
-        setTimeout(tryScroll, 30);
+
+        // Repeated scroll attempts on a timer
+        var elapsed = 0;
+        var interval = setInterval(function() {{
+            scrollAllToTop();
+            elapsed += 100;
+            if (elapsed >= 2500) {{ clearInterval(interval); }}
+        }}, 100);
+        scrollAllToTop();
+
+        // Also react to DOM growth/changes (Streamlit streaming in new widgets)
+        try {{
+            var pdoc = window.parent.document;
+            var target = pdoc.querySelector('[data-testid="stAppViewContainer"]') || pdoc.body;
+            var observer = new MutationObserver(function() {{ scrollAllToTop(); }});
+            observer.observe(target, {{ childList: true, subtree: true }});
+            setTimeout(function() {{ observer.disconnect(); }}, 2500);
+        }} catch (e) {{ /* no-op */ }}
     }})();
     </script>
     """, height=0)
+
 
 
 # Keep the sidebar open after navigation so users can always see where they are and what comes next.
