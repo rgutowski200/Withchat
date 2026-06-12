@@ -8578,6 +8578,64 @@ def render_navigation():
 render_navigation()
 active_page = st.session_state.active_page
 
+# --- Mobile quick-nav bar ---
+# Phones only (hidden via CSS on wider screens). Gives one-tap access to the
+# most-used pages without opening the sidebar, cutting down on scrolling.
+# The sidebar is untouched and still fully available on every screen size.
+_quick_nav_items = [
+    ("Retirement Dashboard", "📊", "Dashboard"),
+    ("Recommendations", "💡", "Action Plan"),
+    ("Budget Builder", "💳", "Spending"),
+    ("Guided Questions", "📝", "Inputs"),
+    ("Pricing", "💰", "Pricing"),
+]
+
+st.markdown("""
+<style>
+.rb-mobile-quicknav { display: none; }
+@media (max-width: 768px) {
+  .rb-mobile-quicknav {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px 2px 10px 2px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #E2E8F0;
+    scrollbar-width: none;
+  }
+  .rb-mobile-quicknav::-webkit-scrollbar { display: none; }
+  .rb-mobile-quicknav .stButton { flex: 0 0 auto; }
+  .rb-mobile-quicknav .stButton > button {
+    white-space: nowrap;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    padding: 4px 14px;
+  }
+}
+</style>
+""", unsafe_allow_html=True)
+
+with st.container():
+    st.markdown('<div class="rb-mobile-quicknav">', unsafe_allow_html=True)
+    _qn_cols = st.columns(len(_quick_nav_items))
+    for _qn_col, (_qn_page, _qn_icon, _qn_label) in zip(_qn_cols, _quick_nav_items):
+        with _qn_col:
+            _qn_active = active_page == _qn_page
+            _qn_locked = (_qn_page in PREMIUM_PAGES) and not st.session_state.get("is_premium_user", False)
+            _qn_lock = "🔒 " if _qn_locked else ""
+            if st.button(f"{_qn_icon} {_qn_lock}{_qn_label}", key=f"quicknav_{_qn_page}", disabled=_qn_active):
+                if _qn_locked:
+                    if st.session_state.get("user"):
+                        st.session_state.active_page = "Pricing"
+                    else:
+                        st.session_state["_show_account_gate"] = True
+                        st.session_state["_gate_intended_page"] = _qn_page
+                    st.rerun()
+                else:
+                    go_to_page(_qn_page)
+    st.markdown('</div>', unsafe_allow_html=True)
+
 # Apply any queued auth token writes/clears FIRST (session persistence).
 # This must run before the localStorage read-check below, so a token saved
 # during this same render is guaranteed to be written before we check for it.
