@@ -4321,6 +4321,11 @@ def get_user_plan(user):
 def create_checkout_session(user, price_id, plan_type):
     """Create a Stripe Checkout session for a user."""
     try:
+        # Append session_id template so Stripe sends it back on success
+        # Stripe replaces {CHECKOUT_SESSION_ID} with the real session ID
+        separator = "&" if "?" in STRIPE_SUCCESS_URL else "?"
+        success_url_with_session = f"{STRIPE_SUCCESS_URL}{separator}session_id={{CHECKOUT_SESSION_ID}}"
+        
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=[
@@ -4330,7 +4335,7 @@ def create_checkout_session(user, price_id, plan_type):
                 }
             ],
             mode="subscription",
-            success_url=STRIPE_SUCCESS_URL,
+            success_url=success_url_with_session,
             cancel_url=STRIPE_CANCEL_URL,
             customer_email=user.email,
             metadata={
