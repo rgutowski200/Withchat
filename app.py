@@ -11932,8 +11932,9 @@ if active_page == PAGE_NAMES[7]:
         </div>
         """, unsafe_allow_html=True)
 
-        st.divider()
-        render_suggested_spending_target_tool()
+        if st.session_state.get("is_premium_user", False):
+            st.divider()
+            render_suggested_spending_target_tool()
 
         actions = build_rtv_improvement_recommendations(df, rtv_score)
         positive_actions = [a for a in actions if a.get("Blueprint Impact", 0) > 0]
@@ -12066,28 +12067,47 @@ if active_page == PAGE_NAMES[7]:
                 seen.add(row[0])
 
         # Render as HTML table matching the "What the numbers mean" style — no truncation
-        try_rows_html = "".join(
-            f"""<tr>
-              <td style="padding:10px 14px;font-weight:700;color:#166534;white-space:nowrap;border-bottom:1px solid #F1F5F9;">{row[3]}</td>
-              <td style="padding:10px 14px;font-weight:600;color:#1E293B;white-space:nowrap;border-bottom:1px solid #F1F5F9;">{row[0]}</td>
-              <td style="padding:10px 14px;color:#0F172A;line-height:1.5;border-bottom:1px solid #F1F5F9;">{row[2]}</td>
-              <td style="padding:10px 14px;color:#475569;line-height:1.5;border-bottom:1px solid #F1F5F9;">{row[1]}</td>
-            </tr>"""
-            for row in deduped[:6]
-        )
-        st.markdown(f"""
-        <table style="width:100%;border-collapse:collapse;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;font-size:.92rem;">
-          <thead>
-            <tr style="background:#F8FAFC;">
-              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;white-space:nowrap;">Score impact</th>
-              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;white-space:nowrap;">What to try</th>
-              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;">How to do it</th>
-              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;">Why it helps</th>
-            </tr>
-          </thead>
-          <tbody>{try_rows_html}</tbody>
-        </table>
-        """, unsafe_allow_html=True)
+        _ap_premium = bool(st.session_state.get("is_premium_user", False))
+        if _ap_premium:
+            try_rows_html = "".join(
+                f"""<tr>
+                  <td style="padding:10px 14px;font-weight:700;color:#166534;white-space:nowrap;border-bottom:1px solid #F1F5F9;">{row[3]}</td>
+                  <td style="padding:10px 14px;font-weight:600;color:#1E293B;white-space:nowrap;border-bottom:1px solid #F1F5F9;">{row[0]}</td>
+                  <td style="padding:10px 14px;color:#0F172A;line-height:1.5;border-bottom:1px solid #F1F5F9;">{row[2]}</td>
+                  <td style="padding:10px 14px;color:#475569;line-height:1.5;border-bottom:1px solid #F1F5F9;">{row[1]}</td>
+                </tr>"""
+                for row in deduped[:6]
+            )
+            st.markdown(f"""
+            <table style="width:100%;border-collapse:collapse;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;font-size:.92rem;">
+              <thead>
+                <tr style="background:#F8FAFC;">
+                  <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;white-space:nowrap;">Score impact</th>
+                  <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;white-space:nowrap;">What to try</th>
+                  <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;">How to do it</th>
+                  <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;">Why it helps</th>
+                </tr>
+              </thead>
+              <tbody>{try_rows_html}</tbody>
+            </table>
+            """, unsafe_allow_html=True)
+        else:
+            _locked_count = len(deduped[:6])
+            _locked_names = ", ".join(row[0].lower() for row in deduped[:3])
+            st.markdown(f"""
+            <div class="rb-insight-card" style="border:2px dashed #CBD5E1;background:linear-gradient(180deg,#F8FAFC,#F1F5F9);">
+              <div class="rb-insight-kicker">🔒 Premium</div>
+              <div class="rb-insight-title">{_locked_count} more personalized recommendations are waiting</div>
+              <div class="rb-insight-copy">
+                Based on your numbers, the app found <b>{_locked_count} more ways to improve your Blueprint Score</b>
+                — including {_locked_names} — each with the estimated score impact and exactly how to test it.
+                Premium also unlocks the interactive spending target tool, Monte Carlo analysis, stress tests, and your full PDF report.
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("Unlock My Full Action Plan", type="primary", use_container_width=True, key="action_plan_unlock"):
+                st.session_state.active_page = "Pricing"
+                st.rerun()
 
         st.subheader("What the numbers mean")
 
