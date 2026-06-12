@@ -35,26 +35,77 @@ PWA_MANIFEST_DATA_URI = "data:application/manifest+json,%7B%22name%22%3A%20%22Re
 
 
 def inject_pwa_head_tags():
-    """Inject PWA / "Add to Home Screen" support tags into the page head.
+    """Inject PWA / "Add to Home Screen" support tags directly into the real
+    browser <head>, overriding Streamlit's own default icons/manifest.
 
     - Works on iOS Safari: tapping Share -> Add to Home Screen creates an app
       icon that launches in fullscreen (no browser chrome), using the apple
       touch icon and apple-mobile-web-app meta tags below.
     - Also includes a standard web manifest for Android/Chrome support.
+    - Streamlit injects its own apple-touch-icon / manifest tags into <head>;
+      st.markdown() only writes into the page <body>, so those tags are
+      ignored by Safari. This runs JS in the real document to remove
+      Streamlit's tags and insert ours instead.
     This only affects how the site can be *added* to a home screen; it does
     not change the page layout for normal browser/tablet/desktop visitors.
     """
-    st.markdown(
+    manifest_uri = PWA_MANIFEST_DATA_URI
+    apple_icon_b64 = PWA_APPLE_TOUCH_ICON_B64
+    components.html(
         f'''
-        <link rel="manifest" href="{PWA_MANIFEST_DATA_URI}">
-        <link rel="apple-touch-icon" href="data:image/png;base64,{PWA_APPLE_TOUCH_ICON_B64}">
-        <meta name="apple-mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-        <meta name="apple-mobile-web-app-title" content="RB101">
-        <meta name="mobile-web-app-capable" content="yes">
-        <meta name="theme-color" content="#2563EB">
+        <script>
+        (function() {{
+            try {{
+                var head = window.parent.document.head;
+
+                // Remove any existing icon/manifest tags Streamlit added
+                var selectors = [
+                    'link[rel="icon"]',
+                    'link[rel="shortcut icon"]',
+                    'link[rel="apple-touch-icon"]',
+                    'link[rel="apple-touch-icon-precomposed"]',
+                    'link[rel="manifest"]',
+                    'meta[name="apple-mobile-web-app-capable"]',
+                    'meta[name="apple-mobile-web-app-title"]',
+                    'meta[name="apple-mobile-web-app-status-bar-style"]',
+                    'meta[name="mobile-web-app-capable"]',
+                    'meta[name="theme-color"]'
+                ];
+                selectors.forEach(function(sel) {{
+                    head.querySelectorAll(sel).forEach(function(el) {{ el.remove(); }});
+                }});
+
+                function addLink(rel, href, sizes) {{
+                    var l = window.parent.document.createElement('link');
+                    l.setAttribute('rel', rel);
+                    l.setAttribute('href', href);
+                    if (sizes) l.setAttribute('sizes', sizes);
+                    head.appendChild(l);
+                }}
+                function addMeta(name, content) {{
+                    var m = window.parent.document.createElement('meta');
+                    m.setAttribute('name', name);
+                    m.setAttribute('content', content);
+                    head.appendChild(m);
+                }}
+
+                var iconHref = 'data:image/png;base64,{apple_icon_b64}';
+                addLink('apple-touch-icon', iconHref);
+                addLink('apple-touch-icon-precomposed', iconHref);
+                addLink('icon', iconHref);
+                addLink('shortcut icon', iconHref);
+                addLink('manifest', '{manifest_uri}');
+
+                addMeta('apple-mobile-web-app-capable', 'yes');
+                addMeta('apple-mobile-web-app-status-bar-style', 'black-translucent');
+                addMeta('apple-mobile-web-app-title', 'RB101');
+                addMeta('mobile-web-app-capable', 'yes');
+                addMeta('theme-color', '#2563EB');
+            }} catch (e) {{ /* no-op */ }}
+        }})();
+        </script>
         ''',
-        unsafe_allow_html=True,
+        height=0,
     )
 
 
@@ -2372,6 +2423,90 @@ with hero_left:
       </div>
     </div>
     """, unsafe_allow_html=True)
+
+# --- "Add to Home Screen" tip (mobile only, dismissible) ---
+# Helps phone users get a one-tap app icon without going through the App Store.
+# Hidden on desktop/tablet via CSS; hidden permanently once dismissed via
+# session_state, and that dismissal is also remembered in localStorage so it
+# doesn't reappear on the next visit either.
+if not st.session_state.get("_a2hs_dismissed", False):
+    st.markdown("""
+    <style>
+    .rb-a2hs-banner { display: none; }
+    @media (max-width: 768px) {
+      .rb-a2hs-banner {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        background: linear-gradient(180deg,#EFF6FF,#DBEAFE);
+        border: 1px solid #BFDBFE;
+        border-radius: 14px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+        font-size: .88rem;
+        color: #1E3A8A;
+        line-height: 1.45;
+      }
+      .rb-a2hs-banner .rb-a2hs-icon { font-size: 1.3rem; flex-shrink: 0; }
+    }
+    </style>
+    <div class="rb-a2hs-banner" id="rb-a2hs-banner">
+      <div class="rb-a2hs-icon">📱</div>
+      <div>
+        <b>Tip:</b> Add Retirement Blueprint 101 to your home screen for one-tap access, just like an app.
+        <span id="rb-a2hs-instructions">
+          On iPhone: tap the <b>Share</b> button, then <b>"Add to Home Screen."</b>
+          On Android: tap the <b>⋮ menu</b>, then <b>"Add to Home screen"</b> or <b>"Install app."</b>
+        </span>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Tailor the instructions to the device and provide a dismiss button
+    components.html("""
+    <script>
+    (function() {
+        var pdoc = window.parent.document;
+        var ua = window.parent.navigator.userAgent || "";
+        var isIOS = /iPad|iPhone|iPod/.test(ua);
+        var isAndroid = /Android/.test(ua);
+
+        var instr = pdoc.getElementById('rb-a2hs-instructions');
+        if (instr) {
+            if (isIOS) {
+                instr.innerHTML = ' On your iPhone/iPad: tap the <b>Share</b> button (square with an arrow), then choose <b>"Add to Home Screen."</b>';
+            } else if (isAndroid) {
+                instr.innerHTML = ' On your Android device: tap the <b>⋮ menu</b> in your browser, then choose <b>"Add to Home screen"</b> or <b>"Install app."</b>';
+            }
+        }
+
+        var banner = pdoc.getElementById('rb-a2hs-banner');
+        if (banner && !banner.querySelector('.rb-a2hs-close')) {
+            var closeBtn = pdoc.createElement('span');
+            closeBtn.className = 'rb-a2hs-close';
+            closeBtn.innerHTML = '&times;';
+            closeBtn.style.cursor = 'pointer';
+            closeBtn.style.marginLeft = 'auto';
+            closeBtn.style.fontSize = '1.2rem';
+            closeBtn.style.fontWeight = 'bold';
+            closeBtn.style.flexShrink = '0';
+            closeBtn.title = 'Dismiss';
+            closeBtn.onclick = function() {
+                banner.style.display = 'none';
+                try { localStorage.setItem('rb101_a2hs_dismissed', '1'); } catch (e) {}
+            };
+            banner.appendChild(closeBtn);
+        }
+
+        // If previously dismissed (stored in this browser), hide immediately
+        try {
+            if (localStorage.getItem('rb101_a2hs_dismissed') === '1' && banner) {
+                banner.style.display = 'none';
+            }
+        } catch (e) {}
+    })();
+    </script>
+    """, height=0)
 
 
 
