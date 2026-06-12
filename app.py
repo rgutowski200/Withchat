@@ -4408,8 +4408,7 @@ def render_payment_page():
                 "premium_monthly"
             )
             if session:
-                st.info("Redirecting to Stripe Checkout...")
-                st.markdown(f"[Click here if not redirected]({session.url})", unsafe_allow_html=True)
+                st.components.v1.html(f'<script>window.location.href="{session.url}";</script>', height=0)
     
     # Premium Annual
     with col2:
@@ -4433,8 +4432,7 @@ def render_payment_page():
                 "premium_annual"
             )
             if session:
-                st.info("Redirecting to Stripe Checkout...")
-                st.markdown(f"[Click here if not redirected]({session.url})", unsafe_allow_html=True)
+                st.components.v1.html(f'<script>window.location.href="{session.url}";</script>', height=0)
     
     # Founding Member
     with col3:
@@ -4455,8 +4453,7 @@ def render_payment_page():
                 "founding_member"
             )
             if session:
-                st.info("Redirecting to Stripe Checkout...")
-                st.markdown(f"[Click here if not redirected]({session.url})", unsafe_allow_html=True)
+                st.components.v1.html(f'<script>window.location.href="{session.url}";</script>', height=0)
     
     st.markdown("---")
     st.caption("**Test card (Sandbox):** 4242 4242 4242 4242 | Exp: Any future date | CVC: Any 3 digits")
