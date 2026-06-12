@@ -10,6 +10,8 @@ from xml.sax.saxutils import escape as xml_escape
 from datetime import date
 
 from db import supabase
+import stripe
+import time
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -4282,6 +4284,187 @@ def increment_blueprint_count(user):
             }).execute()
     except Exception as e:
         st.warning(f"Could not update blueprint count: {str(e)}")
+
+
+# ============================================================================
+# STRIPE PAYMENT INTEGRATION
+# ============================================================================
+
+# Initialize Stripe
+try:
+    stripe.api_key = st.secrets.get("STRIPE_SECRET_KEY")
+    STRIPE_PUBLISHABLE_KEY = st.secrets.get("STRIPE_PUBLISHABLE_KEY")
+    STRIPE_PREMIUM_MONTHLY_PRICE = st.secrets.get("STRIPE_PREMIUM_MONTHLY_PRICE")
+    STRIPE_PREMIUM_ANNUAL_PRICE = st.secrets.get("STRIPE_PREMIUM_ANNUAL_PRICE")
+    STRIPE_FOUNDING_MEMBER_PRICE = st.secrets.get("STRIPE_FOUNDING_MEMBER_PRICE")
+    STRIPE_SUCCESS_URL = st.secrets.get("STRIPE_SUCCESS_URL", "https://retirementblueprint101.com?payment=success")
+    STRIPE_CANCEL_URL = st.secrets.get("STRIPE_CANCEL_URL", "https://retirementblueprint101.com?payment=cancelled")
+except:
+    # Stripe not configured yet
+    pass
+
+
+def create_checkout_session(user, price_id, plan_type):
+    """Create a Stripe Checkout session for a user."""
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[
+                {
+                    "price": price_id,
+                    "quantity": 1,
+                }
+            ],
+            mode="subscription",
+            success_url=STRIPE_SUCCESS_URL,
+            cancel_url=STRIPE_CANCEL_URL,
+            customer_email=user.email,
+            metadata={
+                "user_id": str(user.id),
+                "plan_type": plan_type,
+            },
+        )
+        return session
+    except Exception as e:
+        st.error(f"Checkout session creation failed: {str(e)}")
+        return None
+
+
+def verify_payment_and_update_user(session_id, user):
+    """Verify a successful Stripe payment and update user plan in Supabase."""
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+        
+        # Check if payment was successful
+        if session.payment_status == "paid":
+            plan_type = session.metadata.get("plan_type", "premium")
+            
+            # Map plan_type to user_plan value
+            plan_mapping = {
+                "premium_monthly": "premium",
+                "premium_annual": "premium",
+                "founding_member": "founding_member",
+            }
+            user_plan = plan_mapping.get(plan_type, "premium")
+            
+            # Update user plan in Supabase
+            user_id_str = str(user.id)
+            existing = supabase.table("user_settings").select("id").eq("user_id", user_id_str).execute()
+            
+            if existing.data and len(existing.data) > 0:
+                supabase.table("user_settings").update({
+                    "user_plan": user_plan,
+                    "stripe_session_id": session_id,
+                    "stripe_customer_email": session.customer_email,
+                }).eq("user_id", user_id_str).execute()
+            else:
+                supabase.table("user_settings").insert({
+                    "user_id": user_id_str,
+                    "user_plan": user_plan,
+                    "stripe_session_id": session_id,
+                    "stripe_customer_email": session.customer_email,
+                }).execute()
+            
+            return True
+        else:
+            st.warning(f"Payment not yet completed. Status: {session.payment_status}")
+            return False
+            
+    except Exception as e:
+        st.error(f"Payment verification failed: {str(e)}")
+        return False
+
+
+def render_payment_page():
+    """Render the payment selection page with 3 plan options."""
+    st.title("Upgrade Your Plan")
+    
+    if not st.session_state.user:
+        st.warning("Please log in to upgrade your plan.")
+        return
+    
+    st.markdown("---")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    # Premium Monthly
+    with col1:
+        st.markdown("""
+        ### Premium Monthly
+        **$9.99/month**
+        
+        - Unlimited plans
+        - Scenario comparison
+        - Monte Carlo analysis
+        - Stress tests
+        - PDF export
+        - AI Coach
+        - Email support
+        """)
+        if st.button("Buy Monthly", key="premium_monthly_btn", use_container_width=True, type="primary"):
+            session = create_checkout_session(
+                st.session_state.user,
+                STRIPE_PREMIUM_MONTHLY_PRICE,
+                "premium_monthly"
+            )
+            if session:
+                st.info("Redirecting to Stripe Checkout...")
+                st.markdown(f"[Click here if not redirected]({session.url})", unsafe_allow_html=True)
+    
+    # Premium Annual
+    with col2:
+        st.markdown("""
+        ### Premium Annual
+        **$99/year**
+        *(Save $20/year)*
+        
+        - Unlimited plans
+        - Scenario comparison
+        - Monte Carlo analysis
+        - Stress tests
+        - PDF export
+        - AI Coach
+        - Email support
+        """)
+        if st.button("Buy Annual", key="premium_annual_btn", use_container_width=True, type="primary"):
+            session = create_checkout_session(
+                st.session_state.user,
+                STRIPE_PREMIUM_ANNUAL_PRICE,
+                "premium_annual"
+            )
+            if session:
+                st.info("Redirecting to Stripe Checkout...")
+                st.markdown(f"[Click here if not redirected]({session.url})", unsafe_allow_html=True)
+    
+    # Founding Member
+    with col3:
+        st.markdown("""
+        ### 🔥 Founding Member
+        **$59/year**
+        *(Lifetime price)*
+        
+        - Everything Premium, plus:
+        - Price locked forever
+        - Priority support
+        - Founding member badge
+        """)
+        if st.button("Become Founding Member", key="founding_member_btn", use_container_width=True, type="primary"):
+            session = create_checkout_session(
+                st.session_state.user,
+                STRIPE_FOUNDING_MEMBER_PRICE,
+                "founding_member"
+            )
+            if session:
+                st.info("Redirecting to Stripe Checkout...")
+                st.markdown(f"[Click here if not redirected]({session.url})", unsafe_allow_html=True)
+    
+    st.markdown("---")
+    st.caption("**Test card (Sandbox):** 4242 4242 4242 4242 | Exp: Any future date | CVC: Any 3 digits")
+
+
+# ============================================================================
+# END STRIPE INTEGRATION
+# ============================================================================
 
 
 def save_spending_plan(user, spending_data):
@@ -9219,6 +9402,25 @@ def require_account(intended_page: str = None, reason: str = "default"):
 # If the sidebar "Sign In / Create Account" button was clicked, show the account gate.
 if st.session_state.get("_show_account_gate", False):
     render_account_gate(reason="default")
+
+
+# Handle Stripe payment success/cancellation
+query_params = st.query_params
+if query_params.get("payment") == "success" and st.session_state.user:
+    session_id = query_params.get("session_id")
+    if session_id:
+        if verify_payment_and_update_user(session_id, st.session_state.user):
+            st.success("✅ Payment successful! Your plan has been upgraded.")
+            time.sleep(2)
+            st.rerun()
+    else:
+        st.info("Payment completed. Your plan has been activated.")
+        time.sleep(2)
+        st.rerun()
+
+elif query_params.get("payment") == "cancelled" and st.session_state.user:
+    st.warning("Payment was cancelled. No charges applied.")
+
 
 if active_page == "Home" and st.session_state.get("first_blueprint_onboarding", False):
     render_first_blueprint_card_wizard()
@@ -15005,7 +15207,9 @@ def render_pricing_page():
             </div>
         </div>
         """, unsafe_allow_html=True)
-        st.button("Upgrade to Premium", use_container_width=True, key="premium_btn", type="primary")
+        if st.button("Upgrade to Premium", use_container_width=True, key="premium_btn", type="primary"):
+            st.session_state.active_page = "Payment"
+            st.rerun()
     
     with col3:
         st.markdown("""
@@ -15033,7 +15237,9 @@ def render_pricing_page():
             </div>
         </div>
         """, unsafe_allow_html=True)
-        st.button("Become Founding Member", use_container_width=True, key="founder_btn", type="primary")
+        if st.button("Become Founding Member", use_container_width=True, key="founder_btn", type="primary"):
+            st.session_state.active_page = "Payment"
+            st.rerun()
     
     st.markdown("---")
     st.markdown("## FAQ")
@@ -15255,6 +15461,10 @@ if active_page == "Resources":
 
 if active_page == "Pricing":
     render_pricing_page()
+
+
+if active_page == "Payment":
+    render_payment_page()
 
 
 if active_page == "Legal / Disclaimers":
