@@ -2059,6 +2059,8 @@ def restore_session_from_query_param():
     
     token = st.query_params.get("_restore_token")
     if not token:
+        if st.session_state.get("_debug_session_restore"):
+            st.info("DEBUG: no _restore_token in query params")
         return
     
     # Clean up the URL so it doesn't stay cluttered
@@ -2070,9 +2072,14 @@ def restore_session_from_query_param():
             st.session_state.user = res.user
             # Supabase may rotate the token — persist the new one
             queue_auth_token(res)
-    except Exception:
-        # Token expired or invalid — user stays signed out
-        pass
+            if st.session_state.get("_debug_session_restore"):
+                st.success(f"DEBUG: session restored for {res.user.email}")
+        else:
+            if st.session_state.get("_debug_session_restore"):
+                st.warning("DEBUG: refresh_session returned no user")
+    except Exception as e:
+        if st.session_state.get("_debug_session_restore"):
+            st.error(f"DEBUG: refresh_session failed: {e}")
 
 
 def auth_box():
@@ -2310,6 +2317,9 @@ def render_sidebar_auth_controls():
             st.session_state["_gate_intended_page"] = st.session_state.get("active_page", "Retirement Dashboard")
             st.rerun()
 
+
+if st.query_params.get("debug_auth") == "1":
+    st.session_state["_debug_session_restore"] = True
 
 user = auth_box()
 
@@ -8568,10 +8578,16 @@ def render_navigation():
 render_navigation()
 active_page = st.session_state.active_page
 
+# Apply any queued auth token writes/clears FIRST (session persistence).
+# This must run before the localStorage read-check below, so a token saved
+# during this same render is guaranteed to be written before we check for it.
+flush_auth_token_ops()
+
 # Global session restoration: check localStorage for a saved token and inject it as
 # a query param if the URL doesn't already have it. This handles the Stripe redirect case
 # where Streamlit's session state is wiped but the browser still has the token.
-if "_localStorage_check_done" not in st.session_state:
+# Skip this entirely if the user is already signed in this run.
+if "_localStorage_check_done" not in st.session_state and not st.session_state.get("user"):
     st.session_state["_localStorage_check_done"] = True
     components.html(f"""
     <script>
@@ -8585,9 +8601,6 @@ if "_localStorage_check_done" not in st.session_state:
     }})();
     </script>
     """, height=0)
-
-# Apply any queued auth token writes/clears (session persistence).
-flush_auth_token_ops()
 
 # --- Mobile: auto-close the sidebar after navigating to a new page ---
 # Detects a page change between reruns and, on narrow screens, clicks
@@ -8621,6 +8634,35 @@ if st.session_state.get("_last_rendered_page") != active_page:
     }})();
     </script>
     """, height=0)
+
+    # Scroll the page back to the top on every navigation. Streamlit reuses the
+    # same scroll container across reruns, so without this a click near the
+    # bottom of one page leaves the next page scrolled to that same position.
+    components.html(f"""
+    <script>
+    // nav-token: {_nav_token}-scroll
+    (function() {{
+        var attempts = 0;
+        function tryScroll() {{
+            attempts += 1;
+            try {{
+                var pdoc = window.parent.document;
+                var container =
+                    pdoc.querySelector('section.main') ||
+                    pdoc.querySelector('[data-testid="stAppViewContainer"]') ||
+                    pdoc.querySelector('[data-testid="stMain"]');
+                if (container) {{ container.scrollTo(0, 0); }}
+                window.parent.scrollTo(0, 0);
+                pdoc.documentElement.scrollTop = 0;
+                pdoc.body.scrollTop = 0;
+            }} catch (e) {{ /* no-op */ }}
+            if (attempts < 8) {{ setTimeout(tryScroll, 100); }}
+        }}
+        setTimeout(tryScroll, 30);
+    }})();
+    </script>
+    """, height=0)
+
 
 # Keep the sidebar open after navigation so users can always see where they are and what comes next.
 st.session_state.close_sidebar_after_nav = False
