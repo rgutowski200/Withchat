@@ -4304,6 +4304,20 @@ except:
     pass
 
 
+def get_user_plan(user):
+    """Get current user's subscription plan from Supabase."""
+    try:
+        if not user:
+            return "free"
+        
+        result = supabase.table("user_settings").select("user_plan").eq("user_id", str(user.id)).execute()
+        if result.data and len(result.data) > 0:
+            return result.data[0].get("user_plan", "free") or "free"
+        return "free"
+    except:
+        return "free"
+
+
 def create_checkout_session(user, price_id, plan_type):
     """Create a Stripe Checkout session for a user."""
     try:
