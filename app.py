@@ -9432,16 +9432,15 @@ if st.session_state.get("_show_account_gate", False):
 # Handle Stripe payment success/cancellation
 query_params = st.query_params
 if query_params.get("payment") == "success" and st.session_state.user:
-    session_id = query_params.get("session_id")
-    if session_id:
-        if verify_payment_and_update_user(session_id, st.session_state.user):
-            st.success("✅ Payment successful! Your plan has been upgraded.")
-            time.sleep(2)
-            st.rerun()
-    else:
-        st.info("Payment completed. Your plan has been activated.")
-        time.sleep(2)
-        st.rerun()
+    if not st.session_state.get("_payment_success_processed", False):
+        session_id = query_params.get("session_id")
+        if session_id:
+            if verify_payment_and_update_user(session_id, st.session_state.user):
+                st.success("✅ Payment successful! Your plan has been upgraded.")
+                st.session_state._payment_success_processed = True
+        else:
+            st.info("Payment completed. Your plan has been activated.")
+            st.session_state._payment_success_processed = True
 
 elif query_params.get("payment") == "cancelled" and st.session_state.user:
     st.warning("Payment was cancelled. No charges applied.")
