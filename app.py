@@ -4420,6 +4420,12 @@ def verify_payment_and_update_user(session_id, user):
         
         # Check if payment was successful
         if session.payment_status == "paid":
+            # SECURITY: the checkout session must belong to the signed-in user.
+            # Without this, a payment URL from one account could upgrade another.
+            session_user_id = (session.metadata or {}).get("user_id")
+            if session_user_id != str(user.id):
+                return False
+            
             plan_type = session.metadata.get("plan_type", "premium")
             
             # Map plan_type to user_plan value
@@ -9658,13 +9664,17 @@ if query_params.get("payment") == "success" and st.session_state.user:
                 st.session_state["_cached_user_plan"] = get_user_plan(st.session_state.user)
                 st.session_state["is_premium_user"] = st.session_state["_cached_user_plan"] in ("premium", "founding_member")
                 st.success("✅ Payment successful! Your plan has been upgraded.")
-                st.session_state._payment_success_processed = True
-        else:
-            st.info("Payment completed. Your plan has been activated.")
             st.session_state._payment_success_processed = True
+            # Clear payment params so this session_id can't re-trigger,
+            # especially if a different user signs in on this device.
+            st.query_params.clear()
+        else:
+            st.session_state._payment_success_processed = True
+            st.query_params.clear()
 
 elif query_params.get("payment") == "cancelled" and st.session_state.user:
     st.warning("Payment was cancelled. No charges applied.")
+    st.query_params.clear()
 
 
 if active_page == "Home" and st.session_state.get("first_blueprint_onboarding", False):
