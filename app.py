@@ -8304,11 +8304,26 @@ NAV_LABELS = {
 }
 
 
-# TEMPORARY TESTING MODE:
-# During QA/testing, any signed-in user gets access to all premium tools.
-# Logged-out visitors still see the premium tools in the sidebar as locked.
-# Before paid launch, replace this with real subscription/status logic.
-st.session_state["is_premium_user"] = bool(st.session_state.get("user"))
+# Premium access: real subscription check against Supabase, cached per session.
+# The cache is set here on first run and refreshed after a successful payment.
+PREMIUM_PAGES = [
+    "Retirement Age Optimizer",
+    "Projection Table",
+    "Saved Scenarios",
+    "Monte Carlo Analysis",
+    "Stress Tests",
+    "Best Places to Retire",
+    "PDF Report",
+    "AI Retirement Coach",
+]
+
+if st.session_state.get("user"):
+    if "_cached_user_plan" not in st.session_state:
+        st.session_state["_cached_user_plan"] = get_user_plan(st.session_state.user)
+    st.session_state["is_premium_user"] = st.session_state["_cached_user_plan"] in ("premium", "founding_member")
+else:
+    st.session_state.pop("_cached_user_plan", None)
+    st.session_state["is_premium_user"] = False
 
 if "active_page" not in st.session_state or st.session_state.active_page not in PAGE_NAMES:
     st.session_state.active_page = "Home"
@@ -8444,7 +8459,7 @@ def render_navigation():
         st.markdown("<div style='margin-top:6px;font-size:.72rem;font-weight:700;color:#94A3B8;letter-spacing:.06em;text-transform:uppercase;padding-left:4px;'>Premium Tools</div>", unsafe_allow_html=True)
 
         signed_in = bool(st.session_state.get("user"))
-        has_premium_access = signed_in or bool(st.session_state.get("is_premium_user", False))
+        has_premium_access = bool(st.session_state.get("is_premium_user", False))
 
         for page_name in advanced_pages:
             is_active = st.session_state.active_page == page_name
@@ -8456,9 +8471,14 @@ def render_navigation():
 
             if st.button(label, key=f"sidebar_nav_{page_name}", use_container_width=True, disabled=(is_active and not locked)):
                 if locked:
-                    st.session_state["_show_account_gate"] = True
-                    st.session_state["_gate_intended_page"] = page_name
-                    st.rerun()
+                    if signed_in:
+                        # Signed in but on the free plan → show pricing
+                        st.session_state.active_page = "Pricing"
+                        st.rerun()
+                    else:
+                        st.session_state["_show_account_gate"] = True
+                        st.session_state["_gate_intended_page"] = page_name
+                        st.rerun()
                 else:
                     go_to_page(page_name)
 
@@ -9634,6 +9654,9 @@ if query_params.get("payment") == "success" and st.session_state.user:
         session_id = query_params.get("session_id")
         if session_id:
             if verify_payment_and_update_user(session_id, st.session_state.user):
+                # Refresh cached plan so premium tools unlock immediately
+                st.session_state["_cached_user_plan"] = get_user_plan(st.session_state.user)
+                st.session_state["is_premium_user"] = st.session_state["_cached_user_plan"] in ("premium", "founding_member")
                 st.success("✅ Payment successful! Your plan has been upgraded.")
                 st.session_state._payment_success_processed = True
         else:
@@ -9646,6 +9669,30 @@ elif query_params.get("payment") == "cancelled" and st.session_state.user:
 
 if active_page == "Home" and st.session_state.get("first_blueprint_onboarding", False):
     render_first_blueprint_card_wizard()
+    st.stop()
+
+# Page-level premium guard: blocks premium pages for free users regardless of
+# how they navigated there (defense in depth beyond the sidebar locks).
+if active_page in PREMIUM_PAGES and not st.session_state.get("is_premium_user", False):
+    st.markdown(f"""
+    <div class="rb-insight-card">
+      <div class="rb-insight-kicker">Premium Feature</div>
+      <div class="rb-insight-title">🔒 {NAV_LABELS.get(active_page, active_page)} is a Premium tool</div>
+      <div class="rb-insight-copy">
+        Upgrade to unlock Monte Carlo analysis, stress tests, saved blueprints, PDF reports,
+        the AI coach, and every other premium planning tool.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("See Plans & Pricing", type="primary", use_container_width=True, key="premium_guard_pricing"):
+            st.session_state.active_page = "Pricing"
+            st.rerun()
+    with c2:
+        if st.button("Back to Dashboard", use_container_width=True, key="premium_guard_back"):
+            st.session_state.active_page = "Retirement Dashboard"
+            st.rerun()
     st.stop()
 
 def get_cached_dashboard_monte_carlo():
@@ -15507,6 +15554,18 @@ def render_pricing_page():
     
     with st.expander("Is there a commitment?"):
         st.write("No. Cancel anytime with no penalty.")
+    
+    with st.expander("How do I cancel my subscription?"):
+        st.write("""
+Canceling takes about a minute:
+
+1. Click **Account Settings** in the sidebar
+2. Click **Manage / Cancel Subscription**
+3. Click **Open Billing Portal** — this takes you to our secure billing page (powered by Stripe)
+4. Click **Cancel plan** and confirm
+
+You keep full access until the end of the period you've already paid for, and you won't be charged again. Your saved blueprints are never deleted — if you come back, they'll be waiting for you.
+        """)
     
     with st.expander("What's the difference between Founding Member and Premium?"):
         st.write("**Founding Member ($59/year for life):** Price locked forever, limited slots.\n\n**Premium ($99/year):** Standard pricing, always available, same features.")
