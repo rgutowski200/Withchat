@@ -8513,6 +8513,31 @@ def render_navigation():
 render_navigation()
 active_page = st.session_state.active_page
 
+# --- Mobile: auto-close the sidebar after navigating to a new page ---
+# Detects a page change between reruns and, on narrow screens, clicks
+# Streamlit's own sidebar-collapse control via a tiny JS snippet.
+if st.session_state.get("_last_rendered_page") != active_page:
+    st.session_state["_last_rendered_page"] = active_page
+    components.html("""
+    <script>
+    (function() {
+        try {
+            var pdoc = window.parent.document;
+            if (window.parent.innerWidth >= 768) { return; }  // phones only
+            var sidebar = pdoc.querySelector('section[data-testid="stSidebar"]');
+            if (!sidebar) { return; }
+            // Only act if the sidebar is actually expanded
+            if (sidebar.getAttribute('aria-expanded') === 'false') { return; }
+            var btn =
+                pdoc.querySelector('[data-testid="stSidebarCollapseButton"] button') ||
+                pdoc.querySelector('[data-testid="stSidebarCollapseButton"]') ||
+                sidebar.querySelector('button[kind="headerNoPadding"]');
+            if (btn) { btn.click(); }
+        } catch (e) { /* no-op */ }
+    })();
+    </script>
+    """, height=0)
+
 # Keep the sidebar open after navigation so users can always see where they are and what comes next.
 st.session_state.close_sidebar_after_nav = False
 
