@@ -8031,6 +8031,7 @@ PAGE_NAMES = [
     "Retirement Age Optimizer",
     "Resources",
     "Pricing",
+    "Payment",
     "Help / Instructions",
     "Legal / Disclaimers",
 ]
@@ -8054,6 +8055,7 @@ PAGE_ICONS = {
     "Retirement Age Optimizer": "🎯",
     "Resources": "📚",
     "Pricing": "💰",
+    "Payment": "💳",
     "Help / Instructions": "❓",
     "Legal / Disclaimers": "⚖️",
 }
@@ -8076,6 +8078,8 @@ NAV_LABELS = {
     "AI Retirement Coach": "Blueprint Coach",
     "Retirement Age Optimizer": "Age Optimizer",
     "Resources": "Resources",
+    "Pricing": "Pricing",
+    "Payment": "Upgrade Plan",
     "Help / Instructions": "Help",
     "Legal / Disclaimers": "Legal",
 }
