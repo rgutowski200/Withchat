@@ -4349,6 +4349,40 @@ def create_checkout_session(user, price_id, plan_type):
         return None
 
 
+def get_cached_checkout_url(plan_type):
+    """
+    Get or create a Stripe checkout URL for the logged-in user, cached in
+    session state so we don't create a new Stripe session on every rerun.
+    Returns the URL string, or None if unavailable.
+    """
+    user = st.session_state.get("user")
+    if not user:
+        return None
+
+    price_map = {
+        "premium_monthly": STRIPE_PREMIUM_MONTHLY_PRICE,
+        "premium_annual": STRIPE_PREMIUM_ANNUAL_PRICE,
+        "founding_member": STRIPE_FOUNDING_MEMBER_PRICE,
+    }
+    price_id = price_map.get(plan_type)
+    if not price_id:
+        return None
+
+    cache_key = f"_checkout_url_{plan_type}_{user.id}"
+    cached = st.session_state.get(cache_key)
+    if cached:
+        return cached
+
+    try:
+        session = create_checkout_session(user, price_id, plan_type)
+        if session and session.url:
+            st.session_state[cache_key] = session.url
+            return session.url
+    except Exception:
+        pass
+    return None
+
+
 def verify_payment_and_update_user(session_id, user):
     """Verify a successful Stripe payment and update user plan in Supabase."""
     try:
@@ -15365,9 +15399,23 @@ def render_pricing_page():
             </div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("Upgrade to Premium", use_container_width=True, key="premium_btn", type="primary"):
-            st.session_state.active_page = "Payment"
-            st.rerun()
+        _user = st.session_state.get("user")
+        _plan = get_user_plan(_user) if _user else "free"
+        if _user and _plan in ("premium", "founding_member"):
+            st.success("✅ You're already a member")
+        elif _user:
+            _monthly_url = get_cached_checkout_url("premium_monthly")
+            _annual_url = get_cached_checkout_url("premium_annual")
+            if _monthly_url:
+                st.link_button("Buy Monthly — $9.99/mo", _monthly_url, use_container_width=True, type="primary")
+            if _annual_url:
+                st.link_button("Buy Annual — $99/yr", _annual_url, use_container_width=True)
+            if not _monthly_url and not _annual_url:
+                st.error("Checkout is temporarily unavailable. Please try again.")
+        else:
+            if st.button("Upgrade to Premium", use_container_width=True, key="premium_btn", type="primary"):
+                st.session_state["_show_account_gate"] = True
+                st.rerun()
     
     with col3:
         st.markdown("""
@@ -15395,9 +15443,20 @@ def render_pricing_page():
             </div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("Become Founding Member", use_container_width=True, key="founder_btn", type="primary"):
-            st.session_state.active_page = "Payment"
-            st.rerun()
+        _user_fm = st.session_state.get("user")
+        _plan_fm = get_user_plan(_user_fm) if _user_fm else "free"
+        if _user_fm and _plan_fm in ("premium", "founding_member"):
+            st.success("✅ You're already a member")
+        elif _user_fm:
+            _founding_url = get_cached_checkout_url("founding_member")
+            if _founding_url:
+                st.link_button("Become Founding Member — $59/yr", _founding_url, use_container_width=True, type="primary")
+            else:
+                st.error("Checkout is temporarily unavailable. Please try again.")
+        else:
+            if st.button("Become Founding Member", use_container_width=True, key="founder_btn", type="primary"):
+                st.session_state["_show_account_gate"] = True
+                st.rerun()
     
     st.markdown("---")
     st.markdown("## FAQ")
