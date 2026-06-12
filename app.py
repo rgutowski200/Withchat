@@ -2023,6 +2023,62 @@ div[data-testid="stSlider"] > label {
 """, unsafe_allow_html=True)
 
 
+AUTH_COOKIE_NAME = "rb101_rt"
+
+
+def queue_auth_cookie(auth_res):
+    """Queue the Supabase refresh token to be written to a browser cookie.
+    Written on the next completed render (writing during a run that ends in
+    st.rerun() is unreliable)."""
+    try:
+        session_obj = getattr(auth_res, "session", None)
+        refresh_token = getattr(session_obj, "refresh_token", None)
+        if refresh_token:
+            st.session_state["_pending_auth_cookie"] = refresh_token
+    except Exception:
+        pass
+
+
+def flush_auth_cookie_ops():
+    """Apply any queued cookie writes/clears. Call once per run from the main flow."""
+    if st.session_state.pop("_clear_auth_cookie", False):
+        components.html(
+            f'<script>window.parent.document.cookie = "{AUTH_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax";</script>',
+            height=0,
+        )
+    _rt = st.session_state.pop("_pending_auth_cookie", None)
+    if _rt:
+        components.html(
+            f'<script>window.parent.document.cookie = "{AUTH_COOKIE_NAME}={_rt}; path=/; max-age=2592000; SameSite=Lax";</script>',
+            height=0,
+        )
+
+
+def restore_session_from_cookie():
+    """If the Streamlit session is fresh (e.g., after the Stripe redirect) but the
+    browser has a remembered refresh token, silently sign the user back in."""
+    if st.session_state.get("user"):
+        return
+    if st.session_state.get("_cookie_restore_attempted"):
+        return
+    try:
+        cookie_rt = st.context.cookies.get(AUTH_COOKIE_NAME)
+    except Exception:
+        cookie_rt = None
+    if not cookie_rt:
+        return
+    st.session_state["_cookie_restore_attempted"] = True
+    try:
+        res = supabase.auth.refresh_session(cookie_rt)
+        if res and getattr(res, "user", None):
+            st.session_state.user = res.user
+            # Supabase rotates refresh tokens — persist the new one.
+            queue_auth_cookie(res)
+    except Exception:
+        # Expired/revoked token — user simply stays signed out.
+        pass
+
+
 def auth_box():
     """Keep authentication state available without rendering a second account/logout bar.
 
@@ -2035,6 +2091,7 @@ def auth_box():
         st.session_state.show_auth_form = False
     if "show_account_settings" not in st.session_state:
         st.session_state.show_account_settings = False
+    restore_session_from_cookie()
     return st.session_state.user
 
 
@@ -2084,6 +2141,7 @@ def render_auth_form():
                     "password": password
                 })
                 st.session_state.user = res.user
+                queue_auth_cookie(res)
                 st.session_state.show_auth_form = False
                 st.success("Logged in.")
                 st.rerun()
@@ -2236,6 +2294,7 @@ def render_sidebar_auth_controls():
             except Exception:
                 pass
             reset_app_after_signout()
+            st.session_state["_clear_auth_cookie"] = True
             st.rerun()
     else:
         st.markdown(
@@ -8513,6 +8572,9 @@ def render_navigation():
 render_navigation()
 active_page = st.session_state.active_page
 
+# Apply any queued auth cookie writes/clears (session persistence).
+flush_auth_cookie_ops()
+
 # --- Mobile: auto-close the sidebar after navigating to a new page ---
 # Detects a page change between reruns and, on narrow screens, clicks
 # Streamlit's own sidebar-collapse control via a tiny JS snippet.
@@ -9585,6 +9647,7 @@ def render_account_gate(reason: str = "default"):
                     res = supabase.auth.sign_up({"email": gate_email, "password": gate_password})
                     if getattr(res, "user", None) is not None:
                         st.session_state.user = res.user
+                        queue_auth_cookie(res)
                     if gate_name.strip():
                         st.session_state.onboard_name  = gate_name.strip()
                         st.session_state.first_name    = gate_name.strip()
@@ -9604,6 +9667,7 @@ def render_account_gate(reason: str = "default"):
                         {"email": gate_email, "password": gate_password}
                     )
                     st.session_state.user        = res.user
+                    queue_auth_cookie(res)
                     st.session_state.active_page = st.session_state.get(
                         "_gate_intended_page", "Retirement Dashboard"
                     )
