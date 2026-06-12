@@ -15299,6 +15299,12 @@ def render_pricing_page():
         text-align: center;
         background: white;
         transition: all 0.3s ease;
+        min-height: 920px;
+        display: flex;
+        flex-direction: column;
+    }
+    .pricing-card .pricing-features {
+        text-align: left;
     }
     .pricing-card.featured {
         border-color: #1f77b4;
