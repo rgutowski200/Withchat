@@ -15378,7 +15378,12 @@ def render_pricing_page():
             </div>
         </div>
         """, unsafe_allow_html=True)
-        st.button("Get Started", use_container_width=True, key="free_btn")
+        if st.button("Get Started", use_container_width=True, key="free_btn"):
+            if st.session_state.get("user"):
+                st.session_state.active_page = "Guided Questions"
+            else:
+                st.session_state["_show_account_gate"] = True
+            st.rerun()
     
     with col2:
         st.markdown("""
