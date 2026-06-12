@@ -2023,60 +2023,63 @@ div[data-testid="stSlider"] > label {
 """, unsafe_allow_html=True)
 
 
-AUTH_COOKIE_NAME = "rb101_rt"
+AUTH_STORE_KEY = "rb101_refresh_token"
 
 
-def queue_auth_cookie(auth_res):
-    """Queue the Supabase refresh token to be written to a browser cookie.
-    Written on the next completed render (writing during a run that ends in
-    st.rerun() is unreliable)."""
+def queue_auth_token(auth_res):
+    """Queue the Supabase refresh token to be written to browser localStorage."""
     try:
         session_obj = getattr(auth_res, "session", None)
         refresh_token = getattr(session_obj, "refresh_token", None)
         if refresh_token:
-            st.session_state["_pending_auth_cookie"] = refresh_token
+            st.session_state["_pending_auth_token"] = refresh_token
     except Exception:
         pass
 
 
-def flush_auth_cookie_ops():
-    """Apply any queued cookie writes/clears. Call once per run from the main flow."""
-    if st.session_state.pop("_clear_auth_cookie", False):
+def flush_auth_token_ops():
+    """Write/clear localStorage tokens queued by queue_auth_token()."""
+    if st.session_state.pop("_clear_auth_token", False):
         components.html(
-            f'<script>window.parent.document.cookie = "{AUTH_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax";</script>',
+            f"<script>localStorage.removeItem('{AUTH_STORE_KEY}');</script>",
             height=0,
         )
-    _rt = st.session_state.pop("_pending_auth_cookie", None)
+    _rt = st.session_state.pop("_pending_auth_token", None)
     if _rt:
         components.html(
-            f'<script>window.parent.document.cookie = "{AUTH_COOKIE_NAME}={_rt}; path=/; max-age=2592000; SameSite=Lax";</script>',
+            f"<script>localStorage.setItem('{AUTH_STORE_KEY}', '{_rt}');</script>",
             height=0,
         )
 
 
-def restore_session_from_cookie():
-    """If the Streamlit session is fresh (e.g., after the Stripe redirect) but the
-    browser has a remembered refresh token, silently sign the user back in."""
+def restore_session_from_query_param():
+    """If URL has _restore_token param, use it to restore Supabase session."""
     if st.session_state.get("user"):
         return
-    if st.session_state.get("_cookie_restore_attempted"):
+    
+    token = st.query_params.get("_restore_token")
+    if not token:
+        if st.session_state.get("_debug_session_restore"):
+            st.info("DEBUG: no _restore_token in query params")
         return
+    
+    # Clean up the URL so it doesn't stay cluttered
+    st.query_params.pop("_restore_token", None)
+    
     try:
-        cookie_rt = st.context.cookies.get(AUTH_COOKIE_NAME)
-    except Exception:
-        cookie_rt = None
-    if not cookie_rt:
-        return
-    st.session_state["_cookie_restore_attempted"] = True
-    try:
-        res = supabase.auth.refresh_session(cookie_rt)
+        res = supabase.auth.refresh_session(token)
         if res and getattr(res, "user", None):
             st.session_state.user = res.user
-            # Supabase rotates refresh tokens — persist the new one.
-            queue_auth_cookie(res)
-    except Exception:
-        # Expired/revoked token — user simply stays signed out.
-        pass
+            # Supabase may rotate the token — persist the new one
+            queue_auth_token(res)
+            if st.session_state.get("_debug_session_restore"):
+                st.success(f"DEBUG: session restored for {res.user.email}")
+        else:
+            if st.session_state.get("_debug_session_restore"):
+                st.warning("DEBUG: refresh_session returned no user")
+    except Exception as e:
+        if st.session_state.get("_debug_session_restore"):
+            st.error(f"DEBUG: refresh_session failed: {e}")
 
 
 def auth_box():
@@ -2091,7 +2094,7 @@ def auth_box():
         st.session_state.show_auth_form = False
     if "show_account_settings" not in st.session_state:
         st.session_state.show_account_settings = False
-    restore_session_from_cookie()
+    restore_session_from_query_param()
     return st.session_state.user
 
 
@@ -2141,7 +2144,7 @@ def render_auth_form():
                     "password": password
                 })
                 st.session_state.user = res.user
-                queue_auth_cookie(res)
+                queue_auth_token(res)
                 st.session_state.show_auth_form = False
                 st.success("Logged in.")
                 st.rerun()
@@ -2294,7 +2297,7 @@ def render_sidebar_auth_controls():
             except Exception:
                 pass
             reset_app_after_signout()
-            st.session_state["_clear_auth_cookie"] = True
+            st.session_state["_clear_auth_token"] = True
             st.rerun()
     else:
         st.markdown(
@@ -2314,6 +2317,9 @@ def render_sidebar_auth_controls():
             st.session_state["_gate_intended_page"] = st.session_state.get("active_page", "Retirement Dashboard")
             st.rerun()
 
+
+if st.query_params.get("debug_auth") == "1":
+    st.session_state["_debug_session_restore"] = True
 
 user = auth_box()
 
@@ -8572,8 +8578,29 @@ def render_navigation():
 render_navigation()
 active_page = st.session_state.active_page
 
-# Apply any queued auth cookie writes/clears (session persistence).
-flush_auth_cookie_ops()
+# Apply any queued auth token writes/clears FIRST (session persistence).
+# This must run before the localStorage read-check below, so a token saved
+# during this same render is guaranteed to be written before we check for it.
+flush_auth_token_ops()
+
+# Global session restoration: check localStorage for a saved token and inject it as
+# a query param if the URL doesn't already have it. This handles the Stripe redirect case
+# where Streamlit's session state is wiped but the browser still has the token.
+# Skip this entirely if the user is already signed in this run.
+if "_localStorage_check_done" not in st.session_state and not st.session_state.get("user"):
+    st.session_state["_localStorage_check_done"] = True
+    components.html(f"""
+    <script>
+    (function() {{
+        if (window.location.search.includes('_restore_token=')) {{ return; }}  // already has token
+        var token = localStorage.getItem('{AUTH_STORE_KEY}');
+        if (token) {{
+            var sep = window.location.search ? '&' : '?';
+            window.location.href = window.location.href + sep + '_restore_token=' + encodeURIComponent(token);
+        }}
+    }})();
+    </script>
+    """, height=0)
 
 # --- Mobile: auto-close the sidebar after navigating to a new page ---
 # Detects a page change between reruns and, on narrow screens, clicks
@@ -8607,6 +8634,67 @@ if st.session_state.get("_last_rendered_page") != active_page:
     }})();
     </script>
     """, height=0)
+
+    # Scroll the page back to the top on every navigation. Streamlit reuses the
+    # same scroll container across reruns, so without this a click near the
+    # bottom of one page leaves the next page scrolled to that same position.
+    #
+    # Approach: scroll repeatedly for ~2.5s AND watch for DOM mutations (since
+    # Streamlit streams content in after the rerun starts, late content can
+    # grow the page and "undo" an early scroll-to-top).
+    components.html(f"""
+    <script>
+    // nav-token: {_nav_token}-scroll
+    (function() {{
+        function scrollAllToTop() {{
+            try {{
+                var pdoc = window.parent.document;
+                var pwin = window.parent;
+                // Streamlit's actual scrollable containers (varies by version)
+                var selectors = [
+                    'section.main',
+                    '.main',
+                    '[data-testid="stAppViewContainer"]',
+                    '[data-testid="stMain"]',
+                    '[data-testid="stAppViewBlockContainer"]',
+                    '.block-container',
+                    '[data-testid="stSidebar"] + div',
+                ];
+                for (var i = 0; i < selectors.length; i++) {{
+                    var el = pdoc.querySelector(selectors[i]);
+                    if (el) {{
+                        el.scrollTop = 0;
+                        if (el.scrollTo) {{ el.scrollTo({{top: 0, left: 0, behavior: 'instant'}}); }}
+                    }}
+                }}
+                pdoc.documentElement.scrollTop = 0;
+                pdoc.body.scrollTop = 0;
+                pwin.scrollTo(0, 0);
+            }} catch (e) {{ /* no-op */ }}
+        }}
+
+        // Repeated scroll attempts on a timer
+        var elapsed = 0;
+        var interval = setInterval(function() {{
+            scrollAllToTop();
+            elapsed += 100;
+            if (elapsed >= 2500) {{ clearInterval(interval); }}
+        }}, 100);
+        scrollAllToTop();
+
+        // Also react to DOM growth/changes (Streamlit streaming in new widgets)
+        try {{
+            var pdoc = window.parent.document;
+            var target = pdoc.querySelector('[data-testid="stAppViewContainer"]') || pdoc.body;
+            var observer = new MutationObserver(function() {{ scrollAllToTop(); }});
+            observer.observe(target, {{ childList: true, subtree: true }});
+            setTimeout(function() {{ observer.disconnect(); }}, 2500);
+        }} catch (e) {{ /* no-op */ }}
+    }})();
+    </script>
+    """, height=0)
+
+
 
 # Keep the sidebar open after navigation so users can always see where they are and what comes next.
 st.session_state.close_sidebar_after_nav = False
@@ -9647,7 +9735,7 @@ def render_account_gate(reason: str = "default"):
                     res = supabase.auth.sign_up({"email": gate_email, "password": gate_password})
                     if getattr(res, "user", None) is not None:
                         st.session_state.user = res.user
-                        queue_auth_cookie(res)
+                        queue_auth_token(res)
                     if gate_name.strip():
                         st.session_state.onboard_name  = gate_name.strip()
                         st.session_state.first_name    = gate_name.strip()
@@ -9667,7 +9755,7 @@ def render_account_gate(reason: str = "default"):
                         {"email": gate_email, "password": gate_password}
                     )
                     st.session_state.user        = res.user
-                    queue_auth_cookie(res)
+                    queue_auth_token(res)
                     st.session_state.active_page = st.session_state.get(
                         "_gate_intended_page", "Retirement Dashboard"
                     )
