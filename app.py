@@ -8518,23 +8518,31 @@ active_page = st.session_state.active_page
 # Streamlit's own sidebar-collapse control via a tiny JS snippet.
 if st.session_state.get("_last_rendered_page") != active_page:
     st.session_state["_last_rendered_page"] = active_page
-    components.html("""
+    st.session_state["_nav_close_counter"] = st.session_state.get("_nav_close_counter", 0) + 1
+    _nav_token = f"{active_page}-{st.session_state['_nav_close_counter']}"
+    components.html(f"""
     <script>
-    (function() {
-        try {
-            var pdoc = window.parent.document;
-            if (window.parent.innerWidth >= 768) { return; }  // phones only
-            var sidebar = pdoc.querySelector('section[data-testid="stSidebar"]');
-            if (!sidebar) { return; }
-            // Only act if the sidebar is actually expanded
-            if (sidebar.getAttribute('aria-expanded') === 'false') { return; }
-            var btn =
-                pdoc.querySelector('[data-testid="stSidebarCollapseButton"] button') ||
-                pdoc.querySelector('[data-testid="stSidebarCollapseButton"]') ||
-                sidebar.querySelector('button[kind="headerNoPadding"]');
-            if (btn) { btn.click(); }
-        } catch (e) { /* no-op */ }
-    })();
+    // nav-token: {_nav_token} (forces re-execution on every navigation)
+    (function() {{
+        var attempts = 0;
+        function tryClose() {{
+            attempts += 1;
+            try {{
+                if (window.parent.innerWidth >= 768) {{ return; }}  // phones only
+                var pdoc = window.parent.document;
+                var sidebar = pdoc.querySelector('section[data-testid="stSidebar"]');
+                if (sidebar && sidebar.getAttribute('aria-expanded') !== 'false') {{
+                    var btn =
+                        pdoc.querySelector('[data-testid="stSidebarCollapseButton"] button') ||
+                        pdoc.querySelector('[data-testid="stSidebarCollapseButton"]') ||
+                        sidebar.querySelector('button[kind="headerNoPadding"]');
+                    if (btn) {{ btn.click(); return; }}
+                }}
+            }} catch (e) {{ /* no-op */ }}
+            if (attempts < 6) {{ setTimeout(tryClose, 150); }}
+        }}
+        setTimeout(tryClose, 50);
+    }})();
     </script>
     """, height=0)
 
