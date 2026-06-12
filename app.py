@@ -10,6 +10,8 @@ from xml.sax.saxutils import escape as xml_escape
 from datetime import date
 
 from db import supabase
+import stripe
+import time
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -2021,6 +2023,62 @@ div[data-testid="stSlider"] > label {
 """, unsafe_allow_html=True)
 
 
+AUTH_COOKIE_NAME = "rb101_rt"
+
+
+def queue_auth_cookie(auth_res):
+    """Queue the Supabase refresh token to be written to a browser cookie.
+    Written on the next completed render (writing during a run that ends in
+    st.rerun() is unreliable)."""
+    try:
+        session_obj = getattr(auth_res, "session", None)
+        refresh_token = getattr(session_obj, "refresh_token", None)
+        if refresh_token:
+            st.session_state["_pending_auth_cookie"] = refresh_token
+    except Exception:
+        pass
+
+
+def flush_auth_cookie_ops():
+    """Apply any queued cookie writes/clears. Call once per run from the main flow."""
+    if st.session_state.pop("_clear_auth_cookie", False):
+        components.html(
+            f'<script>window.parent.document.cookie = "{AUTH_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax";</script>',
+            height=0,
+        )
+    _rt = st.session_state.pop("_pending_auth_cookie", None)
+    if _rt:
+        components.html(
+            f'<script>window.parent.document.cookie = "{AUTH_COOKIE_NAME}={_rt}; path=/; max-age=2592000; SameSite=Lax";</script>',
+            height=0,
+        )
+
+
+def restore_session_from_cookie():
+    """If the Streamlit session is fresh (e.g., after the Stripe redirect) but the
+    browser has a remembered refresh token, silently sign the user back in."""
+    if st.session_state.get("user"):
+        return
+    if st.session_state.get("_cookie_restore_attempted"):
+        return
+    try:
+        cookie_rt = st.context.cookies.get(AUTH_COOKIE_NAME)
+    except Exception:
+        cookie_rt = None
+    if not cookie_rt:
+        return
+    st.session_state["_cookie_restore_attempted"] = True
+    try:
+        res = supabase.auth.refresh_session(cookie_rt)
+        if res and getattr(res, "user", None):
+            st.session_state.user = res.user
+            # Supabase rotates refresh tokens — persist the new one.
+            queue_auth_cookie(res)
+    except Exception:
+        # Expired/revoked token — user simply stays signed out.
+        pass
+
+
 def auth_box():
     """Keep authentication state available without rendering a second account/logout bar.
 
@@ -2033,6 +2091,7 @@ def auth_box():
         st.session_state.show_auth_form = False
     if "show_account_settings" not in st.session_state:
         st.session_state.show_account_settings = False
+    restore_session_from_cookie()
     return st.session_state.user
 
 
@@ -2082,6 +2141,7 @@ def render_auth_form():
                     "password": password
                 })
                 st.session_state.user = res.user
+                queue_auth_cookie(res)
                 st.session_state.show_auth_form = False
                 st.success("Logged in.")
                 st.rerun()
@@ -2177,6 +2237,36 @@ def render_sidebar_auth_controls():
             st.session_state.show_account_settings = not st.session_state.get("show_account_settings", False)
 
         if st.session_state.get("show_account_settings", False):
+            # --- Current plan & subscription management ---
+            _sidebar_plan = get_user_plan(st.session_state.user)
+            _plan_labels = {
+                "free": ("Free Plan", "#64748B", "Basic features. Upgrade to unlock premium tools."),
+                "premium": ("⭐ Premium Member", "#2563EB", "Full access to all premium features."),
+                "founding_member": ("🔥 Founding Member", "#D97706", "Lifetime locked price of $59/year."),
+            }
+            _label, _color, _desc = _plan_labels.get(_sidebar_plan, _plan_labels["free"])
+            st.markdown(f"""
+            <div style="border:1px solid #E2E8F0;border-radius:16px;padding:12px;background:#FFFFFF;margin:8px 0 10px 0;">
+              <div style="font-size:.8rem;font-weight:900;color:#2563EB;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px;">Your Plan</div>
+              <div style="font-weight:900;color:{_color};margin-bottom:4px;">{_label}</div>
+              <div style="color:#64748B;font-size:.86rem;line-height:1.35;">{_desc}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            if _sidebar_plan == "free":
+                if st.button("Upgrade Plan", use_container_width=True, key="sidebar_upgrade_plan", type="primary"):
+                    st.session_state.active_page = "Pricing"
+                    st.session_state.show_account_settings = False
+                    st.rerun()
+            else:
+                if st.button("Manage / Cancel Subscription", use_container_width=True, key="sidebar_manage_sub"):
+                    portal_url = create_customer_portal_session(st.session_state.user)
+                    if portal_url:
+                        st.session_state["_sidebar_portal_url"] = portal_url
+                if st.session_state.get("_sidebar_portal_url"):
+                    st.link_button("Open Billing Portal", st.session_state["_sidebar_portal_url"], use_container_width=True, type="primary")
+                    st.caption("Cancel anytime, update your card, or view billing history. Managed securely by Stripe.")
+
             st.markdown("""
             <div style="border:1px solid #E2E8F0;border-radius:16px;padding:12px;background:#FFFFFF;margin:8px 0 10px 0;">
               <div style="font-weight:900;color:#0F172A;margin-bottom:4px;">Change password</div>
@@ -2204,6 +2294,7 @@ def render_sidebar_auth_controls():
             except Exception:
                 pass
             reset_app_after_signout()
+            st.session_state["_clear_auth_cookie"] = True
             st.rerun()
     else:
         st.markdown(
@@ -4093,9 +4184,6 @@ defaults = {
     "user_plan": "free",
     "premium_preview_enabled": True,
     "bucket2_years": 5.0,
-    "enable_spending_change": False,
-    "spending_change_age": 0,
-    "spending_change_monthly": 0,
 }
 for k, v in defaults.items():
     set_default(k, v)
@@ -4191,7 +4279,6 @@ def get_scenario_data():
         "annual_property_taxes_home", "mortgage_payoff_age",
         "retirement_housing_plan",
         "rmd_start_age",
-        "enable_spending_change", "spending_change_age", "spending_change_monthly",
     ]
 
     for key in keys_to_save:
@@ -4235,6 +4322,475 @@ def load_scenarios(user):
     return response.data
 
 
+def can_save_blueprint(user):
+    """Check if user can save a new blueprint. Free users limited to 1 completed blueprint."""
+    try:
+        user_id_str = str(user.id)
+        
+        # Get user's plan status
+        user_settings = supabase.table("user_settings").select("blueprints_completed, user_plan").eq("user_id", user_id_str).execute()
+        
+        if user_settings.data and len(user_settings.data) > 0:
+            blueprints_completed = user_settings.data[0].get("blueprints_completed", 0) or 0
+            user_plan = user_settings.data[0].get("user_plan", "free") or "free"
+        else:
+            blueprints_completed = 0
+            user_plan = "free"
+        
+        # Premium users can save unlimited blueprints
+        if user_plan == "premium" or user_plan == "founding_member":
+            return True, None
+        
+        # Free users limited to 1 blueprint
+        if blueprints_completed >= 1:
+            return False, "You've completed 1 free blueprint. Upgrade to create more."
+        
+        return True, None
+    except Exception as e:
+        st.warning(f"Could not check blueprint limit: {str(e)}")
+        return True, None  # Allow on error (fail open)
+
+
+def increment_blueprint_count(user):
+    """Increment blueprint count for user after successful save."""
+    try:
+        user_id_str = str(user.id)
+        
+        # Get current count
+        existing = supabase.table("user_settings").select("blueprints_completed").eq("user_id", user_id_str).execute()
+        
+        if existing.data and len(existing.data) > 0:
+            current_count = existing.data[0].get("blueprints_completed", 0) or 0
+            new_count = current_count + 1
+            
+            supabase.table("user_settings").update({
+                "blueprints_completed": new_count
+            }).eq("user_id", user_id_str).execute()
+        else:
+            supabase.table("user_settings").insert({
+                "user_id": user_id_str,
+                "blueprints_completed": 1
+            }).execute()
+    except Exception as e:
+        st.warning(f"Could not update blueprint count: {str(e)}")
+
+
+# ============================================================================
+# STRIPE PAYMENT INTEGRATION
+# ============================================================================
+
+# Initialize Stripe
+try:
+    stripe.api_key = st.secrets.get("STRIPE_SECRET_KEY")
+    STRIPE_PUBLISHABLE_KEY = st.secrets.get("STRIPE_PUBLISHABLE_KEY")
+    STRIPE_PREMIUM_MONTHLY_PRICE = st.secrets.get("STRIPE_PREMIUM_MONTHLY_PRICE")
+    STRIPE_PREMIUM_ANNUAL_PRICE = st.secrets.get("STRIPE_PREMIUM_ANNUAL_PRICE")
+    STRIPE_FOUNDING_MEMBER_PRICE = st.secrets.get("STRIPE_FOUNDING_MEMBER_PRICE")
+    STRIPE_SUCCESS_URL = st.secrets.get("STRIPE_SUCCESS_URL", "https://retirementblueprint101.com?payment=success")
+    STRIPE_CANCEL_URL = st.secrets.get("STRIPE_CANCEL_URL", "https://retirementblueprint101.com?payment=cancelled")
+except:
+    # Stripe not configured yet
+    pass
+
+
+def get_user_plan(user):
+    """Get current user's subscription plan from Supabase."""
+    try:
+        if not user:
+            return "free"
+        
+        result = supabase.table("user_settings").select("user_plan").eq("user_id", str(user.id)).execute()
+        if result.data and len(result.data) > 0:
+            return result.data[0].get("user_plan", "free") or "free"
+        return "free"
+    except:
+        return "free"
+
+
+def create_checkout_session(user, price_id, plan_type):
+    """Create a Stripe Checkout session for a user."""
+    try:
+        # Append session_id template so Stripe sends it back on success
+        # Stripe replaces {CHECKOUT_SESSION_ID} with the real session ID
+        separator = "&" if "?" in STRIPE_SUCCESS_URL else "?"
+        success_url_with_session = f"{STRIPE_SUCCESS_URL}{separator}session_id={{CHECKOUT_SESSION_ID}}"
+        
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[
+                {
+                    "price": price_id,
+                    "quantity": 1,
+                }
+            ],
+            mode="subscription",
+            success_url=success_url_with_session,
+            cancel_url=STRIPE_CANCEL_URL,
+            customer_email=user.email,
+            metadata={
+                "user_id": str(user.id),
+                "plan_type": plan_type,
+            },
+        )
+        return session
+    except Exception as e:
+        st.error(f"Checkout session creation failed: {str(e)}")
+        return None
+
+
+def get_cached_checkout_url(plan_type):
+    """
+    Get or create a Stripe checkout URL for the logged-in user, cached in
+    session state so we don't create a new Stripe session on every rerun.
+    Returns the URL string, or None if unavailable.
+    """
+    user = st.session_state.get("user")
+    if not user:
+        return None
+
+    price_map = {
+        "premium_monthly": STRIPE_PREMIUM_MONTHLY_PRICE,
+        "premium_annual": STRIPE_PREMIUM_ANNUAL_PRICE,
+        "founding_member": STRIPE_FOUNDING_MEMBER_PRICE,
+    }
+    price_id = price_map.get(plan_type)
+    if not price_id:
+        return None
+
+    cache_key = f"_checkout_url_{plan_type}_{user.id}"
+    cached = st.session_state.get(cache_key)
+    if cached:
+        return cached
+
+    try:
+        session = create_checkout_session(user, price_id, plan_type)
+        if session and session.url:
+            st.session_state[cache_key] = session.url
+            return session.url
+    except Exception:
+        pass
+    return None
+
+
+def verify_payment_and_update_user(session_id, user):
+    """Verify a successful Stripe payment and update user plan in Supabase."""
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+        
+        # Check if payment was successful
+        if session.payment_status == "paid":
+            # SECURITY: the checkout session must belong to the signed-in user.
+            # Without this, a payment URL from one account could upgrade another.
+            session_user_id = (session.metadata or {}).get("user_id")
+            if session_user_id != str(user.id):
+                return False
+            
+            plan_type = session.metadata.get("plan_type", "premium")
+            
+            # Map plan_type to user_plan value
+            plan_mapping = {
+                "premium_monthly": "premium",
+                "premium_annual": "premium",
+                "founding_member": "founding_member",
+            }
+            user_plan = plan_mapping.get(plan_type, "premium")
+            
+            # Update user plan in Supabase
+            user_id_str = str(user.id)
+            existing = supabase.table("user_settings").select("id").eq("user_id", user_id_str).execute()
+            
+            if existing.data and len(existing.data) > 0:
+                supabase.table("user_settings").update({
+                    "user_plan": user_plan,
+                    "stripe_session_id": session_id,
+                    "stripe_customer_id": session.customer,
+                    "stripe_customer_email": session.customer_email,
+                }).eq("user_id", user_id_str).execute()
+            else:
+                supabase.table("user_settings").insert({
+                    "user_id": user_id_str,
+                    "user_plan": user_plan,
+                    "stripe_session_id": session_id,
+                    "stripe_customer_id": session.customer,
+                    "stripe_customer_email": session.customer_email,
+                }).execute()
+            
+            return True
+        else:
+            st.warning(f"Payment not yet completed. Status: {session.payment_status}")
+            return False
+            
+    except Exception as e:
+        st.error(f"Payment verification failed: {str(e)}")
+        return False
+
+
+def create_customer_portal_session(user):
+    """Create a Stripe Customer Portal session for subscription management."""
+    try:
+        # Get customer_id from user_settings
+        result = supabase.table("user_settings").select("stripe_customer_id").eq("user_id", str(user.id)).execute()
+        customer_id = None
+        
+        if result.data and len(result.data) > 0:
+            customer_id = result.data[0].get("stripe_customer_id")
+        
+        if not customer_id:
+            st.error("Could not find your subscription. Please contact support.")
+            return None
+        
+        # Create portal session
+        session = stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=f"{STRIPE_SUCCESS_URL.split('?')[0]}?page=account",
+        )
+        return session.url
+    except Exception as e:
+        st.error(f"Could not open billing portal: {str(e)}")
+        return None
+
+
+def render_account_page():
+    """Render the user account and subscription management page."""
+    st.title("Account Settings")
+    
+    if not st.session_state.user:
+        st.warning("Please log in to view your account.")
+        return
+    
+    user_email = st.session_state.user.email
+    st.write(f"**Email:** {user_email}")
+    
+    st.markdown("---")
+    st.subheader("Subscription Status")
+    
+    user_plan = get_user_plan(st.session_state.user)
+    
+    # Display plan status
+    if user_plan == "free":
+        st.info("📋 **You're on the Free plan**")
+        st.write("You have access to basic features. Upgrade to unlock premium tools.")
+        if st.button("Upgrade Now", use_container_width=True, type="primary"):
+            st.session_state.active_page = "Payment"
+            st.rerun()
+    
+    elif user_plan == "premium":
+        st.success("⭐ **You're a Premium member**")
+        st.write("You have access to all premium features.")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Manage Subscription", use_container_width=True, key="portal_btn"):
+                portal_url = create_customer_portal_session(st.session_state.user)
+                if portal_url:
+                    st.markdown(f"[Open Stripe Billing Portal]({portal_url})", unsafe_allow_html=True)
+        with col2:
+            if st.button("Downgrade to Free", use_container_width=True):
+                st.info("You can cancel your subscription in the Stripe Billing Portal. No refunds are issued for partial months.")
+                portal_url = create_customer_portal_session(st.session_state.user)
+                if portal_url:
+                    st.markdown(f"[Open Stripe Billing Portal]({portal_url})", unsafe_allow_html=True)
+    
+    elif user_plan == "founding_member":
+        st.success("🔥 **You're a Founding Member**")
+        st.write("You have lifetime access at the locked price of $59/year. Your price will never increase.")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Manage Subscription", use_container_width=True, key="portal_btn_fm"):
+                portal_url = create_customer_portal_session(st.session_state.user)
+                if portal_url:
+                    st.markdown(f"[Open Stripe Billing Portal]({portal_url})", unsafe_allow_html=True)
+        with col2:
+            if st.button("Cancel (Keep Founding Price)", use_container_width=True):
+                st.info("You can cancel your subscription in the Stripe Billing Portal. If you resubscribe, you'll keep your founding member price.")
+                portal_url = create_customer_portal_session(st.session_state.user)
+                if portal_url:
+                    st.markdown(f"[Open Stripe Billing Portal]({portal_url})", unsafe_allow_html=True)
+    
+    st.markdown("---")
+    st.subheader("Need Help?")
+    st.write("Email us at support@retirementblueprint101.com with any questions about your subscription.")
+    """Get current user's subscription plan from Supabase."""
+    try:
+        if not user:
+            return "free"
+        
+        result = supabase.table("user_settings").select("user_plan").eq("user_id", str(user.id)).execute()
+        if result.data and len(result.data) > 0:
+            return result.data[0].get("user_plan", "free") or "free"
+        return "free"
+    except:
+        return "free"
+
+
+def render_payment_page():
+    """Render the payment selection page with 3 plan options."""
+    st.title("Upgrade Your Plan")
+    
+    if not st.session_state.user:
+        st.warning("Please log in to upgrade your plan.")
+        return
+    
+    # Check if user is already premium
+    user_plan = get_user_plan(st.session_state.user)
+    
+    if user_plan in ["premium", "founding_member"]:
+        st.success(f"✅ You're already a {user_plan.replace('_', ' ').title()} member!")
+        st.info("You have access to all premium features.")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Back to Home", use_container_width=True):
+                st.session_state.active_page = "Home"
+                st.rerun()
+        return
+    
+    # Debug: Check if Stripe is configured
+    if not STRIPE_PREMIUM_MONTHLY_PRICE:
+        st.error("❌ Stripe is not configured. Check your Streamlit secrets.")
+        st.write("Missing keys: STRIPE_PREMIUM_MONTHLY_PRICE or other Stripe configuration")
+        return
+    
+    st.markdown("---")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    # Premium Monthly
+    with col1:
+        st.markdown("""
+        ### Premium Monthly
+        **$9.99/month**
+        
+        - Unlimited plans
+        - Scenario comparison
+        - Monte Carlo analysis
+        - Stress tests
+        - PDF export
+        - AI Coach
+        - Email support
+        """)
+        if st.button("Buy Monthly", key="premium_monthly_btn", use_container_width=True, type="primary"):
+            try:
+                session = create_checkout_session(
+                    st.session_state.user,
+                    STRIPE_PREMIUM_MONTHLY_PRICE,
+                    "premium_monthly"
+                )
+                if session and session.url:
+                    st.success("✅ Checkout session created!")
+                    st.markdown(f"[🔗 Go to Stripe Checkout]({session.url})")
+                else:
+                    st.error("Failed to create checkout session")
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+    
+    # Premium Annual
+    with col2:
+        st.markdown("""
+        ### Premium Annual
+        **$99/year**
+        *(Save $20/year)*
+        
+        - Unlimited plans
+        - Scenario comparison
+        - Monte Carlo analysis
+        - Stress tests
+        - PDF export
+        - AI Coach
+        - Email support
+        """)
+        if st.button("Buy Annual", key="premium_annual_btn", use_container_width=True, type="primary"):
+            try:
+                session = create_checkout_session(
+                    st.session_state.user,
+                    STRIPE_PREMIUM_ANNUAL_PRICE,
+                    "premium_annual"
+                )
+                if session and session.url:
+                    st.success("✅ Checkout session created!")
+                    st.markdown(f"[🔗 Go to Stripe Checkout]({session.url})")
+                else:
+                    st.error("Failed to create checkout session")
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+    
+    # Founding Member
+    with col3:
+        st.markdown("""
+        ### 🔥 Founding Member
+        **$59/year**
+        *(Lifetime price)*
+        
+        - Everything Premium, plus:
+        - Price locked forever
+        - Priority support
+        - Founding member badge
+        """)
+        if st.button("Become Founding Member", key="founding_member_btn", use_container_width=True, type="primary"):
+            try:
+                session = create_checkout_session(
+                    st.session_state.user,
+                    STRIPE_FOUNDING_MEMBER_PRICE,
+                    "founding_member"
+                )
+                if session and session.url:
+                    st.success("✅ Checkout session created!")
+                    st.markdown(f"[🔗 Go to Stripe Checkout]({session.url})")
+                else:
+                    st.error("Failed to create checkout session")
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+    
+    st.markdown("---")
+    st.caption("**Test card (Sandbox):** 4242 4242 4242 4242 | Exp: Any future date | CVC: Any 3 digits")
+
+
+# ============================================================================
+# END STRIPE INTEGRATION
+# ============================================================================
+
+
+def save_spending_plan(user, spending_data):
+    """Save spending plan data to Supabase user_settings table."""
+    try:
+        user_id_str = str(user.id)
+        
+        # First, check if record exists
+        existing = supabase.table("user_settings").select("id").eq("user_id", user_id_str).execute()
+        
+        if existing.data and len(existing.data) > 0:
+            # Update existing record
+            response = supabase.table("user_settings").update({
+                "spending_plan": spending_data
+            }).eq("user_id", user_id_str).execute()
+        else:
+            # Insert new record
+            response = supabase.table("user_settings").insert({
+                "user_id": user_id_str,
+                "spending_plan": spending_data
+            }).execute()
+        
+        return True
+    except Exception as e:
+        st.error(f"Save failed: {str(e)}")
+        return False
+
+
+def load_spending_plan(user):
+    """Load spending plan data from Supabase user_settings table."""
+    try:
+        response = (
+            supabase.table("user_settings")
+            .select("spending_plan")
+            .eq("user_id", str(user.id))  # Ensure user_id is a string UUID
+            .execute()
+        )
+        if response.data and len(response.data) > 0:
+            return response.data[0].get("spending_plan", {})
+        return {}
+    except Exception as e:
+        st.warning(f"Could not load spending plan from database: {str(e)}")
+        return {}
+
+
 def detailed_monthly_budget_total():
     return sum(float(st.session_state.get(k, 0) or 0) for k, _ in budget_keys)
 
@@ -4246,13 +4802,7 @@ def annual_household_spending():
 
 
 def annual_spending_for_age(age):
-    base = annual_household_spending()
-    if bool(st.session_state.get("enable_spending_change", False)):
-        change_age = int(st.session_state.get("spending_change_age", 0) or 0)
-        change_monthly = float(st.session_state.get("spending_change_monthly", 0) or 0)
-        if change_age > 0 and change_monthly > 0 and age >= change_age:
-            return change_monthly * 12
-    return base
+    return annual_household_spending()
 
 
 def home_equity():
@@ -7159,12 +7709,10 @@ def build_location_recommendation_summary(location_df):
 def run_projection_with_temp_monthly_spending(test_monthly_spending):
     original_budget_mode = st.session_state.budget_mode
     original_flat_monthly_spending = st.session_state.flat_monthly_spending
-    original_enable_spending_change = st.session_state.enable_spending_change
 
     try:
         st.session_state.budget_mode = "Flat monthly number"
         st.session_state.flat_monthly_spending = float(test_monthly_spending)
-        st.session_state.enable_spending_change = False
 
         test_df = run_projection()
         if test_df is None or test_df.empty:
@@ -7179,7 +7727,6 @@ def run_projection_with_temp_monthly_spending(test_monthly_spending):
     finally:
         st.session_state.budget_mode = original_budget_mode
         st.session_state.flat_monthly_spending = original_flat_monthly_spending
-        st.session_state.enable_spending_change = original_enable_spending_change
 
 
 def find_monthly_spending_for_target_score(target_score=80):
@@ -7684,11 +8231,14 @@ def legal_disclaimer_html(compact: bool = False) -> str:
 
 def render_legal_footer():
     st.markdown(legal_disclaimer_html(compact=True), unsafe_allow_html=True)
-    f1, f2, f3 = st.columns([1, 1, 4])
+    f1, f2, f3, f4 = st.columns([1, 1, 1, 3])
     with f1:
         if st.button("Legal", key=f"footer_legal_{active_page}"):
             go_to_page("Legal / Disclaimers")
     with f2:
+        if st.button("Pricing", key=f"footer_pricing_{active_page}"):
+            go_to_page("Pricing")
+    with f3:
         if st.button("Resources", key=f"footer_resources_{active_page}"):
             go_to_page("Resources")
 
@@ -7761,6 +8311,9 @@ PAGE_NAMES = [
     "AI Retirement Coach",
     "Retirement Age Optimizer",
     "Resources",
+    "Pricing",
+    "Payment",
+    "Account",
     "Help / Instructions",
     "Legal / Disclaimers",
 ]
@@ -7783,6 +8336,9 @@ PAGE_ICONS = {
     "AI Retirement Coach": "🤖",
     "Retirement Age Optimizer": "🎯",
     "Resources": "📚",
+    "Pricing": "💰",
+    "Payment": "💳",
+    "Account": "👤",
     "Help / Instructions": "❓",
     "Legal / Disclaimers": "⚖️",
 }
@@ -7805,16 +8361,34 @@ NAV_LABELS = {
     "AI Retirement Coach": "Blueprint Coach",
     "Retirement Age Optimizer": "Age Optimizer",
     "Resources": "Resources",
+    "Pricing": "Pricing",
+    "Payment": "Upgrade Plan",
+    "Account": "Account",
     "Help / Instructions": "Help",
     "Legal / Disclaimers": "Legal",
 }
 
 
-# TEMPORARY TESTING MODE:
-# During QA/testing, any signed-in user gets access to all premium tools.
-# Logged-out visitors still see the premium tools in the sidebar as locked.
-# Before paid launch, replace this with real subscription/status logic.
-st.session_state["is_premium_user"] = bool(st.session_state.get("user"))
+# Premium access: real subscription check against Supabase, cached per session.
+# The cache is set here on first run and refreshed after a successful payment.
+PREMIUM_PAGES = [
+    "Retirement Age Optimizer",
+    "Projection Table",
+    "Saved Scenarios",
+    "Monte Carlo Analysis",
+    "Stress Tests",
+    "Best Places to Retire",
+    "PDF Report",
+    "AI Retirement Coach",
+]
+
+if st.session_state.get("user"):
+    if "_cached_user_plan" not in st.session_state:
+        st.session_state["_cached_user_plan"] = get_user_plan(st.session_state.user)
+    st.session_state["is_premium_user"] = st.session_state["_cached_user_plan"] in ("premium", "founding_member")
+else:
+    st.session_state.pop("_cached_user_plan", None)
+    st.session_state["is_premium_user"] = False
 
 if "active_page" not in st.session_state or st.session_state.active_page not in PAGE_NAMES:
     st.session_state.active_page = "Home"
@@ -7931,6 +8505,7 @@ def render_navigation():
         ]
 
         info_pages = [
+            "Pricing",
             "Resources",
             "Help / Instructions",
             "Legal / Disclaimers",
@@ -7949,7 +8524,7 @@ def render_navigation():
         st.markdown("<div style='margin-top:6px;font-size:.72rem;font-weight:700;color:#94A3B8;letter-spacing:.06em;text-transform:uppercase;padding-left:4px;'>Premium Tools</div>", unsafe_allow_html=True)
 
         signed_in = bool(st.session_state.get("user"))
-        has_premium_access = signed_in or bool(st.session_state.get("is_premium_user", False))
+        has_premium_access = bool(st.session_state.get("is_premium_user", False))
 
         for page_name in advanced_pages:
             is_active = st.session_state.active_page == page_name
@@ -7961,9 +8536,14 @@ def render_navigation():
 
             if st.button(label, key=f"sidebar_nav_{page_name}", use_container_width=True, disabled=(is_active and not locked)):
                 if locked:
-                    st.session_state["_show_account_gate"] = True
-                    st.session_state["_gate_intended_page"] = page_name
-                    st.rerun()
+                    if signed_in:
+                        # Signed in but on the free plan → show pricing
+                        st.session_state.active_page = "Pricing"
+                        st.rerun()
+                    else:
+                        st.session_state["_show_account_gate"] = True
+                        st.session_state["_gate_intended_page"] = page_name
+                        st.rerun()
                 else:
                     go_to_page(page_name)
 
@@ -7987,10 +8567,46 @@ def render_navigation():
         """, unsafe_allow_html=True)
 
         if st.button("View Premium", key="sidebar_view_premium", use_container_width=True):
-            go_to_page("Retirement Dashboard")
+            go_to_page("Pricing")
 
 render_navigation()
 active_page = st.session_state.active_page
+
+# Apply any queued auth cookie writes/clears (session persistence).
+flush_auth_cookie_ops()
+
+# --- Mobile: auto-close the sidebar after navigating to a new page ---
+# Detects a page change between reruns and, on narrow screens, clicks
+# Streamlit's own sidebar-collapse control via a tiny JS snippet.
+if st.session_state.get("_last_rendered_page") != active_page:
+    st.session_state["_last_rendered_page"] = active_page
+    st.session_state["_nav_close_counter"] = st.session_state.get("_nav_close_counter", 0) + 1
+    _nav_token = f"{active_page}-{st.session_state['_nav_close_counter']}"
+    components.html(f"""
+    <script>
+    // nav-token: {_nav_token} (forces re-execution on every navigation)
+    (function() {{
+        var attempts = 0;
+        function tryClose() {{
+            attempts += 1;
+            try {{
+                if (window.parent.innerWidth >= 768) {{ return; }}  // phones only
+                var pdoc = window.parent.document;
+                var sidebar = pdoc.querySelector('section[data-testid="stSidebar"]');
+                if (sidebar && sidebar.getAttribute('aria-expanded') !== 'false') {{
+                    var btn =
+                        pdoc.querySelector('[data-testid="stSidebarCollapseButton"] button') ||
+                        pdoc.querySelector('[data-testid="stSidebarCollapseButton"]') ||
+                        sidebar.querySelector('button[kind="headerNoPadding"]');
+                    if (btn) {{ btn.click(); return; }}
+                }}
+            }} catch (e) {{ /* no-op */ }}
+            if (attempts < 6) {{ setTimeout(tryClose, 150); }}
+        }}
+        setTimeout(tryClose, 50);
+    }})();
+    </script>
+    """, height=0)
 
 # Keep the sidebar open after navigation so users can always see where they are and what comes next.
 st.session_state.close_sidebar_after_nav = False
@@ -9031,6 +9647,7 @@ def render_account_gate(reason: str = "default"):
                     res = supabase.auth.sign_up({"email": gate_email, "password": gate_password})
                     if getattr(res, "user", None) is not None:
                         st.session_state.user = res.user
+                        queue_auth_cookie(res)
                     if gate_name.strip():
                         st.session_state.onboard_name  = gate_name.strip()
                         st.session_state.first_name    = gate_name.strip()
@@ -9050,6 +9667,7 @@ def render_account_gate(reason: str = "default"):
                         {"email": gate_email, "password": gate_password}
                     )
                     st.session_state.user        = res.user
+                    queue_auth_cookie(res)
                     st.session_state.active_page = st.session_state.get(
                         "_gate_intended_page", "Retirement Dashboard"
                     )
@@ -9131,8 +9749,57 @@ def require_account(intended_page: str = None, reason: str = "default"):
 if st.session_state.get("_show_account_gate", False):
     render_account_gate(reason="default")
 
+
+# Handle Stripe payment success/cancellation
+query_params = st.query_params
+if query_params.get("payment") == "success" and st.session_state.user:
+    if not st.session_state.get("_payment_success_processed", False):
+        session_id = query_params.get("session_id")
+        if session_id:
+            if verify_payment_and_update_user(session_id, st.session_state.user):
+                # Refresh cached plan so premium tools unlock immediately
+                st.session_state["_cached_user_plan"] = get_user_plan(st.session_state.user)
+                st.session_state["is_premium_user"] = st.session_state["_cached_user_plan"] in ("premium", "founding_member")
+                st.success("✅ Payment successful! Your plan has been upgraded.")
+            st.session_state._payment_success_processed = True
+            # Clear payment params so this session_id can't re-trigger,
+            # especially if a different user signs in on this device.
+            st.query_params.clear()
+        else:
+            st.session_state._payment_success_processed = True
+            st.query_params.clear()
+
+elif query_params.get("payment") == "cancelled" and st.session_state.user:
+    st.warning("Payment was cancelled. No charges applied.")
+    st.query_params.clear()
+
+
 if active_page == "Home" and st.session_state.get("first_blueprint_onboarding", False):
     render_first_blueprint_card_wizard()
+    st.stop()
+
+# Page-level premium guard: blocks premium pages for free users regardless of
+# how they navigated there (defense in depth beyond the sidebar locks).
+if active_page in PREMIUM_PAGES and not st.session_state.get("is_premium_user", False):
+    st.markdown(f"""
+    <div class="rb-insight-card">
+      <div class="rb-insight-kicker">Premium Feature</div>
+      <div class="rb-insight-title">🔒 {NAV_LABELS.get(active_page, active_page)} is a Premium tool</div>
+      <div class="rb-insight-copy">
+        Upgrade to unlock Monte Carlo analysis, stress tests, saved blueprints, PDF reports,
+        the AI coach, and every other premium planning tool.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("See Plans & Pricing", type="primary", use_container_width=True, key="premium_guard_pricing"):
+            st.session_state.active_page = "Pricing"
+            st.rerun()
+    with c2:
+        if st.button("Back to Dashboard", use_container_width=True, key="premium_guard_back"):
+            st.session_state.active_page = "Retirement Dashboard"
+            st.rerun()
     st.stop()
 
 def get_cached_dashboard_monte_carlo():
@@ -9854,13 +10521,6 @@ if active_page == PAGE_NAMES[1]:
             tax_settings_preview = get_tax_settings(tax_year, filing_status)
             st.info(f"Using {tax_year} federal brackets, {tax_settings_preview['label']}, and a standard deduction of {money(tax_settings_preview['standard_deduction'])}. Taxable Social Security is now estimated using provisional income thresholds. State taxes come in a later phase.")
 
-            if st.session_state.enable_spending_change and int(st.session_state.spending_change_age or 0) > 0:
-                st.subheader("Planned Spending Change")
-                s1, s2 = st.columns(2)
-                s1.metric("Spending Change Age", int(st.session_state.spending_change_age))
-                s2.metric("New Monthly Spending", money(st.session_state.spending_change_monthly))
-                st.info("The projection uses this new spending amount starting at the selected age, then continues applying inflation.")
-
             st.subheader("Home & Housing Strategy")
             st.caption("Optional, but useful. Your home can affect retirement flexibility, mortgage cash flow, downsizing options, taxes, and relocation decisions.")
 
@@ -9941,6 +10601,27 @@ if active_page == PAGE_NAMES[1]:
 
 if active_page == PAGE_NAMES[2]:
     require_account(intended_page="Budget Builder", reason="default")
+    
+    # Load spending plan from Supabase only if values haven't been set yet
+    # This allows user input to take priority while still restoring data on page visits
+    if st.session_state.user:
+        # Use a session flag to load data once per session, not on every rerun
+        if not st.session_state.get("_spending_data_loaded", False):
+            spending_data = load_spending_plan(st.session_state.user)
+            if spending_data:
+                # Restore all spending plan values from database
+                st.session_state.budget_mode = spending_data.get("budget_mode", "Flat monthly number")
+                st.session_state.flat_monthly_spending = spending_data.get("flat_monthly_spending", 0)
+                st.session_state.survivor_spending = spending_data.get("survivor_spending", 0)
+                
+                # Restore detailed budget values
+                detailed_budget = spending_data.get("detailed_budget", {})
+                for key, value in detailed_budget.items():
+                    st.session_state[key] = value
+            
+            # Mark that we've loaded data this session (once per page load)
+            st.session_state._spending_data_loaded = True
+    
     render_page_shell("Spending Plan", "Estimate your retirement lifestyle costs using either a quick monthly number or a more detailed category-by-category budget.", "💳")
     render_guided_progress(2)
     page_help(
@@ -10018,36 +10699,6 @@ if active_page == PAGE_NAMES[2]:
                                 help=f"Enter your estimated monthly amount for {label.lower()}."
                             )
 
-        st.subheader("Planned Spending Change")
-        enable_spending_change = st.checkbox(
-            "Change my spending at a certain age",
-            value=bool(st.session_state.enable_spending_change),
-            help="Use this if spending will change later in retirement, such as spending more early and less later."
-        )
-
-        if enable_spending_change:
-            c1, c2 = st.columns(2)
-            spending_change_age = c1.number_input(
-                "Age when spending changes",
-                min_value=0,
-                max_value=110,
-                value=int(st.session_state.spending_change_age),
-                step=1,
-                help="Enter the age when your new monthly spending should begin."
-            )
-            spending_change_monthly = c2.number_input(
-                "New monthly spending amount",
-                min_value=0,
-                value=int(st.session_state.spending_change_monthly),
-                step=500,
-                help="Enter the new monthly spending amount before healthcare."
-            )
-            if spending_change_age > 0 and spending_change_monthly > 0:
-                st.info(f"Spending will change to {money(spending_change_monthly)} per month starting at age {spending_change_age}.")
-        else:
-            spending_change_age = st.session_state.spending_change_age
-            spending_change_monthly = st.session_state.spending_change_monthly
-
         survivor_spending = st.number_input(
             "Annual household spending after first spouse death, optional",
             min_value=0,
@@ -10059,17 +10710,60 @@ if active_page == PAGE_NAMES[2]:
         save_budget = st.form_submit_button("Save budget", type="primary", use_container_width=True)
 
     if save_budget:
-        st.session_state.budget_mode = budget_mode
-        st.session_state.flat_monthly_spending = flat_monthly_spending
-        st.session_state.survivor_spending = survivor_spending
-        st.session_state.enable_spending_change = enable_spending_change
-        st.session_state.spending_change_age = spending_change_age
-        st.session_state.spending_change_monthly = spending_change_monthly
+        # Check blueprint limit for free users
+        if st.session_state.user:
+            can_save, error_msg = can_save_blueprint(st.session_state.user)
+            
+            if not can_save:
+                st.error(error_msg)
+                st.markdown("---")
+                st.subheader("Unlock Unlimited Blueprints")
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("View Pricing", use_container_width=True, type="primary"):
+                        st.session_state.active_page = "Pricing"
+                        st.rerun()
+                with col2:
+                    st.button("Continue Without Saving", use_container_width=True, disabled=True, help="Spending is saved locally but not to your account")
+            else:
+                st.session_state.budget_mode = budget_mode
+                st.session_state.flat_monthly_spending = flat_monthly_spending
+                st.session_state.survivor_spending = survivor_spending
 
-        for k, v in detailed_values.items():
-            st.session_state[k] = v
+                for k, v in detailed_values.items():
+                    st.session_state[k] = v
 
-        st.success("Spending saved. Next, review your Retirement Dashboard.")
+                # Build spending plan data for persistence
+                spending_data = {
+                    "budget_mode": budget_mode,
+                    "flat_monthly_spending": flat_monthly_spending,
+                    "survivor_spending": survivor_spending,
+                    "detailed_budget": detailed_values
+                }
+
+                # Save to Supabase
+                if save_spending_plan(st.session_state.user, spending_data):
+                    increment_blueprint_count(st.session_state.user)
+                    st.success("Spending saved to your account. Next, review your Retirement Dashboard.")
+                else:
+                    st.warning("Spending saved locally but could not persist to account. Please try again.")
+        else:
+            st.session_state.budget_mode = budget_mode
+            st.session_state.flat_monthly_spending = flat_monthly_spending
+            st.session_state.survivor_spending = survivor_spending
+
+            for k, v in detailed_values.items():
+                st.session_state[k] = v
+
+            # Build spending plan data for persistence
+            spending_data = {
+                "budget_mode": budget_mode,
+                "flat_monthly_spending": flat_monthly_spending,
+                "survivor_spending": survivor_spending,
+                "detailed_budget": detailed_values
+            }
+
+            st.success("Spending saved. Next, review your Retirement Dashboard.")
 
     monthly = (
         st.session_state.flat_monthly_spending
@@ -10080,11 +10774,6 @@ if active_page == PAGE_NAMES[2]:
     c1, c2 = st.columns(2)
     c1.metric("Monthly Spending Before Healthcare", money(monthly))
     c2.metric("Annual Spending Before Healthcare", money(monthly * 12))
-
-    if st.session_state.enable_spending_change and int(st.session_state.spending_change_age or 0) > 0:
-        c3, c4 = st.columns(2)
-        c3.metric("Spending Changes At Age", int(st.session_state.spending_change_age))
-        c4.metric("New Monthly Spending", money(st.session_state.spending_change_monthly))
 
     st.divider()
     next_cols = st.columns([1, 1])
@@ -10194,9 +10883,6 @@ if active_page == PAGE_NAMES[5]:
         ["Annual contributions", money(st.session_state.annual_contribution)],
         ["Budget mode", st.session_state.budget_mode],
         ["Annual spending before healthcare", money(annual_household_spending())],
-        ["Spending change enabled", "Yes" if st.session_state.enable_spending_change else "No"],
-        ["Spending change age", st.session_state.spending_change_age if st.session_state.enable_spending_change else "N/A"],
-        ["New monthly spending", money(st.session_state.spending_change_monthly) if st.session_state.enable_spending_change else "N/A"],
         ["Income mode", st.session_state.income_mode],
         ["Simple other income", money(st.session_state.simple_income) if st.session_state.income_mode == "Simple income" else "Advanced table"],
         ["Plan type", "Couple / household plan" if st.session_state.has_spouse else "Individual plan"],
@@ -11353,8 +12039,9 @@ if active_page == PAGE_NAMES[7]:
         </div>
         """, unsafe_allow_html=True)
 
-        st.divider()
-        render_suggested_spending_target_tool()
+        if st.session_state.get("is_premium_user", False):
+            st.divider()
+            render_suggested_spending_target_tool()
 
         actions = build_rtv_improvement_recommendations(df, rtv_score)
         positive_actions = [a for a in actions if a.get("Blueprint Impact", 0) > 0]
@@ -11487,28 +12174,47 @@ if active_page == PAGE_NAMES[7]:
                 seen.add(row[0])
 
         # Render as HTML table matching the "What the numbers mean" style — no truncation
-        try_rows_html = "".join(
-            f"""<tr>
-              <td style="padding:10px 14px;font-weight:700;color:#166534;white-space:nowrap;border-bottom:1px solid #F1F5F9;">{row[3]}</td>
-              <td style="padding:10px 14px;font-weight:600;color:#1E293B;white-space:nowrap;border-bottom:1px solid #F1F5F9;">{row[0]}</td>
-              <td style="padding:10px 14px;color:#0F172A;line-height:1.5;border-bottom:1px solid #F1F5F9;">{row[2]}</td>
-              <td style="padding:10px 14px;color:#475569;line-height:1.5;border-bottom:1px solid #F1F5F9;">{row[1]}</td>
-            </tr>"""
-            for row in deduped[:6]
-        )
-        st.markdown(f"""
-        <table style="width:100%;border-collapse:collapse;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;font-size:.92rem;">
-          <thead>
-            <tr style="background:#F8FAFC;">
-              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;white-space:nowrap;">Score impact</th>
-              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;white-space:nowrap;">What to try</th>
-              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;">How to do it</th>
-              <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;">Why it helps</th>
-            </tr>
-          </thead>
-          <tbody>{try_rows_html}</tbody>
-        </table>
-        """, unsafe_allow_html=True)
+        _ap_premium = bool(st.session_state.get("is_premium_user", False))
+        if _ap_premium:
+            try_rows_html = "".join(
+                f"""<tr>
+                  <td style="padding:10px 14px;font-weight:700;color:#166534;white-space:nowrap;border-bottom:1px solid #F1F5F9;">{row[3]}</td>
+                  <td style="padding:10px 14px;font-weight:600;color:#1E293B;white-space:nowrap;border-bottom:1px solid #F1F5F9;">{row[0]}</td>
+                  <td style="padding:10px 14px;color:#0F172A;line-height:1.5;border-bottom:1px solid #F1F5F9;">{row[2]}</td>
+                  <td style="padding:10px 14px;color:#475569;line-height:1.5;border-bottom:1px solid #F1F5F9;">{row[1]}</td>
+                </tr>"""
+                for row in deduped[:6]
+            )
+            st.markdown(f"""
+            <table style="width:100%;border-collapse:collapse;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;font-size:.92rem;">
+              <thead>
+                <tr style="background:#F8FAFC;">
+                  <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;white-space:nowrap;">Score impact</th>
+                  <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;white-space:nowrap;">What to try</th>
+                  <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;">How to do it</th>
+                  <th style="padding:10px 14px;text-align:left;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0;">Why it helps</th>
+                </tr>
+              </thead>
+              <tbody>{try_rows_html}</tbody>
+            </table>
+            """, unsafe_allow_html=True)
+        else:
+            _locked_count = len(deduped[:6])
+            _locked_names = ", ".join(row[0].lower() for row in deduped[:3])
+            st.markdown(f"""
+            <div class="rb-insight-card" style="border:2px dashed #CBD5E1;background:linear-gradient(180deg,#F8FAFC,#F1F5F9);">
+              <div class="rb-insight-kicker">🔒 Premium</div>
+              <div class="rb-insight-title">{_locked_count} more personalized recommendations are waiting</div>
+              <div class="rb-insight-copy">
+                Based on your numbers, the app found <b>{_locked_count} more ways to improve your Blueprint Score</b>
+                — including {_locked_names} — each with the estimated score impact and exactly how to test it.
+                Premium also unlocks the interactive spending target tool, Monte Carlo analysis, stress tests, and your full PDF report.
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("Unlock My Full Action Plan", type="primary", use_container_width=True, key="action_plan_unlock"):
+                st.session_state.active_page = "Pricing"
+                st.rerun()
 
         st.subheader("What the numbers mean")
 
@@ -14682,9 +15388,6 @@ if active_page == PAGE_NAMES[14]:
         Bucket 1: {st.session_state.cash}
         Annual spending before healthcare: {annual_household_spending()}
         Spending target finder available: Yes
-        Spending change enabled: {st.session_state.enable_spending_change}
-        Spending change age: {st.session_state.spending_change_age}
-        New monthly spending after change age: {st.session_state.spending_change_monthly}
         Total other income across plan: {df["Total Other Income"].sum()}
         Average income coverage: {df["Income Coverage Ratio"].mean()}
         Ending portfolio: {df["End Total"].iloc[-1]}
@@ -14750,6 +15453,255 @@ if active_page == PAGE_NAMES[14]:
 
     elif send_question and not question.strip():
         st.warning("Type a question first, then tap Send question.")
+
+
+def render_pricing_page():
+    """Pricing page with free, founding member, and standard tiers."""
+    
+    render_page_shell(
+        "Pricing",
+        "Choose the plan that fits your retirement planning needs.",
+        "💰"
+    )
+    
+    st.markdown("""
+    <style>
+    .pricing-card {
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 30px;
+        text-align: center;
+        background: white;
+        transition: all 0.3s ease;
+        min-height: 920px;
+        display: flex;
+        flex-direction: column;
+    }
+    .pricing-card .pricing-features {
+        text-align: left;
+    }
+    .pricing-card.featured {
+        border-color: #1f77b4;
+        border-width: 3px;
+        box-shadow: 0 10px 30px rgba(31, 119, 180, 0.15);
+    }
+    .pricing-card:hover {
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    .pricing-header {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 10px;
+        color: #333;
+    }
+    .pricing-price {
+        font-size: 48px;
+        font-weight: bold;
+        color: #1f77b4;
+        margin: 15px 0;
+    }
+    .pricing-subtext {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 25px;
+    }
+    .pricing-features {
+        text-align: left;
+        margin: 25px 0;
+        font-size: 14px;
+        line-height: 1.8;
+    }
+    .pricing-features .included {
+        color: #27ae60;
+    }
+    .pricing-features .excluded {
+        color: #bdc3c7;
+    }
+    .cta-button {
+        padding: 12px 24px;
+        border-radius: 6px;
+        border: none;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        width: 100%;
+        margin-top: 15px;
+    }
+    .cta-primary {
+        background-color: #1f77b4;
+        color: white;
+    }
+    .cta-primary:hover {
+        background-color: #1557a0;
+    }
+    .cta-secondary {
+        background-color: #f0f0f0;
+        color: #333;
+        border: 2px solid #ddd;
+    }
+    .founding-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+        margin-bottom: 15px;
+    }
+    .countdown {
+        font-size: 13px;
+        color: #e74c3c;
+        font-weight: bold;
+        margin-bottom: 15px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("## Choose Your Plan")
+    st.markdown("Start free. Upgrade anytime. Cancel anytime.")
+    st.markdown("")
+    
+    col1, col2, col3 = st.columns(3, gap="medium")
+    
+    with col1:
+        st.markdown("""
+        <div class="pricing-card">
+            <div class="pricing-header">Free</div>
+            <div class="pricing-price">$0</div>
+            <div class="pricing-subtext">Forever free</div>
+            <div class="pricing-features">
+                <strong>✓ Included:</strong><br>
+                <span class="included">• One retirement plan</span><br>
+                <span class="included">• Guided questions</span><br>
+                <span class="included">• Basic projection</span><br>
+                <span class="included">• Dashboard</span><br>
+                <span class="included">• Social Security estimate</span><br>
+                <span class="included">• Portfolio allocation</span><br>
+                <br>
+                <strong>✗ Not included:</strong><br>
+                <span class="excluded">• Scenario comparison</span><br>
+                <span class="excluded">• Monte Carlo</span><br>
+                <span class="excluded">• Stress tests</span><br>
+                <span class="excluded">• PDF export</span><br>
+                <span class="excluded">• AI Coach</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Get Started", use_container_width=True, key="free_btn"):
+            if st.session_state.get("user"):
+                st.session_state.active_page = "Guided Questions"
+            else:
+                st.session_state["_show_account_gate"] = True
+            st.rerun()
+    
+    with col2:
+        st.markdown("""
+        <div class="pricing-card">
+            <div class="pricing-header">Premium</div>
+            <div class="pricing-price">$9.99<span style="font-size: 20px; color: #666;">/month</span></div>
+            <div class="pricing-subtext" style="color: #666;">or $99/year (save $20)</div>
+            <div class="pricing-features">
+                <strong>✓ Everything in Free, plus:</strong><br>
+                <span class="included">• Unlimited plans</span><br>
+                <span class="included">• Scenario comparison</span><br>
+                <span class="included">• Monte Carlo analysis</span><br>
+                <span class="included">• Stress tests</span><br>
+                <span class="included">• PDF export</span><br>
+                <span class="included">• AI Retirement Coach</span><br>
+                <span class="included">• Saved plans</span><br>
+                <span class="included">• Email support</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        _user = st.session_state.get("user")
+        _plan = get_user_plan(_user) if _user else "free"
+        if _user and _plan in ("premium", "founding_member"):
+            st.success("✅ You're already a member")
+        elif _user:
+            _monthly_url = get_cached_checkout_url("premium_monthly")
+            _annual_url = get_cached_checkout_url("premium_annual")
+            if _monthly_url:
+                st.link_button("Buy Monthly — $9.99/mo", _monthly_url, use_container_width=True, type="primary")
+            if _annual_url:
+                st.link_button("Buy Annual — $99/yr", _annual_url, use_container_width=True)
+            if not _monthly_url and not _annual_url:
+                st.error("Checkout is temporarily unavailable. Please try again.")
+        else:
+            if st.button("Upgrade to Premium", use_container_width=True, key="premium_btn", type="primary"):
+                st.session_state["_show_account_gate"] = True
+                st.rerun()
+    
+    with col3:
+        st.markdown("""
+        <div class="pricing-card featured">
+            <div class="founding-badge">⏰ LIMITED TIME</div>
+            <div class="pricing-header">Founding Member</div>
+            <div style="font-size: 16px; color: #bdc3c7; text-decoration: line-through; margin-bottom: 5px;">$99/year</div>
+            <div class="pricing-price" style="margin: 10px 0;">$59<span style="font-size: 20px; color: #666;">/year</span></div>
+            <div class="pricing-subtext">Locked price forever</div>
+            <div class="countdown">🔥 Limited slots available</div>
+            <div class="pricing-features">
+                <strong style="color: #27ae60;">✓ Everything Premium, plus:</strong><br>
+                <span class="included">• Price locked at $59/year</span><br>
+                <span class="included">• Founding member badge</span><br>
+                <span class="included">• Priority support</span><br>
+                <span class="included">• Lifetime access</span><br>
+                <br>
+                <strong>Premium features:</strong><br>
+                <span class="included">• Unlimited plans</span><br>
+                <span class="included">• Scenario comparison</span><br>
+                <span class="included">• Monte Carlo analysis</span><br>
+                <span class="included">• Stress tests</span><br>
+                <span class="included">• PDF export</span><br>
+                <span class="included">• AI Retirement Coach</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        _user_fm = st.session_state.get("user")
+        _plan_fm = get_user_plan(_user_fm) if _user_fm else "free"
+        if _user_fm and _plan_fm in ("premium", "founding_member"):
+            st.success("✅ You're already a member")
+        elif _user_fm:
+            _founding_url = get_cached_checkout_url("founding_member")
+            if _founding_url:
+                st.link_button("Become Founding Member — $59/yr", _founding_url, use_container_width=True, type="primary")
+            else:
+                st.error("Checkout is temporarily unavailable. Please try again.")
+        else:
+            if st.button("Become Founding Member", use_container_width=True, key="founder_btn", type="primary"):
+                st.session_state["_show_account_gate"] = True
+                st.rerun()
+    
+    st.markdown("---")
+    st.markdown("## FAQ")
+    
+    with st.expander("Can I upgrade anytime?"):
+        st.write("Yes. Upgrade at any time and your plan updates immediately.")
+    
+    with st.expander("Is there a commitment?"):
+        st.write("No. Cancel anytime with no penalty.")
+    
+    with st.expander("How do I cancel my subscription?"):
+        st.write("""
+Canceling takes about a minute:
+
+1. Click **Account Settings** in the sidebar
+2. Click **Manage / Cancel Subscription**
+3. Click **Open Billing Portal** — this takes you to our secure billing page (powered by Stripe)
+4. Click **Cancel plan** and confirm
+
+You keep full access until the end of the period you've already paid for, and you won't be charged again. Your saved blueprints are never deleted — if you come back, they'll be waiting for you.
+        """)
+    
+    with st.expander("What's the difference between Founding Member and Premium?"):
+        st.write("**Founding Member ($59/year for life):** Price locked forever, limited slots.\n\n**Premium ($99/year):** Standard pricing, always available, same features.")
+    
+    with st.expander("Do you offer refunds?"):
+        st.write("Yes. 30-day money-back guarantee on all paid plans.")
+    
+    st.markdown("---")
+    st.markdown("**Questions?** Email support@retirementblueprint101.com")
 
 
 def render_resources_page():
@@ -14951,6 +15903,16 @@ if active_page == "Resources":
     render_resources_page()
 
 
+if active_page == "Pricing":
+    render_pricing_page()
+
+
+if active_page == "Payment":
+    render_payment_page()
+
+
+if active_page == "Account":
+    render_account_page()
 
 
 if active_page == "Legal / Disclaimers":
