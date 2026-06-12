@@ -4355,6 +4355,7 @@ def verify_payment_and_update_user(session_id, user):
                 supabase.table("user_settings").update({
                     "user_plan": user_plan,
                     "stripe_session_id": session_id,
+                    "stripe_customer_id": session.customer,
                     "stripe_customer_email": session.customer_email,
                 }).eq("user_id", user_id_str).execute()
             else:
@@ -4362,6 +4363,7 @@ def verify_payment_and_update_user(session_id, user):
                     "user_id": user_id_str,
                     "user_plan": user_plan,
                     "stripe_session_id": session_id,
+                    "stripe_customer_id": session.customer,
                     "stripe_customer_email": session.customer_email,
                 }).execute()
             
@@ -4375,7 +4377,90 @@ def verify_payment_and_update_user(session_id, user):
         return False
 
 
-def get_user_plan(user):
+def create_customer_portal_session(user):
+    """Create a Stripe Customer Portal session for subscription management."""
+    try:
+        # Get customer_id from user_settings
+        result = supabase.table("user_settings").select("stripe_customer_id").eq("user_id", str(user.id)).execute()
+        customer_id = None
+        
+        if result.data and len(result.data) > 0:
+            customer_id = result.data[0].get("stripe_customer_id")
+        
+        if not customer_id:
+            st.error("Could not find your subscription. Please contact support.")
+            return None
+        
+        # Create portal session
+        session = stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=f"{STRIPE_SUCCESS_URL.split('?')[0]}?page=account",
+        )
+        return session.url
+    except Exception as e:
+        st.error(f"Could not open billing portal: {str(e)}")
+        return None
+
+
+def render_account_page():
+    """Render the user account and subscription management page."""
+    st.title("Account Settings")
+    
+    if not st.session_state.user:
+        st.warning("Please log in to view your account.")
+        return
+    
+    user_email = st.session_state.user.email
+    st.write(f"**Email:** {user_email}")
+    
+    st.markdown("---")
+    st.subheader("Subscription Status")
+    
+    user_plan = get_user_plan(st.session_state.user)
+    
+    # Display plan status
+    if user_plan == "free":
+        st.info("📋 **You're on the Free plan**")
+        st.write("You have access to basic features. Upgrade to unlock premium tools.")
+        if st.button("Upgrade Now", use_container_width=True, type="primary"):
+            st.session_state.active_page = "Payment"
+            st.rerun()
+    
+    elif user_plan == "premium":
+        st.success("⭐ **You're a Premium member**")
+        st.write("You have access to all premium features.")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Manage Subscription", use_container_width=True, key="portal_btn"):
+                portal_url = create_customer_portal_session(st.session_state.user)
+                if portal_url:
+                    st.markdown(f"[Open Stripe Billing Portal]({portal_url})", unsafe_allow_html=True)
+        with col2:
+            if st.button("Downgrade to Free", use_container_width=True):
+                st.info("You can cancel your subscription in the Stripe Billing Portal. No refunds are issued for partial months.")
+                portal_url = create_customer_portal_session(st.session_state.user)
+                if portal_url:
+                    st.markdown(f"[Open Stripe Billing Portal]({portal_url})", unsafe_allow_html=True)
+    
+    elif user_plan == "founding_member":
+        st.success("🔥 **You're a Founding Member**")
+        st.write("You have lifetime access at the locked price of $59/year. Your price will never increase.")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Manage Subscription", use_container_width=True, key="portal_btn_fm"):
+                portal_url = create_customer_portal_session(st.session_state.user)
+                if portal_url:
+                    st.markdown(f"[Open Stripe Billing Portal]({portal_url})", unsafe_allow_html=True)
+        with col2:
+            if st.button("Cancel (Keep Founding Price)", use_container_width=True):
+                st.info("You can cancel your subscription in the Stripe Billing Portal. If you resubscribe, you'll keep your founding member price.")
+                portal_url = create_customer_portal_session(st.session_state.user)
+                if portal_url:
+                    st.markdown(f"[Open Stripe Billing Portal]({portal_url})", unsafe_allow_html=True)
+    
+    st.markdown("---")
+    st.subheader("Need Help?")
+    st.write("Email us at support@retirementblueprint101.com with any questions about your subscription.")
     """Get current user's subscription plan from Supabase."""
     try:
         if not user:
@@ -8080,6 +8165,7 @@ PAGE_NAMES = [
     "Resources",
     "Pricing",
     "Payment",
+    "Account",
     "Help / Instructions",
     "Legal / Disclaimers",
 ]
@@ -8104,6 +8190,7 @@ PAGE_ICONS = {
     "Resources": "📚",
     "Pricing": "💰",
     "Payment": "💳",
+    "Account": "👤",
     "Help / Instructions": "❓",
     "Legal / Disclaimers": "⚖️",
 }
@@ -8128,6 +8215,7 @@ NAV_LABELS = {
     "Resources": "Resources",
     "Pricing": "Pricing",
     "Payment": "Upgrade Plan",
+    "Account": "Account",
     "Help / Instructions": "Help",
     "Legal / Disclaimers": "Legal",
 }
@@ -15516,6 +15604,10 @@ if active_page == "Pricing":
 
 if active_page == "Payment":
     render_payment_page()
+
+
+if active_page == "Account":
+    render_account_page()
 
 
 if active_page == "Legal / Disclaimers":
