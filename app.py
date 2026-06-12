@@ -4414,9 +4414,9 @@ def render_payment_page():
                     STRIPE_PREMIUM_MONTHLY_PRICE,
                     "premium_monthly"
                 )
-                if session:
-                    st.success("Redirecting to Stripe Checkout...")
-                    st.components.v1.html(f'<script>window.location.href="{session.url}";</script>', height=0)
+                if session and session.url:
+                    st.success("✅ Checkout session created!")
+                    st.markdown(f"[🔗 Go to Stripe Checkout]({session.url})")
                 else:
                     st.error("Failed to create checkout session")
             except Exception as e:
@@ -4444,9 +4444,9 @@ def render_payment_page():
                     STRIPE_PREMIUM_ANNUAL_PRICE,
                     "premium_annual"
                 )
-                if session:
-                    st.success("Redirecting to Stripe Checkout...")
-                    st.components.v1.html(f'<script>window.location.href="{session.url}";</script>', height=0)
+                if session and session.url:
+                    st.success("✅ Checkout session created!")
+                    st.markdown(f"[🔗 Go to Stripe Checkout]({session.url})")
                 else:
                     st.error("Failed to create checkout session")
             except Exception as e:
@@ -4471,9 +4471,9 @@ def render_payment_page():
                     STRIPE_FOUNDING_MEMBER_PRICE,
                     "founding_member"
                 )
-                if session:
-                    st.success("Redirecting to Stripe Checkout...")
-                    st.components.v1.html(f'<script>window.location.href="{session.url}";</script>', height=0)
+                if session and session.url:
+                    st.success("✅ Checkout session created!")
+                    st.markdown(f"[🔗 Go to Stripe Checkout]({session.url})")
                 else:
                     st.error("Failed to create checkout session")
             except Exception as e:
